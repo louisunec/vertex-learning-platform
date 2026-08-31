@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------
+   Vertex Design System — tokens (v1.0)
+   ------------------------------------------------------------------ */
+
+@theme {
+  /* 01 · Colors — Primary */
+  --color-primary-*: initial;
+  --color-primary-100: #ffeee5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316;
+  --color-primary-600: #ea580c; /* hover state for primary actions */
+
+  /* 01 · Colors — Neutral */
+  --color-neutral-*: initial;
+  --color-neutral-50: #fafafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-500: #64748b;
+  --color-neutral-700: #334155;
+  --color-neutral-900: #0f172a;
+  --color-white: #ffffff;
+
+  /* Semantic / off-palette accents used by badges and status indicators */
+  --color-canvas: #faf6f4; /* page background behind cards */
+  --color-lesson: #5b4fcf;
+  --color-lesson-bg: #ecebfa;
+  --color-success: #16a34a;
+
+  /* 05 · Radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* 05 · Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 12px 24px -4px rgb(15 23 42 / 0.1);
+  --shadow-xl: 0 20px 40px -8px rgb(15 23 42 / 0.12);
+
+  /* 03 · Type scale (Display styles pair with `font-display`) */
+  --text-display-1: 48px;
+  --text-display-1--line-height: 56px;
+  --text-display-1--font-weight: 700;
+  --text-display-2: 36px;
+  --text-display-2--line-height: 44px;
+  --text-display-2--font-weight: 700;
+  --text-h1: 28px;
+  --text-h1--line-height: 36px;
+  --text-h1--font-weight: 600;
+  --text-h2: 22px;
+  --text-h2--line-height: 30px;
+  --text-h2--font-weight: 600;
+  --text-h3: 18px;
+  --text-h3--line-height: 26px;
+  --text-h3--font-weight: 500;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-body--font-weight: 400;
+  --text-small: 12px;
+  --text-small--line-height: 16px;
+  --text-small--font-weight: 400;
 }
 
+/* 02 · Typography — fonts are loaded via next/font in app/layout.tsx */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-neutral-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Decorative hatched margins that frame the page column on wide screens. */
+@utility bg-hatch {
+  background-color: #f7f1ed;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    rgb(15 23 42 / 0.045) 7px 8px
+  );
 }
