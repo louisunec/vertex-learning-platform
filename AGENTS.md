@@ -89,8 +89,8 @@ When reference images exist, they are the source of truth for desktop layout, sp
 
 Use relevant guidance instead of guessing. Do not load every skill for every task.
 
-* `sanity-best-practices` (`~/.claude/skills/sanity-best-practices/SKILL.md`): schema, GROQ, TypeGen, Portable Text, integration.
-* `sanity-migration` (`~/.claude/skills/sanity-migration/SKILL.md`): importing content.
+* `sanity-best-practices` (`.claude/skills/sanity-best-practices/SKILL.md`): schema, GROQ, TypeGen, Portable Text, integration.
+* `sanity-migration` (`.claude/skills/sanity-migration/SKILL.md`): importing content.
 * `create-agent-with-sanity-context` (`.claude/skills/create-agent-with-sanity-context/SKILL.md`): Context MCP wiring.
 * `dial-your-context` (`.claude/skills/dial-your-context/SKILL.md`): Context document scope/instructions.
 * `shape-your-agent` (`.claude/skills/shape-your-agent/SKILL.md`): search-agent tone/guardrails.

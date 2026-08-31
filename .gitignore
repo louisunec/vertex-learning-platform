@@ -48,3 +48,10 @@ next-env.d.ts
 
 # design reference assets (kept local)
 /design/
+
+# sanity studio workspace
+!/studio/.env.example
+/studio/dist/
+/studio/.sanity/
+/studio/schema.json
+/studio/node_modules/

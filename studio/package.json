@@ -1,0 +1,29 @@
+{
+  "name": "vertex-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "deploy": "sanity deploy",
+    "schema:validate": "sanity schemas validate",
+    "schema:deploy": "sanity schemas deploy",
+    "typegen": "sanity schemas extract --enforce-required-fields && sanity typegen generate",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sanity/context": "0.7.1",
+    "@sanity/icons": "^3.8.0",
+    "@sanity/vision": "^5.31.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sanity": "^5.31.2",
+    "styled-components": "^6.5.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
