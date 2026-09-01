@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Badge, type BadgeVariant } from "./badge";
 import { Icon, type IconName } from "./icon";
@@ -22,8 +23,11 @@ export interface CourseCardProps {
   /** Logo / icon tile — rendered at 40×40 in `row` layout, 72×72 in `stacked`. */
   icon: ReactNode;
   level: string;
-  duration: string;
-  modules: string;
+  /** Omitted when the stored value is missing — never render a placeholder. */
+  duration?: string;
+  modules?: string;
+  /** When set, the title becomes a link that stretches over the whole card. */
+  href?: string;
   /**
    * `row` (default) is the compact design-system card.
    * `stacked` is the catalog card: large tile on top, serif title, divider + meta row at the bottom.
@@ -39,20 +43,27 @@ export function CourseCard({
   level,
   duration,
   modules,
+  href,
   layout = "row",
   className,
 }: CourseCardProps) {
-  const meta: Array<{ icon: IconName; label: string }> = [
-    { icon: "chart", label: level },
-    { icon: "clock", label: duration },
-    { icon: "folder", label: modules },
-  ];
+  const meta: Array<{ icon: IconName; label: string }> = [{ icon: "chart", label: level }];
+  if (duration) meta.push({ icon: "clock", label: duration });
+  if (modules) meta.push({ icon: "folder", label: modules });
+
+  const heading = href ? (
+    <Link href={href} className="after:absolute after:inset-0 after:rounded-lg">
+      {title}
+    </Link>
+  ) : (
+    title
+  );
 
   if (layout === "stacked") {
     return (
-      <Card className={cn("flex flex-col p-6", className)}>
+      <Card className={cn("relative flex flex-col p-6", href && "transition-colors hover:border-neutral-300", className)}>
         <div className="flex size-[72px] shrink-0 items-center justify-center overflow-hidden rounded-lg">{icon}</div>
-        <h3 className="mt-9 font-display text-[22px] leading-7 font-normal text-neutral-900">{title}</h3>
+        <h3 className="mt-9 font-display text-[22px] leading-7 font-normal text-neutral-900">{heading}</h3>
         <p className="mt-4 text-body leading-6 text-neutral-500">{description}</p>
         <div aria-hidden="true" className="min-h-12 flex-1" />
         <CourseMeta items={meta} iconSize={14} className="justify-between gap-x-4 gap-y-2 border-t border-neutral-200 pt-5" />
@@ -61,11 +72,11 @@ export function CourseCard({
   }
 
   return (
-    <Card className={cn("flex flex-col gap-4", className)}>
+    <Card className={cn("relative flex flex-col gap-4", className)}>
       <div className="flex gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm">{icon}</div>
         <div className="flex flex-col gap-1">
-          <h3 className="text-body font-semibold text-neutral-900">{title}</h3>
+          <h3 className="text-body font-semibold text-neutral-900">{heading}</h3>
           <p className="text-small leading-5 text-neutral-500">{description}</p>
         </div>
       </div>

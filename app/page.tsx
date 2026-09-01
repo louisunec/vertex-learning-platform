@@ -1,66 +1,16 @@
 import Link from "next/link";
-import { Button, CourseCard, Icon } from "@/components/ui";
+import { Button, Icon } from "@/components/ui";
 import { SiteHeader } from "@/components/home/site-header";
-import { DockerLogo, NextjsLogo, TypeScriptLogo } from "@/components/home/course-logos";
+import { Skyline } from "@/components/home/skyline";
+import { CourseCatalogCard } from "@/components/course/course-catalog-card";
+import { getCourses } from "@/sanity/data";
 
-/* ------------------------------------------------------------------ */
-/*  Presentational sample content (matches design/vertex-home.png)     */
-/* ------------------------------------------------------------------ */
+/** The mock shows three catalog cards; "View all courses" leads to the full catalog. */
+const HOME_COURSE_LIMIT = 3;
 
-const courses = [
-  {
-    title: "Next.js for Production",
-    description: "Build scalable, high-performance web applications with Next.js.",
-    icon: <NextjsLogo />,
-    level: "Intermediate",
-    duration: "18h 24m",
-    modules: "12 modules",
-  },
-  {
-    title: "Docker Essentials",
-    description: "Containerize applications and streamline your development workflow.",
-    icon: <DockerLogo />,
-    level: "Beginner",
-    duration: "10h 12m",
-    modules: "8 modules",
-  },
-  {
-    title: "TypeScript Deep Dive",
-    description: "Go beyond the basics and write safer, more expressive code.",
-    icon: <TypeScriptLogo />,
-    level: "Intermediate",
-    duration: "14h 36m",
-    modules: "10 modules",
-  },
-];
+export default async function HomePage() {
+  const courses = (await getCourses()).slice(0, HOME_COURSE_LIMIT);
 
-/** Soft orange "skyline" bars along the bottom edge: [left %, width %, height %]. */
-const skyline: Array<[number, number, number]> = [
-  [0, 5, 46],
-  [5, 4, 30],
-  [9, 5, 68],
-  [14, 4, 52],
-  [18, 5, 100],
-  [23, 4, 84],
-  [27, 5, 62],
-  [32, 4, 40],
-  [36, 4, 26],
-  [58, 4, 30],
-  [62, 5, 50],
-  [67, 4, 74],
-  [71, 5, 100],
-  [76, 4, 60],
-  [80, 5, 88],
-  [85, 4, 44],
-  [89, 5, 72],
-  [94, 6, 56],
-];
-
-/* ------------------------------------------------------------------ */
-/*  Page                                                               */
-/* ------------------------------------------------------------------ */
-
-export default function HomePage() {
   return (
     <div className="bg-hatch flex flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col border-x border-neutral-200 bg-canvas">
@@ -108,7 +58,7 @@ export default function HomePage() {
             </form>
           </section>
 
-          {/* Catalog */}
+          {/* Catalog — stored Sanity content, first N in catalog order */}
           <section className="px-6 pt-14 md:px-12" aria-labelledby="all-courses">
             <div className="flex items-center justify-between gap-4">
               <h2 id="all-courses" className="font-display text-[28px] leading-9 font-normal text-neutral-900">
@@ -123,13 +73,17 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <ul className="mt-8 grid gap-5 lg:grid-cols-3">
-              {courses.map((course) => (
-                <li key={course.title} className="flex">
-                  <CourseCard layout="stacked" className="w-full" {...course} />
-                </li>
-              ))}
-            </ul>
+            {courses.length > 0 ? (
+              <ul className="mt-8 grid gap-5 lg:grid-cols-3">
+                {courses.map((course) => (
+                  <li key={course._id} className="flex">
+                    <CourseCatalogCard course={course} className="w-full" />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-8 text-body-lg text-neutral-500">No courses published yet.</p>
+            )}
 
             <p className="mt-14 flex items-center gap-6 text-body-lg text-neutral-700">
               <span aria-hidden="true" className="h-px flex-1 bg-neutral-200" />
@@ -142,16 +96,7 @@ export default function HomePage() {
           </section>
         </main>
 
-        {/* Decorative skyline — pinned to the bottom of the frame */}
-        <div aria-hidden="true" className="relative mt-auto h-[210px] overflow-hidden pt-6">
-          {skyline.map(([left, width, height], i) => (
-            <span
-              key={i}
-              className="absolute bottom-0 bg-gradient-to-t from-primary-300/70 via-primary-200/45 to-primary-100/0 blur-[3px]"
-              style={{ left: `${left}%`, width: `${width}%`, height: `${height}%` }}
-            />
-          ))}
-        </div>
+        <Skyline />
       </div>
     </div>
   );
