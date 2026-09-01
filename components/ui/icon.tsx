@@ -28,7 +28,8 @@ export type IconName =
   | "accessibility"
   | "document"
   | "star"
-  | "arrow-right";
+  | "arrow-right"
+  | "users";
 
 type Glyph = { outline: React.ReactNode; filled?: React.ReactNode };
 
@@ -227,6 +228,16 @@ const glyphs: Record<IconName, Glyph> = {
       <>
         <path d="M4 12h16" />
         <path d="m13 5 7 7-7 7" />
+      </>
+    ),
+  },
+  users: {
+    outline: (
+      <>
+        <circle cx="9" cy="8" r="3.5" />
+        <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+        <path d="M15.5 4.7a3.5 3.5 0 0 1 0 6.6" />
+        <path d="M17.5 14.2a6.5 6.5 0 0 1 4 5.8" />
       </>
     ),
   },
