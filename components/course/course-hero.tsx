@@ -1,8 +1,9 @@
 import Image from "next/image";
-import { Badge, Button, Icon, type IconName } from "@/components/ui";
+import { Badge, Icon, type IconName } from "@/components/ui";
 import { urlFor } from "@/sanity/lib/image";
 import type { COURSE_BY_SLUG_QUERY_RESULT } from "@/sanity.types";
 import { formatDuration, formatLevel, pluralize } from "@/lib/format";
+import { CourseHeroActions } from "@/components/course/course-hero-actions";
 
 type Course = NonNullable<COURSE_BY_SLUG_QUERY_RESULT>;
 
@@ -68,21 +69,12 @@ export function CourseHero({ course, ctaHref, ctaLabel }: CourseHeroProps) {
           ))}
         </ul>
 
-        <div className="mt-8 flex flex-wrap items-center gap-4">
-          {ctaHref ? (
-            <Button href={ctaHref} className="h-14 px-6 text-[17px] shadow-sm" iconRight={<Icon name="arrow-right" size={20} />}>
-              {ctaLabel}
-            </Button>
-          ) : (
-            <Button disabled className="h-14 px-6 text-[17px]" iconRight={<Icon name="arrow-right" size={20} />}>
-              {ctaLabel}
-            </Button>
-          )}
-          {/* Presentational: bookmarking has no backend yet. */}
-          <Button variant="tertiary" className="h-14 px-6 text-[17px]" iconLeft={<Icon name="bookmark" size={20} />}>
-            Bookmark
-          </Button>
-        </div>
+        <CourseHeroActions
+          courseTitle={course.title}
+          courseSlug={course.slug ?? ""}
+          ctaHref={ctaHref}
+          ctaLabel={ctaLabel}
+        />
       </div>
     </section>
   );

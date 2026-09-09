@@ -1,3 +1,6 @@
+"use client";
+
+import posthog from "posthog-js";
 import { CourseCard } from "@/components/ui";
 import { CourseCoverTile } from "@/components/home/course-cover-tile";
 import { formatDuration, formatLevel, pluralize } from "@/lib/format";
@@ -15,6 +18,13 @@ export function CourseCatalogCard({ course, className }: CourseCatalogCardProps)
       layout="stacked"
       className={className}
       href={`/courses/${course.slug}`}
+      onClick={() =>
+        posthog.capture("course_card_clicked", {
+          course_title: course.title,
+          course_slug: course.slug,
+          course_level: course.level,
+        })
+      }
       title={course.title}
       description={course.summary ?? ""}
       icon={<CourseCoverTile cover={course.coverImage} size={72} />}

@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
@@ -62,7 +63,7 @@ export function Button({
 
   if (href) {
     return (
-      <Link href={href} className={classes} aria-label={props["aria-label"]}>
+      <Link href={href} className={classes} aria-label={props["aria-label"]} onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}>
         {content}
       </Link>
     );

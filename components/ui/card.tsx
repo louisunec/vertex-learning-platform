@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Badge, type BadgeVariant } from "./badge";
@@ -28,6 +28,8 @@ export interface CourseCardProps {
   modules?: string;
   /** When set, the title becomes a link that stretches over the whole card. */
   href?: string;
+  /** Called when the linked course card is selected. */
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
   /**
    * `row` (default) is the compact design-system card.
    * `stacked` is the catalog card: large tile on top, serif title, divider + meta row at the bottom.
@@ -44,6 +46,7 @@ export function CourseCard({
   duration,
   modules,
   href,
+  onClick,
   layout = "row",
   className,
 }: CourseCardProps) {
@@ -52,7 +55,7 @@ export function CourseCard({
   if (modules) meta.push({ icon: "folder", label: modules });
 
   const heading = href ? (
-    <Link href={href} className="after:absolute after:inset-0 after:rounded-lg">
+    <Link href={href} onClick={onClick} className="after:absolute after:inset-0 after:rounded-lg">
       {title}
     </Link>
   ) : (

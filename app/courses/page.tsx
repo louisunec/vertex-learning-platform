@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { auth } from "@clerk/nextjs/server";
 import { SiteHeader } from "@/components/home/site-header";
 import { Skyline } from "@/components/home/skyline";
 import { CourseCatalogCard } from "@/components/course/course-catalog-card";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { getCourses } from "@/sanity/data";
 
 export const metadata: Metadata = {
@@ -10,7 +12,16 @@ export const metadata: Metadata = {
 };
 
 export default async function CoursesPage() {
-  const courses = await getCourses();
+  const [courses, { userId }] = await Promise.all([getCourses(), auth()]);
+
+  // Track catalog page view server-side
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: userId ?? "anonymous",
+    event: "course_catalog_viewed",
+    properties: { course_count: courses.length },
+  });
+  await posthog.flush();
 
   return (
     <div className="bg-hatch flex flex-1 flex-col">

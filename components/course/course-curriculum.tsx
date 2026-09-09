@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { Button, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { formatClock, formatDuration, pluralize } from "@/lib/format";
@@ -80,7 +81,15 @@ export function CourseCurriculum({
                 type="button"
                 aria-expanded={isOpen}
                 aria-controls={panelId}
-                onClick={() => setExpanded(isOpen ? null : mod.key)}
+                onClick={() => {
+                  const next = isOpen ? null : mod.key;
+                  setExpanded(next);
+                  posthog.capture(isOpen ? "module_collapsed" : "module_expanded", {
+                    module_title: mod.title,
+                    module_position: i + 1,
+                    lesson_count: mod.lessons.length,
+                  });
+                }}
                 className="flex w-full items-center gap-5 px-6 py-4 text-left transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none focus-visible:ring-inset"
               >
                 <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-body-lg text-neutral-900">
@@ -112,6 +121,15 @@ export function CourseCurriculum({
                         <Link
                           href={lesson.href}
                           className="group flex items-center gap-4 py-2.5 text-body text-neutral-900 transition-colors hover:text-primary-500"
+                          onClick={() =>
+                            posthog.capture("lesson_clicked", {
+                              lesson_title: lesson.title,
+                              lesson_position: lesson.position,
+                              module_title: mod.title,
+                              free_preview: lesson.freePreview,
+                              completed: lesson.completed,
+                            })
+                          }
                         >
                           {lesson.completed ? (
                             <Icon name="check-circle" size={18} className="shrink-0 text-success" />
@@ -148,7 +166,14 @@ export function CourseCurriculum({
           <Button
             variant="tertiary"
             className="h-12 px-6 text-[16px] shadow-sm"
-            onClick={() => setShowAll((v) => !v)}
+            onClick={() => {
+              const next = !showAll;
+              setShowAll(next);
+              posthog.capture("show_all_modules_clicked", {
+                showing_all: next,
+                total_modules: modules.length,
+              });
+            }}
             iconRight={<Icon name="chevron-down" size={18} className={cn("transition-transform", showAll && "rotate-180")} />}
           >
             {showAll ? "Show fewer modules" : `Show all ${pluralize(modules.length, "module")}`}

@@ -9,6 +9,7 @@ import { CourseHero } from "@/components/course/course-hero";
 import { CourseProgressBar } from "@/components/course/course-progress-bar";
 import { LearningOutcomes } from "@/components/course/learning-outcomes";
 import { summarizeCourseProgress } from "@/lib/course-progress";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { getCourseBySlug, getProgressForUser } from "@/sanity/data";
 import { flattenLessons } from "@/sanity/lib/curriculum";
 
@@ -35,6 +36,20 @@ export default async function CoursePage({ params }: Props) {
   const resume = flat.find((entry) => entry.lesson._id === progress.resumeLessonId) ?? null;
   const ctaHref = resume ? lessonHref(resume.lesson.slug) : null;
   const ctaLabel = progress.hasProgress ? "Continue Learning" : "Start Learning";
+
+  // Track course page view server-side
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: userId ?? "anonymous",
+    event: "course_viewed",
+    properties: {
+      course_title: course.title,
+      course_slug: slug,
+      course_level: course.level,
+      has_progress: progress.hasProgress,
+    },
+  });
+  await posthog.flush();
 
   const modules: CurriculumModule[] = (course.modules ?? []).map((mod, moduleIndex) => {
     const lessons = (mod.lessons ?? []).filter(Boolean);
