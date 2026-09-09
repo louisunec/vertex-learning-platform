@@ -76,6 +76,7 @@ const components: PortableTextComponents = {
   },
 };
 
+/** Presents authored Portable Text notes using the lesson-specific renderers. */
 export function LessonNotes({ value, className }: { value: BlockContent; className?: string }) {
   return (
     <div className={cn("max-w-[640px]", className)}>

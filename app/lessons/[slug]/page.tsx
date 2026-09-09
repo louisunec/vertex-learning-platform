@@ -24,6 +24,7 @@ type Props = {
   searchParams: Promise<{ t?: string | string[] }>;
 };
 
+/** Builds the browser title from the stored lesson, with a not-found fallback. */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const lesson = await getLessonBySlug(slug);
@@ -31,6 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: lesson.title };
 }
 
+/** Renders a grounded lesson page with curriculum context and learner progress. */
 export default async function LessonPage({ params, searchParams }: Props) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const [lesson, { userId }] = await Promise.all([getLessonBySlug(slug), auth()]);

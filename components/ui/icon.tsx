@@ -270,6 +270,7 @@ export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {
   size?: number;
 }
 
+/** Renders a named glyph from the shared icon set at the requested size. */
 export function Icon({ name, filled = false, size = 24, className, ...props }: IconProps) {
   const glyph = glyphs[name];
   const body = (filled && glyph.filled) || glyph.outline;

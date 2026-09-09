@@ -18,6 +18,7 @@ const CONTEXT_API_VERSION = 'v2026-03-03'
 /** Raised for MCP connectivity/tool failures so the route can answer 502. */
 export class SearchUnavailableError extends Error {}
 
+/** Builds the dataset-scoped Context MCP URL, including its optional context slug. */
 export function contextMcpUrl(): string {
   const slug = process.env.SANITY_CONTEXT_SLUG?.trim()
   const base = `https://api.sanity.io/${CONTEXT_API_VERSION}/context/mcp/${projectId}/${dataset}`
@@ -76,6 +77,7 @@ export async function runGroqQuery(client: MCPClient, query: string): Promise<un
   }
 }
 
+/** Extracts and concatenates text blocks from an MCP tool response. */
 function extractText(content: unknown): string | null {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return null

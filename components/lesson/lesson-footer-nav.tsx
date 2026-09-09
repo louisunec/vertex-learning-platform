@@ -41,6 +41,7 @@ export function LessonFooterNav({ prev, next }: { prev: FooterLesson | null; nex
   );
 }
 
+/** Displays a neighbouring lesson's title and optional duration. */
 function NeighbourLabel({ lesson, className }: { lesson: FooterLesson; className?: string }) {
   return (
     <div className={className}>

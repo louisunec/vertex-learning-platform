@@ -84,10 +84,12 @@ export const searchCursorSchema = z.object({
 
 export type SearchCursor = z.infer<typeof searchCursorSchema>
 
+/** Encodes validated search state into an opaque URL-safe cursor. */
 export function encodeSearchCursor(cursor: SearchCursor): string {
   return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
 }
 
+/** Decodes and validates an opaque cursor, returning `null` for invalid input. */
 export function decodeSearchCursor(raw: string | null | undefined): SearchCursor | null {
   if (!raw) return null
   try {

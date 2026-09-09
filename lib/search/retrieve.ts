@@ -156,6 +156,7 @@ function toCourseContext(course: CourseRaw | null | undefined, lessonId: string)
   }
 }
 
+/** Retains only rows that satisfy the supplied runtime schema. */
 function parseRows<T>(rows: unknown, schema: z.ZodType<T>): T[] {
   if (!Array.isArray(rows)) return []
   const parsed: T[] = []
@@ -166,6 +167,7 @@ function parseRows<T>(rows: unknown, schema: z.ZodType<T>): T[] {
   return parsed
 }
 
+/** Converts validated lesson query rows into deterministic ranking candidates. */
 export function parseLessonCandidates(rows: unknown): LessonCandidate[] {
   return parseRows(rows, lessonRowSchema).map((row) => ({
     lessonId: row._id,
