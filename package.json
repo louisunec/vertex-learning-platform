@@ -6,12 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test 'lib/**/*.test.ts'",
+    "studio": "npm --prefix studio run dev",
+    "typegen": "npm --prefix studio run typegen"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.8.3",
+    "@sanity/image-url": "^2.1.1",
     "next": "16.3.3",
+    "next-sanity": "^13.3.3",
+    "posthog-js": "^1.422.5",
+    "posthog-node": "^5.51.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

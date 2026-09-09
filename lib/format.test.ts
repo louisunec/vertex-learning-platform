@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict'
+import {describe, it} from 'node:test'
+
+import {formatClock, formatDuration, formatLevel, pluralize} from './format.ts'
+
+describe('formatDuration', () => {
+  it('renders hours and minutes', () => {
+    assert.equal(formatDuration(18 * 3600 + 24 * 60), '18h 24m')
+    assert.equal(formatDuration(3600 + 12 * 60), '1h 12m')
+  })
+  it('renders minutes only under an hour', () => {
+    assert.equal(formatDuration(45 * 60), '45m')
+    assert.equal(formatDuration(1226), '20m')
+  })
+  it('renders seconds under a minute and never goes negative', () => {
+    assert.equal(formatDuration(50), '50s')
+    assert.equal(formatDuration(-5), '0s')
+  })
+  it('carries a rounded 60th minute into the hour', () => {
+    assert.equal(formatDuration(3599.6), '1h 0m')
+    assert.equal(formatDuration(7169), '1h 59m')
+  })
+})
+
+describe('formatClock', () => {
+  it('renders m:ss and h:mm:ss', () => {
+    assert.equal(formatClock(765), '12:45')
+    assert.equal(formatClock(350), '5:50')
+    assert.equal(formatClock(3723), '1:02:03')
+    assert.equal(formatClock(0), '0:00')
+  })
+})
+
+describe('formatLevel / pluralize', () => {
+  it('capitalises the stored enum', () => {
+    assert.equal(formatLevel('intermediate'), 'Intermediate')
+  })
+  it('pluralises counts', () => {
+    assert.equal(pluralize(1, 'module'), '1 module')
+    assert.equal(pluralize(12, 'module'), '12 modules')
+  })
+})
