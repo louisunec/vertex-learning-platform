@@ -26,6 +26,7 @@ export const LESSON_BY_SLUG_QUERY = defineQuery(/* groq */ `
       title,
       "slug": slug.current,
       level,
+      coverImage { ${imageFragment} },
       instructor->{ ${instructorSummaryFragment} },
       modules[] {
         _key,

@@ -12,7 +12,8 @@
     "typegen": "sanity schemas extract --enforce-required-fields && sanity typegen generate",
     "typecheck": "tsc --noEmit",
     "seed:validate": "node scripts/seed/validate.mjs",
-    "seed:import": "node scripts/seed/validate.mjs && sanity dataset import scripts/seed/seed.ndjson --dataset production --replace --allow-failing-assets"
+    "seed:import": "node scripts/seed/validate.mjs && sanity dataset import scripts/seed/seed.ndjson --dataset production --replace --allow-failing-assets",
+    "context:import": "sanity dataset import scripts/context/search-context.ndjson --dataset production --replace"
   },
   "dependencies": {
     "@sanity/context": "0.7.1",

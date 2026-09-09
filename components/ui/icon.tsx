@@ -29,6 +29,8 @@ export type IconName =
   | "document"
   | "star"
   | "arrow-right"
+  | "arrow-left"
+  | "bulb"
   | "users";
 
 type Glyph = { outline: React.ReactNode; filled?: React.ReactNode };
@@ -228,6 +230,23 @@ const glyphs: Record<IconName, Glyph> = {
       <>
         <path d="M4 12h16" />
         <path d="m13 5 7 7-7 7" />
+      </>
+    ),
+  },
+  "arrow-left": {
+    outline: (
+      <>
+        <path d="M20 12H4" />
+        <path d="m11 5-7 7 7 7" />
+      </>
+    ),
+  },
+  bulb: {
+    outline: (
+      <>
+        <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1.2 2.1h4.6c.2-.9.6-1.6 1.2-2.1A6 6 0 0 0 12 3Z" />
+        <path d="M10 19h4" />
+        <path d="M11 22h2" />
       </>
     ),
   },
