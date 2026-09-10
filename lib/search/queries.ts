@@ -41,6 +41,7 @@ const courseContextProjection = /* groq */ `
     title,
     "slug": slug.current,
     level,
+    "coverImageUrl": coverImage.asset->url,
     modules[]{ _key, title, "lessonIds": lessons[]._ref }
   }
 `
@@ -111,6 +112,7 @@ export function buildCourseCandidatesQuery(terms: ReadonlyArray<string>): string
       "slug": slug.current,
       level,
       summary,
+      "coverImageUrl": coverImage.asset->url,
       modules[]{
         _key,
         title,

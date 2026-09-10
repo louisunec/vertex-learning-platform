@@ -11,7 +11,7 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem('instructor').title('Instructors').icon(UserIcon),
       S.documentTypeListItem('category').title('Categories').icon(TagIcon),
       S.divider(),
-      S.documentTypeListItem('video').title('Videos (search index)').icon(VideoIcon),
+      S.documentTypeListItem('video').title('Video Intelligence').icon(VideoIcon),
       S.documentTypeListItem('progress').title('Learner progress').icon(CheckmarkCircleIcon),
       S.divider(),
       S.documentTypeListItem(CONTEXT_SCHEMA_TYPE_NAME).title('Search context').icon(SearchIcon),

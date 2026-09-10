@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Breadcrumbs } from "@/components/ui";
 import { SiteHeader } from "@/components/home/site-header";
@@ -38,18 +39,24 @@ export default async function CoursePage({ params }: Props) {
   const ctaLabel = progress.hasProgress ? "Continue Learning" : "Start Learning";
 
   // Track course page view server-side
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: userId ?? "anonymous",
-    event: "course_viewed",
-    properties: {
-      course_title: course.title,
-      course_slug: slug,
-      course_level: course.level,
-      has_progress: progress.hasProgress,
-    },
+  after(async () => {
+    try {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: userId ?? "anonymous",
+        event: "course_viewed",
+        properties: {
+          course_title: course.title,
+          course_slug: slug,
+          course_level: course.level,
+          has_progress: progress.hasProgress,
+        },
+      });
+      await posthog.flush();
+    } catch (error) {
+      console.error("[analytics] course_viewed capture failed:", error);
+    }
   });
-  await posthog.flush();
 
   const modules: CurriculumModule[] = (course.modules ?? []).map((mod, moduleIndex) => {
     const lessons = (mod.lessons ?? []).filter(Boolean);
