@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Badge, Breadcrumbs, Icon, type IconName } from "@/components/ui";
 import { SiteHeader } from "@/components/home/site-header";
@@ -9,7 +10,7 @@ import { LessonFooterNav, type FooterLesson } from "@/components/lesson/lesson-f
 import { LessonNotes } from "@/components/lesson/lesson-notes";
 import { LessonSidebar, type SidebarModule } from "@/components/lesson/lesson-sidebar";
 import { LessonTabs } from "@/components/lesson/lesson-tabs";
-import { VideoEmbed } from "@/components/lesson/video-embed";
+import { VideoEmbed, type StartSource } from "@/components/lesson/video-embed";
 import { summarizeCourseProgress } from "@/lib/course-progress";
 import { formatDuration, formatLevel } from "@/lib/format";
 import { getPostHogClient } from "@/lib/posthog-server";
@@ -50,26 +51,47 @@ export default async function LessonPage({ params, searchParams }: Props) {
   // Start position: explicit deep link (?t=seconds) wins over the stored resume position.
   const tParam = Array.isArray(sp.t) ? sp.t[0] : sp.t;
   const row = progressRows?.find((r) => r.lessonId === lesson._id) ?? null;
-  const startSeconds =
-    toStartSeconds(tParam) ?? (row && !row.completed ? toStartSeconds(row.resumeSeconds) : null);
+  const deepLinkSeconds = toStartSeconds(tParam);
+  const resumeSeconds = row && !row.completed ? toStartSeconds(row.resumeSeconds) : null;
+  const startSeconds = deepLinkSeconds ?? resumeSeconds;
+  const startSource: StartSource =
+    deepLinkSeconds !== null ? "deeplink" : resumeSeconds ? "resume" : "beginning";
 
   const parsed = parseVideoUrl(lesson.videoUrl);
   const embedSrc = parsed ? getEmbedSource(parsed, startSeconds) : null;
   const poster = lesson.poster?.asset ? lesson.poster : null;
 
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: userId ?? "anonymous",
-    event: "lesson_viewed",
-    properties: {
-      lesson_title: lesson.title,
-      lesson_slug: slug,
-      lesson_position: context?.position ?? null,
-      course_slug: course?.slug ?? null,
-      start_seconds: startSeconds,
-    },
+  after(async () => {
+    try {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: userId ?? "anonymous",
+        event: "lesson_viewed",
+        properties: {
+          lesson_title: lesson.title,
+          lesson_slug: slug,
+          lesson_position: context?.position ?? null,
+          course_slug: course?.slug ?? null,
+          start_seconds: startSeconds,
+          start_source: startSource,
+        },
+      });
+      if (startSource === "resume") {
+        posthog.capture({
+          distinctId: userId ?? "anonymous",
+          event: "resume_used",
+          properties: {
+            lesson_slug: slug,
+            course_slug: course?.slug ?? null,
+            resume_seconds: startSeconds,
+          },
+        });
+      }
+      await posthog.flush();
+    } catch (error) {
+      console.error("[analytics] lesson_viewed capture failed:", error);
+    }
   });
-  await posthog.flush();
 
   const lessonHref = (lessonSlug: string) => `/lessons/${lessonSlug}`;
   const flat = course ? flattenLessons(course.modules) : [];
@@ -167,8 +189,19 @@ export default async function LessonPage({ params, searchParams }: Props) {
             )}
 
             <div className="mt-8">
-              {embedSrc ? (
-                <VideoEmbed src={embedSrc} title={lesson.title} />
+              {parsed && embedSrc ? (
+                <VideoEmbed
+                  key={embedSrc}
+                  src={embedSrc}
+                  title={lesson.title}
+                  tracking={{
+                    provider: parsed.provider,
+                    lessonSlug: slug,
+                    courseSlug: course?.slug ?? null,
+                    startSeconds,
+                    startSource,
+                  }}
+                />
               ) : poster ? (
                 <div className="relative aspect-video overflow-hidden rounded-[20px] bg-neutral-900 shadow-sm">
                   <Image

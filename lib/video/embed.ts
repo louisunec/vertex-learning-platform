@@ -19,7 +19,8 @@ export function getEmbedSource(parsed: ParsedVideo, startSeconds?: number | null
   const start = toStartSeconds(startSeconds)
   switch (parsed.provider) {
     case 'youtube': {
-      const params = new URLSearchParams({rel: '0'})
+      // enablejsapi lets the IFrame Player API attach to this embed for playback analytics.
+      const params = new URLSearchParams({rel: '0', enablejsapi: '1'})
       if (start) params.set('start', String(start))
       return `https://www.youtube-nocookie.com/embed/${parsed.providerVideoId}?${params}`
     }

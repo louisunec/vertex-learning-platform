@@ -34,10 +34,13 @@ describe('getEmbedSource', () => {
   const bunny = parsed('https://iframe.mediadelivery.net/embed/123/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
 
   it('builds a YouTube privacy-enhanced embed with a start second', () => {
-    assert.equal(getEmbedSource(youtube), 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0')
+    assert.equal(
+      getEmbedSource(youtube),
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&enablejsapi=1',
+    )
     assert.equal(
       getEmbedSource(youtube, 90),
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&start=90',
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&enablejsapi=1&start=90',
     )
   })
 
@@ -58,6 +61,9 @@ describe('getEmbedSource', () => {
   })
 
   it('ignores invalid start values', () => {
-    assert.equal(getEmbedSource(youtube, -5), 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0')
+    assert.equal(
+      getEmbedSource(youtube, -5),
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&enablejsapi=1',
+    )
   })
 })

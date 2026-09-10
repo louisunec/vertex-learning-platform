@@ -14,6 +14,7 @@ import {fallbackTerms} from './terms'
 import {
   decodeSearchCursor,
   encodeSearchCursor,
+  MAX_CURSOR_OFFSET,
   searchResponseSchema,
   type SearchResponse,
 } from './schema'
@@ -50,7 +51,13 @@ export async function searchVertex({
   const primaryTerms = fallbackTerms(trimmed)
 
   if (terms.length === 0) {
-    return searchResponseSchema.parse({query: trimmed, results: [], total: 0, nextCursor: null})
+    return searchResponseSchema.parse({
+      query: trimmed,
+      results: [],
+      total: 0,
+      courseCount: 0,
+      nextCursor: null,
+    })
   }
 
   const mcp = await connectContextMcp()
@@ -74,13 +81,24 @@ export async function searchVertex({
 
   const page = ranked.slice(offset, offset + size)
   const nextOffset = offset + size
+  // An offset past the cursor schema's cap would encode a cursor the route
+  // rejects as invalid; stop paginating there instead.
   const nextCursor =
-    nextOffset < ranked.length ? encodeSearchCursor({v: 1, terms, offset: nextOffset}) : null
+    nextOffset < ranked.length && nextOffset <= MAX_CURSOR_OFFSET
+      ? encodeSearchCursor({v: 1, terms, offset: nextOffset})
+      : null
+
+  // Counted over the full ranked set (not the page slice) so the grounded
+  // "across N courses" line stays stable while the learner pages through.
+  const courseCount = new Set(
+    ranked.map((result) => result.course?.id).filter((id): id is string => Boolean(id)),
+  ).size
 
   return searchResponseSchema.parse({
     query: trimmed,
     results: page,
     total: ranked.length,
+    courseCount,
     nextCursor,
   })
 }

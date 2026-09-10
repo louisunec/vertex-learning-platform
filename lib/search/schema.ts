@@ -12,6 +12,8 @@ export const searchCourseContextSchema = z.object({
   title: z.string(),
   slug: z.string(),
   level: z.string().nullable(),
+  /** Course cover asset URL used as the result row's course icon. */
+  coverImageUrl: z.string().nullable(),
   moduleTitle: z.string().nullable(),
   /** Derived "module.lesson" position, e.g. "2.3"; null when not referenced. */
   position: z.string().nullable(),
@@ -58,6 +60,8 @@ export const searchResponseSchema = z.object({
   results: z.array(searchResultSchema),
   /** Grounded count of the full ranked, deduplicated result set. */
   total: z.number().int().nonnegative(),
+  /** Distinct courses represented in that full ranked set. */
+  courseCount: z.number().int().nonnegative(),
   nextCursor: z.string().nullable(),
 })
 
@@ -73,13 +77,15 @@ export type SearchResponse = z.infer<typeof searchResponseSchema>
  * re-validated with the same bounds as freshly sanitized ones — the cursor
  * only parameterizes grounded retrieval.
  */
+export const MAX_CURSOR_OFFSET = 500
+
 export const searchCursorSchema = z.object({
   v: z.literal(1),
   terms: z
     .array(z.string().regex(/^[a-z0-9-]{2,32}$/))
     .min(1)
     .max(12),
-  offset: z.number().int().nonnegative().max(500),
+  offset: z.number().int().nonnegative().max(MAX_CURSOR_OFFSET),
 })
 
 export type SearchCursor = z.infer<typeof searchCursorSchema>

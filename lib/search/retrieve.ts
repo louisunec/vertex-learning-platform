@@ -19,6 +19,7 @@ const courseRawSchema = z.object({
   title: z.string(),
   slug: z.string(),
   level: z.string().nullish(),
+  coverImageUrl: z.string().nullish(),
   modules: z
     .array(
       z.object({
@@ -51,6 +52,7 @@ const courseRowSchema = z.object({
   slug: z.string(),
   level: z.string().nullish(),
   summary: z.string().nullish(),
+  coverImageUrl: z.string().nullish(),
   modules: z
     .array(
       z.object({
@@ -151,6 +153,7 @@ function toCourseContext(course: CourseRaw | null | undefined, lessonId: string)
     title: course.title,
     slug: course.slug,
     level: course.level ?? null,
+    coverImageUrl: course.coverImageUrl ?? null,
     moduleTitle,
     position,
   }
@@ -209,6 +212,7 @@ export function parseCourseCandidates(rows: unknown): LessonCandidate[] {
             title: course.title,
             slug: course.slug,
             level: course.level ?? null,
+            coverImageUrl: course.coverImageUrl ?? null,
             moduleTitle: mod.title ?? null,
             position: `${moduleIndex + 1}.${lessonIndex + 1}`,
           },

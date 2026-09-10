@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { SiteHeader } from "@/components/home/site-header";
 import { Skyline } from "@/components/home/skyline";
@@ -15,13 +16,19 @@ export default async function CoursesPage() {
   const [courses, { userId }] = await Promise.all([getCourses(), auth()]);
 
   // Track catalog page view server-side
-  const posthog = getPostHogClient();
-  posthog.capture({
-    distinctId: userId ?? "anonymous",
-    event: "course_catalog_viewed",
-    properties: { course_count: courses.length },
+  after(async () => {
+    try {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: userId ?? "anonymous",
+        event: "course_catalog_viewed",
+        properties: { course_count: courses.length },
+      });
+      await posthog.flush();
+    } catch (error) {
+      console.error("[analytics] course_catalog_viewed capture failed:", error);
+    }
   });
-  await posthog.flush();
 
   return (
     <div className="bg-hatch flex flex-1 flex-col">
