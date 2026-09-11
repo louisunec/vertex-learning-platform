@@ -1,3 +1,4 @@
+import {auth} from '@clerk/nextjs/server'
 import {NextRequest, NextResponse} from 'next/server'
 
 import {SearchUnavailableError} from '@/lib/search/mcp'
@@ -24,7 +25,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await searchVertex({query, cursor})
+    // Search stays public; the optional user id only selects flag variants.
+    const {userId} = await auth()
+    const response = await searchVertex({query, cursor, distinctId: userId ?? 'anonymous'})
     return NextResponse.json(response, {headers: {'Cache-Control': 'no-store'}})
   } catch (error) {
     if (error instanceof SearchUnavailableError) {

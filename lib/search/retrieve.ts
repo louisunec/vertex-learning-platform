@@ -2,7 +2,8 @@ import 'server-only'
 
 import {z} from 'zod'
 
-import {parseVideoUrl} from '@/lib/video/provider'
+// Relative `.ts` import (like rank.ts) so `node --test` can load this module.
+import {parseVideoUrl} from '../video/provider.ts'
 import type {SearchCourseContext} from './schema'
 
 /**
@@ -12,6 +13,15 @@ import type {SearchCourseContext} from './schema'
  */
 
 const MAX_SNIPPET_LENGTH = 140
+
+/**
+ * Published document ids only. Draft (`drafts.`) and release-version
+ * (`versions.`) rows are dropped — defence in depth in case the MCP ever
+ * returns a non-published perspective (development plan §3).
+ */
+const publishedIdSchema = z
+  .string()
+  .refine((id) => !id.startsWith('drafts.') && !id.startsWith('versions.'), 'not a published document id')
 
 /** Course row with the modules map needed to derive module/lesson positions. */
 const courseRawSchema = z.object({
@@ -34,7 +44,7 @@ const courseRawSchema = z.object({
 type CourseRaw = z.infer<typeof courseRawSchema>
 
 const lessonRowSchema = z.object({
-  _id: z.string(),
+  _id: publishedIdSchema,
   title: z.string(),
   slug: z.string(),
   durationSeconds: z.number().int().nonnegative().nullish(),
@@ -47,7 +57,7 @@ const lessonRowSchema = z.object({
 })
 
 const courseRowSchema = z.object({
-  _id: z.string(),
+  _id: publishedIdSchema,
   title: z.string(),
   slug: z.string(),
   level: z.string().nullish(),
@@ -84,14 +94,14 @@ const momentSchema = z.object({
 })
 
 const videoRowSchema = z.object({
-  _id: z.string(),
+  _id: publishedIdSchema,
   videoId: z.string(),
   chapterMatches: z.array(momentSchema.extend({label: z.string()})).nullish(),
   transcriptMatches: z.array(momentSchema.extend({text: z.string()})).nullish(),
 })
 
 const lessonVideoIndexRowSchema = z.object({
-  _id: z.string(),
+  _id: publishedIdSchema,
   title: z.string(),
   slug: z.string(),
   durationSeconds: z.number().int().nonnegative().nullish(),

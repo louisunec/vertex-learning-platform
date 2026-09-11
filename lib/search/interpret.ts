@@ -4,6 +4,8 @@ import {openai} from '@ai-sdk/openai'
 import {generateObject} from 'ai'
 import {z} from 'zod'
 
+import {generateBoundedObject} from '@/lib/ai/gateway'
+import {FLAGS, isFlagEnabled} from '@/lib/flags'
 import {sanityFetch} from '@/sanity/lib/fetch'
 import {fallbackTerms, sanitizeTerms} from './terms'
 
@@ -18,6 +20,10 @@ import {fallbackTerms, sanitizeTerms} from './terms'
  */
 
 const INTERPRETATION_MODEL = 'gpt-5-mini'
+/** Bump when BASE_SYSTEM_PROMPT or the interpretation schema changes. */
+const INTERPRETATION_PROMPT_VERSION = 'search-interpretation-v1'
+/** Budget covers gpt-5-mini reasoning tokens. */
+const INTERPRETATION_MAX_OUTPUT_TOKENS = 1000
 
 const interpretationSchema = z.object({
   keywords: z
@@ -83,24 +89,47 @@ async function fetchPromptContext(): Promise<string> {
   }
 }
 
-/** Interpreted, sanitized retrieval terms for a learner query. */
-export async function interpretQuery(query: string): Promise<string[]> {
+/**
+ * Interpreted, sanitized retrieval terms for a learner query. `distinctId`
+ * (Clerk user id or `"anonymous"`) only selects the `ai-gateway-search` flag
+ * variant; it is never sent to the model.
+ */
+export async function interpretQuery(query: string, {distinctId}: {distinctId: string}): Promise<string[]> {
   const fallback = fallbackTerms(query)
   if (!process.env.OPENAI_API_KEY) return fallback
   try {
-    const promptContext = await fetchPromptContext()
-    const {object} = await generateObject({
-      model: openai(INTERPRETATION_MODEL),
-      schema: interpretationSchema,
-      system: promptContext ? `${BASE_SYSTEM_PROMPT}\n\n${promptContext}` : BASE_SYSTEM_PROMPT,
-      prompt: `Learner query: ${JSON.stringify(query)}`,
-      // Budget covers gpt-5-mini reasoning tokens; the model family rejects
-      // non-default temperature, so none is set (output is sanitized anyway).
-      maxOutputTokens: 1000,
-    })
+    const [promptContext, useGateway] = await Promise.all([
+      fetchPromptContext(),
+      isFlagEnabled(FLAGS.aiGatewaySearch, distinctId),
+    ])
+    const system = promptContext ? `${BASE_SYSTEM_PROMPT}\n\n${promptContext}` : BASE_SYSTEM_PROMPT
+    const prompt = `Learner query: ${JSON.stringify(query)}`
+    // The gpt-5 family rejects non-default temperature, so none is set
+    // (output is sanitized anyway).
+    const {keywords} = useGateway
+      ? await generateBoundedObject({
+          model: openai(INTERPRETATION_MODEL),
+          schema: interpretationSchema,
+          system,
+          prompt,
+          maxOutputTokens: INTERPRETATION_MAX_OUTPUT_TOKENS,
+          // Timeout: the gateway default (AI_GATEWAY_TIMEOUT_MS, lib/timeouts.ts);
+          // past it, search proceeds on deterministic terms.
+          versions: {task: 'search-interpretation', promptVersion: INTERPRETATION_PROMPT_VERSION},
+        })
+      : // Pre-PR-0 path, kept while the flag is off as the rollback target.
+        (
+          await generateObject({
+            model: openai(INTERPRETATION_MODEL),
+            schema: interpretationSchema,
+            system,
+            prompt,
+            maxOutputTokens: INTERPRETATION_MAX_OUTPUT_TOKENS,
+          })
+        ).object
     // Keep the deterministic tokens in front so the learner's own words always
     // participate; model variants widen recall behind them.
-    const terms = sanitizeTerms([...fallback, ...object.keywords])
+    const terms = sanitizeTerms([...fallback, ...keywords])
     return terms.length > 0 ? terms : fallback
   } catch {
     return fallback

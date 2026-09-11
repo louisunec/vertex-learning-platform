@@ -35,17 +35,20 @@ export async function searchVertex({
   query,
   cursor,
   pageSize = DEFAULT_PAGE_SIZE,
+  distinctId = 'anonymous',
 }: {
   query: string
   cursor?: string | null
   pageSize?: number
+  /** Clerk user id or `"anonymous"`; selects feature-flag variants only. */
+  distinctId?: string
 }): Promise<SearchResponse> {
   const trimmed = query.trim().slice(0, MAX_QUERY_LENGTH)
   const size = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE)
 
   const decoded = decodeSearchCursor(cursor)
   const offset = decoded?.offset ?? 0
-  const terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed) : [])
+  const terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed, {distinctId}) : [])
   // The learner's own words rank at full weight; LLM expansion terms rank
   // reduced. Recomputed deterministically, so cursor pages need no LLM call.
   const primaryTerms = fallbackTerms(trimmed)
