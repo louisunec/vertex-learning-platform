@@ -1,6 +1,6 @@
 import 'server-only'
 
-import {openai} from '@ai-sdk/openai'
+import {openai, type OpenAILanguageModelResponsesOptions} from '@ai-sdk/openai'
 import {generateObject} from 'ai'
 import {z} from 'zod'
 
@@ -22,8 +22,22 @@ import {fallbackTerms, sanitizeTerms} from './terms'
 const INTERPRETATION_MODEL = 'gpt-5-mini'
 /** Bump when BASE_SYSTEM_PROMPT or the interpretation schema changes. */
 const INTERPRETATION_PROMPT_VERSION = 'search-interpretation-v1'
-/** Budget covers gpt-5-mini reasoning tokens. */
-const INTERPRETATION_MAX_OUTPUT_TOKENS = 1000
+/**
+ * Keyword extraction needs no deliberation: `minimal` is the lowest effort
+ * gpt-5-mini accepts (the API rejects `none`), and reasoning summaries are
+ * omitted so they add no output tokens.
+ */
+const INTERPRETATION_PROVIDER_OPTIONS = {
+  openai: {reasoningEffort: 'minimal', reasoningSummary: null} satisfies OpenAILanguageModelResponsesOptions,
+}
+/**
+ * At `minimal` effort, ≤10 keywords measured 29–66 output tokens with zero
+ * reasoning tokens (81 live calls, 2026-09-11); 96 leaves ~45% headroom.
+ * Truncated output fails schema validation and falls back to deterministic terms.
+ */
+const INTERPRETATION_MAX_OUTPUT_TOKENS = 96
+/** Pre-PR-0 rollback path: default (medium) effort, whose reasoning tokens need this budget. */
+const LEGACY_MAX_OUTPUT_TOKENS = 1000
 
 const interpretationSchema = z.object({
   keywords: z
@@ -113,6 +127,7 @@ export async function interpretQuery(query: string, {distinctId}: {distinctId: s
           system,
           prompt,
           maxOutputTokens: INTERPRETATION_MAX_OUTPUT_TOKENS,
+          providerOptions: INTERPRETATION_PROVIDER_OPTIONS,
           // Timeout: the gateway default (AI_GATEWAY_TIMEOUT_MS, lib/timeouts.ts);
           // past it, search proceeds on deterministic terms.
           versions: {task: 'search-interpretation', promptVersion: INTERPRETATION_PROMPT_VERSION},
@@ -124,7 +139,7 @@ export async function interpretQuery(query: string, {distinctId}: {distinctId: s
             schema: interpretationSchema,
             system,
             prompt,
-            maxOutputTokens: INTERPRETATION_MAX_OUTPUT_TOKENS,
+            maxOutputTokens: LEGACY_MAX_OUTPUT_TOKENS,
           })
         ).object
     // Keep the deterministic tokens in front so the learner's own words always

@@ -67,6 +67,8 @@ type GenerateBoundedObjectOptions<T> = {
   prompt: string
   maxOutputTokens: number
   timeoutMs?: number
+  /** Provider-specific settings (e.g. OpenAI reasoning effort), passed through unchanged. */
+  providerOptions?: Parameters<typeof generateText>[0]['providerOptions']
   versions: AiCallVersions
   /** Diagnostics sink; defaults to `logAiDiagnostics`. */
   log?: (diagnostics: AiCallDiagnostics) => void
@@ -83,6 +85,7 @@ export async function generateBoundedObject<T>({
   prompt,
   maxOutputTokens,
   timeoutMs = AI_GATEWAY_TIMEOUT_MS,
+  providerOptions,
   versions,
   log = logAiDiagnostics,
 }: GenerateBoundedObjectOptions<T>): Promise<T> {
@@ -106,6 +109,7 @@ export async function generateBoundedObject<T>({
       maxOutputTokens,
       maxRetries: MAX_PROVIDER_RETRIES,
       timeout: timeoutMs,
+      providerOptions,
     })
     // `output` is a getter that throws NoOutputGeneratedError when absent.
     const output = result.output as T

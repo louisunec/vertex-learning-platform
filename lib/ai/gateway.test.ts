@@ -94,6 +94,33 @@ describe('generateBoundedObject', () => {
     assert.equal(logs[0].status, 'timeout')
   })
 
+  it('passes provider options and the output budget through to the model', async () => {
+    let received: {providerOptions?: unknown; maxOutputTokens?: number} = {}
+    const model = new MockLanguageModelV4({
+      doGenerate: async (options) => {
+        received = options
+        return {
+          content: [{type: 'text', text: '{"keywords":["hooks"]}'}],
+          finishReason: {unified: 'stop', raw: undefined},
+          usage,
+          warnings: [],
+        }
+      },
+    })
+    await generateBoundedObject({
+      model,
+      schema,
+      system: 'system',
+      prompt: PROMPT,
+      maxOutputTokens: 96,
+      providerOptions: {openai: {reasoningEffort: 'minimal', reasoningSummary: null}},
+      versions,
+      log: () => {},
+    })
+    assert.deepEqual(received.providerOptions, {openai: {reasoningEffort: 'minimal', reasoningSummary: null}})
+    assert.equal(received.maxOutputTokens, 96)
+  })
+
   it('never puts prompt or output text in diagnostics', async () => {
     const {promise, logs} = await call(textModel('{"keywords":["unique-output-token"]}'))
     await promise
