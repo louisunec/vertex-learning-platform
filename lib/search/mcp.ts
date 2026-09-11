@@ -2,6 +2,7 @@ import 'server-only'
 
 import {createMCPClient, type MCPClient} from '@ai-sdk/mcp'
 
+import {MCP_TIMEOUT_MS} from '@/lib/timeouts'
 import {dataset, projectId} from '@/sanity/env'
 
 /**
@@ -38,6 +39,8 @@ export async function connectContextMcp(): Promise<MCPClient> {
         url: contextMcpUrl(),
         headers: {Authorization: `Bearer ${token}`},
       },
+      // Bounded (lib/timeouts.ts) so a stalled MCP surfaces as a 502 instead of hanging.
+      initializationOptions: {timeout: MCP_TIMEOUT_MS},
     })
   } catch (error) {
     throw new SearchUnavailableError(
@@ -55,7 +58,11 @@ export async function connectContextMcp(): Promise<MCPClient> {
 export async function runGroqQuery(client: MCPClient, query: string): Promise<unknown> {
   let result
   try {
-    result = await client.callTool({name: 'groq_query', arguments: {query}})
+    result = await client.callTool({
+      name: 'groq_query',
+      arguments: {query},
+      options: {timeout: MCP_TIMEOUT_MS},
+    })
   } catch (error) {
     throw new SearchUnavailableError(
       `Context MCP groq_query failed: ${error instanceof Error ? error.message : String(error)}`,

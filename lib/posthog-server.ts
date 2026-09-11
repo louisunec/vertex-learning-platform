@@ -20,6 +20,11 @@ export function getPostHogClient(): PostHog {
       host,
       flushAt: 1,
       flushInterval: 0,
+      // Server-only; enables local feature-flag evaluation (lib/flags.ts).
+      // Without it, each evaluation is a remote /flags request.
+      secretKey: process.env.POSTHOG_SECRET_KEY || undefined,
+      // Bound remote flag evaluation so a slow PostHog never stalls a request.
+      featureFlagsRequestTimeoutMs: 1500,
     });
   }
 
