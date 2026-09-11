@@ -106,7 +106,7 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
   }, [provider, lessonSlug, courseSlug, startSeconds, startSource]);
 
   return (
-    <div className="overflow-hidden rounded-[20px] bg-neutral-900 shadow-sm">
+    <div className="overflow-hidden rounded-[20px] bg-black shadow-sm">
       <iframe
         ref={iframeRef}
         src={src}

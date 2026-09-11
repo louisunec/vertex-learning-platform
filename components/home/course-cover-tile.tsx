@@ -21,7 +21,7 @@ export function CourseCoverTile({ cover, size, alt = "", className }: CourseCove
   const hasAsset = Boolean(cover?.asset);
   return (
     <div
-      className={cn("relative shrink-0 overflow-hidden rounded-lg bg-neutral-900", className)}
+      className={cn("relative shrink-0 overflow-hidden rounded-lg bg-black", className)}
       style={{ width: size, height: size }}
     >
       {hasAsset && cover && (

@@ -203,7 +203,7 @@ export function SearchResults({ query, children }: { query: string; children: Re
           </div>
           <Link
             href="/courses"
-            className="inline-flex h-11 shrink-0 items-center gap-3 rounded-md border border-primary-200/70 bg-white px-4 text-body-lg font-medium text-primary-500 transition-colors hover:border-primary-400 hover:text-primary-600 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none"
+            className="inline-flex h-11 shrink-0 items-center gap-3 rounded-md border border-primary-200/70 bg-surface px-4 text-body-lg font-medium text-primary-500 transition-colors hover:border-primary-400 hover:text-primary-600 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none"
           >
             Browse all courses
             <Icon name="arrow-right" size={18} aria-hidden />

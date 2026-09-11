@@ -30,7 +30,7 @@ export function CourseHero({ course, ctaHref, ctaLabel }: CourseHeroProps) {
   return (
     <section className="grid gap-10 md:grid-cols-[280px_1fr] md:gap-14">
       <div
-        className="relative aspect-square w-full max-w-[280px] overflow-hidden rounded-[20px] bg-neutral-900 shadow-sm"
+        className="relative aspect-square w-full max-w-[280px] overflow-hidden rounded-[20px] bg-black shadow-sm"
         style={{ maxWidth: COVER_PX }}
       >
         {cover && (

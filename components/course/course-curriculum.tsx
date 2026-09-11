@@ -67,7 +67,7 @@ export function CourseCurriculum({
         </p>
       </div>
 
-      <ol className="relative mt-5 rounded-lg border border-neutral-200 bg-white shadow-sm">
+      <ol className="relative mt-5 rounded-lg border border-neutral-200 bg-surface shadow-sm">
         {/* Connector line threading the module numbers. */}
         {visible.length > 1 && (
           <span aria-hidden="true" className="absolute top-8 bottom-8 left-[calc(1.5rem+19px)] w-px bg-neutral-200" />
@@ -92,7 +92,7 @@ export function CourseCurriculum({
                 }}
                 className="flex w-full items-center gap-5 px-6 py-4 text-left transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none focus-visible:ring-inset"
               >
-                <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-body-lg text-neutral-900">
+                <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-surface text-body-lg text-neutral-900">
                   {i + 1}
                 </span>
                 <span className="min-w-0 flex-1">

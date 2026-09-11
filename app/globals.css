@@ -1,35 +1,40 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------
-   Vertex Design System — tokens (v1.0)
+   Vertex Design System — tokens (v2.0, dark)
+   The neutral scale is inverted for the dark theme: 900 is the
+   primary (light) text colour and 50/100 are the darkest raised panels.
    ------------------------------------------------------------------ */
 
 @theme {
-  /* 01 · Colors — Primary */
+  /* 01 · Colors — Primary (mint); 100–400 are translucent tints */
   --color-primary-*: initial;
-  --color-primary-100: #ffeee5;
-  --color-primary-200: #fed7aa;
-  --color-primary-300: #fdba74;
-  --color-primary-400: #fb923c;
-  --color-primary-500: #f97316;
-  --color-primary-600: #ea580c; /* hover state for primary actions */
+  --color-primary-100: rgb(49 251 184 / 0.1);
+  --color-primary-200: rgb(49 251 184 / 0.18);
+  --color-primary-300: rgb(49 251 184 / 0.35);
+  --color-primary-400: rgb(49 251 184 / 0.6);
+  --color-primary-500: #31fbb8;
+  --color-primary-600: #81ffb6; /* hover state for primary actions */
 
   /* 01 · Colors — Neutral */
   --color-neutral-*: initial;
-  --color-neutral-50: #fafafc;
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-500: #64748b;
-  --color-neutral-700: #334155;
-  --color-neutral-900: #0f172a;
+  --color-neutral-50: #101115;
+  --color-neutral-100: #16171b;
+  --color-neutral-200: #2e3238; /* borders */
+  --color-neutral-300: #51555c;
+  --color-neutral-400: #62748e;
+  --color-neutral-500: #9eaabf; /* muted text */
+  --color-neutral-700: #cad5e2; /* secondary text */
+  --color-neutral-900: #ededed; /* primary text */
   --color-white: #ffffff;
 
   /* Semantic / off-palette accents used by badges and status indicators */
-  --color-canvas: #faf6f4; /* page background behind cards */
-  --color-lesson: #5b4fcf;
-  --color-lesson-bg: #ecebfa;
-  --color-success: #16a34a;
+  --color-canvas: #0d0e11; /* page background behind cards */
+  --color-surface: #16171b; /* card and panel surfaces */
+  --color-on-primary: #0d0e11; /* text and glyphs on primary fills */
+  --color-lesson: #c4b5fd;
+  --color-lesson-bg: rgb(196 181 253 / 0.14);
+  --color-success: #4ade80;
 
   /* 05 · Radius */
   --radius-xs: 4px;
@@ -39,21 +44,24 @@
   --radius-xl: 24px;
 
   /* 05 · Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
-  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08);
-  --shadow-lg: 0 12px 24px -4px rgb(15 23 42 / 0.1);
-  --shadow-xl: 0 20px 40px -8px rgb(15 23 42 / 0.12);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 24px -4px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 20px 40px -8px rgb(0 0 0 / 0.6);
 
   /* 03 · Type scale (Display styles pair with `font-display`) */
   --text-display-1: 48px;
   --text-display-1--line-height: 56px;
   --text-display-1--font-weight: 700;
+  --text-display-1--letter-spacing: -0.025em;
   --text-display-2: 36px;
   --text-display-2--line-height: 44px;
   --text-display-2--font-weight: 700;
+  --text-display-2--letter-spacing: -0.025em;
   --text-h1: 28px;
   --text-h1--line-height: 36px;
   --text-h1--font-weight: 600;
+  --text-h1--letter-spacing: -0.015em;
   --text-h2: 22px;
   --text-h2--line-height: 30px;
   --text-h2--font-weight: 600;
@@ -73,8 +81,12 @@
 
 /* 02 · Typography — fonts are loaded via next/font in app/layout.tsx */
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
@@ -86,10 +98,10 @@ body {
 
 /* Decorative hatched margins that frame the page column on wide screens. */
 @utility bg-hatch {
-  background-color: #f7f1ed;
+  background-color: #000000;
   background-image: repeating-linear-gradient(
     135deg,
     transparent 0 7px,
-    rgb(15 23 42 / 0.045) 7px 8px
+    rgb(255 255 255 / 0.035) 7px 8px
   );
 }

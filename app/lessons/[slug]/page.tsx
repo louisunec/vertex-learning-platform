@@ -141,7 +141,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
 
         <div className="flex flex-1 flex-col lg:flex-row">
           {course && (
-            <aside className="order-2 shrink-0 border-t border-neutral-200 bg-white lg:order-1 lg:w-[280px] lg:border-t-0 lg:border-r">
+            <aside className="order-2 shrink-0 border-t border-neutral-200 bg-surface lg:order-1 lg:w-[280px] lg:border-t-0 lg:border-r">
               <LessonSidebar
                 courseTitle={course.title}
                 courseHref={`/courses/${course.slug}`}
@@ -171,7 +171,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
               <button
                 type="button"
                 aria-label="Bookmark lesson"
-                className="mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-500 shadow-sm transition-colors hover:border-neutral-300 hover:text-primary-500 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none"
+                className="mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-surface text-neutral-500 shadow-sm transition-colors hover:border-neutral-300 hover:text-primary-500 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none"
               >
                 <Icon name="bookmark" size={20} />
               </button>
@@ -203,7 +203,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
                   }}
                 />
               ) : poster ? (
-                <div className="relative aspect-video overflow-hidden rounded-[20px] bg-neutral-900 shadow-sm">
+                <div className="relative aspect-video overflow-hidden rounded-[20px] bg-black shadow-sm">
                   <Image
                     src={urlFor(poster).width(1280).fit("max").auto("format").url()}
                     alt={poster.alt ?? ""}

@@ -1,16 +1,11 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Geist } from "next/font/google";
 import { PostHogIdentity } from "@/components/home/posthog-identity";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
 });
 
@@ -23,14 +18,29 @@ export const metadata: Metadata = {
     "Vertex understands what you want to learn and finds the exact lessons across all your courses.",
 };
 
+/** Clerk's hosted UI (sign-in, sign-up, user menu) mirrors the dark theme tokens in globals.css. */
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "#31fbb8",
+    colorPrimaryForeground: "#0d0e11",
+    colorBackground: "#16171b",
+    colorForeground: "#ededed",
+    colorMutedForeground: "#9eaabf",
+    colorMuted: "#101115",
+    colorInput: "#101115",
+    colorInputForeground: "#ededed",
+    colorBorder: "#2e3238",
+    colorNeutral: "#ededed",
+    colorRing: "rgb(49 251 184 / 0.6)",
+    fontFamily: "var(--font-geist), ui-sans-serif, system-ui, sans-serif",
+  },
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${playfair.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <ClerkProvider>
+        <ClerkProvider appearance={clerkAppearance}>
           <PostHogIdentity />
           {children}
         </ClerkProvider>

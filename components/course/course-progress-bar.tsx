@@ -10,7 +10,7 @@ export interface CourseProgressBarProps {
 export function CourseProgressBar({ percent, ctaHref, ctaLabel }: CourseProgressBarProps) {
   return (
     <div className="sticky bottom-0 z-10 px-6 pb-6 md:px-12">
-      <div className="flex flex-col gap-4 rounded-lg border border-neutral-200 bg-white px-6 py-5 shadow-lg sm:flex-row sm:items-center sm:gap-8">
+      <div className="flex flex-col gap-4 rounded-lg border border-neutral-200 bg-surface px-6 py-5 shadow-lg sm:flex-row sm:items-center sm:gap-8">
         <div className="shrink-0">
           <p className="text-small text-neutral-500">Your Progress</p>
           <p className="mt-1 text-body-lg font-medium text-neutral-900">{percent}% complete</p>

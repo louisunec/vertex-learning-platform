@@ -8,7 +8,7 @@ import { Icon, type IconName } from "./icon";
 export function Card({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-lg border border-neutral-200 bg-white p-5 shadow-sm", className)}
+      className={cn("rounded-lg border border-neutral-200 bg-surface p-5 shadow-sm", className)}
       {...props}
     >
       {children}

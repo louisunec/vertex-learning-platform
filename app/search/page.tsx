@@ -26,7 +26,7 @@ export default async function SearchPage({ searchParams }: Props) {
     <form
       role="search"
       action="/search"
-      className="mx-auto flex h-14 w-full max-w-[720px] items-center gap-3 rounded-lg border border-neutral-200 bg-white pr-3 pl-5 shadow-sm transition-colors focus-within:border-primary-400"
+      className="mx-auto flex h-14 w-full max-w-[720px] items-center gap-3 rounded-lg border border-neutral-200 bg-surface pr-3 pl-5 shadow-sm transition-colors focus-within:border-primary-400"
     >
       <Icon name="search" size={20} className="shrink-0 text-neutral-900" />
       <input

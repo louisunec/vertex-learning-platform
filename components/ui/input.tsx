@@ -7,7 +7,7 @@ import { Icon } from "./icon";
  * 0 16px padding, primary-400 border on focus.
  */
 const fieldBase =
-  "h-11 w-full rounded-md border border-neutral-200 bg-white text-body text-neutral-900 transition-colors " +
+  "h-11 w-full rounded-md border border-neutral-200 bg-surface text-body text-neutral-900 transition-colors " +
   "placeholder:text-neutral-500 focus:border-primary-400 focus:outline-none disabled:bg-neutral-50 disabled:text-neutral-300";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
