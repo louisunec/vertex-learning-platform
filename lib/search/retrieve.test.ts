@@ -39,6 +39,43 @@ describe('published-only retrieval', () => {
     assert.equal(parseCourseCandidates([course('course-1')]).length, 1)
   })
 
+  it('drops course rows whose nested lesson is a draft or release version', () => {
+    const course = (lessonId: string) => ({
+      _id: 'course-1',
+      title: 'React',
+      slug: 'react',
+      modules: [{_key: 'm1', title: 'Basics', lessons: [lessonRow(lessonId)]}],
+    })
+    for (const id of ['drafts.lesson-1', 'versions.r123.lesson-1']) {
+      assert.equal(parseCourseCandidates([course(id)]).length, 0, id)
+    }
+    assert.deepEqual(
+      parseCourseCandidates([course('lesson-1')]).map((c) => c.lessonId),
+      ['lesson-1'],
+    )
+  })
+
+  it('drops lesson and video-index rows whose nested course is a draft or release version', () => {
+    const nestedCourse = (id: string) => ({
+      _id: id,
+      title: 'React',
+      slug: 'react',
+      modules: [{_key: 'm1', title: 'Basics', lessonIds: ['lesson-1']}],
+    })
+    for (const id of ['drafts.course-1', 'versions.r123.course-1']) {
+      assert.equal(parseLessonCandidates([{...lessonRow('lesson-1'), course: nestedCourse(id)}]).length, 0, id)
+      assert.equal(
+        parseVideoMomentCandidates([videoRow()], [{...indexRow('lesson-1'), course: nestedCourse(id)}]).length,
+        0,
+        id,
+      )
+    }
+    const [lesson] = parseLessonCandidates([{...lessonRow('lesson-1'), course: nestedCourse('course-1')}])
+    assert.equal(lesson.course?.id, 'course-1')
+    const [moment] = parseVideoMomentCandidates([videoRow()], [{...indexRow('lesson-1'), course: nestedCourse('course-1')}])
+    assert.equal(moment.course?.id, 'course-1')
+  })
+
   it('drops draft video rows and never grounds a moment to a draft lesson', () => {
     assert.equal(parseVideoMomentCandidates([videoRow({_id: `drafts.video-${VIDEO_ID}`})], [indexRow('lesson-1')]).length, 0)
     assert.equal(parseVideoMomentCandidates([videoRow()], [indexRow('drafts.lesson-1')]).length, 0)

@@ -25,7 +25,7 @@ const publishedIdSchema = z
 
 /** Course row with the modules map needed to derive module/lesson positions. */
 const courseRawSchema = z.object({
-  _id: z.string(),
+  _id: publishedIdSchema,
   title: z.string(),
   slug: z.string(),
   level: z.string().nullish(),
@@ -72,7 +72,7 @@ const courseRowSchema = z.object({
           .array(
             z
               .object({
-                _id: z.string(),
+                _id: publishedIdSchema,
                 title: z.string(),
                 slug: z.string(),
                 durationSeconds: z.number().int().nonnegative().nullish(),
