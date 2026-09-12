@@ -1,5 +1,7 @@
 import type {SchemaTypeDefinition} from 'sanity'
 
+import {assessment} from './documents/assessment'
+import {assessmentGenerationRecord} from './documents/assessment-generation-record'
 import {category} from './documents/category'
 import {course} from './documents/course'
 import {instructor} from './documents/instructor'
@@ -21,6 +23,8 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   category,
   video,
   progress,
+  assessment,
+  assessmentGenerationRecord,
   // Objects
   module,
   learningOutcome,
