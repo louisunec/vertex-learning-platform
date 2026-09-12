@@ -22,8 +22,12 @@ export function publishBlockReason(draft: SanityDocument | null, published: Sani
   return null
 }
 
-function contentChanged(a: SanityDocument, b: SanityDocument): boolean {
-  return ASSESSMENT_CONTENT_FIELDS.some((field) => stableStringify(a[field]) !== stableStringify(b[field]))
+export function contentChanged(
+  a: SanityDocument,
+  b: SanityDocument,
+  fields: ReadonlyArray<string> = ASSESSMENT_CONTENT_FIELDS,
+): boolean {
+  return fields.some((field) => stableStringify(a[field]) !== stableStringify(b[field]))
 }
 
 /** JSON with sorted object keys, so key order never reads as a content change. */
@@ -38,14 +42,23 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value ?? null)
 }
 
-/** Wraps the built-in publish action; the original still runs so its hooks stay stable. */
-export function gatePublish(publish: DocumentActionComponent): DocumentActionComponent {
+export type PublishBlockReason = (draft: SanityDocument | null, published: SanityDocument | null) => string | null
+
+/**
+ * Wraps the built-in publish action; the original still runs so its hooks
+ * stay stable. `blockReason` defaults to the assessment rules; concepts and
+ * prerequisite edges pass their own (`concept-publish.ts`).
+ */
+export function gatePublish(
+  publish: DocumentActionComponent,
+  blockReason: PublishBlockReason = publishBlockReason,
+): DocumentActionComponent {
   const GatedPublish: DocumentActionComponent = (props) => {
     const description = publish(props)
-    const reason = publishBlockReason(props.draft, props.published)
+    const reason = blockReason(props.draft, props.published)
     return description && reason ? {...description, disabled: true, title: reason} : description
   }
   GatedPublish.action = publish.action
-  GatedPublish.displayName = 'GatedAssessmentPublishAction'
+  GatedPublish.displayName = 'GatedPublishAction'
   return GatedPublish
 }

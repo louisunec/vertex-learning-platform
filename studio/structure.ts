@@ -1,6 +1,7 @@
 import {CONTEXT_SCHEMA_TYPE_NAME} from '@sanity/context/studio'
 import {
   BookIcon,
+  BulbOutlineIcon,
   CheckmarkCircleIcon,
   ClipboardIcon,
   PlayIcon,
@@ -32,6 +33,33 @@ const assessmentList = (S: StructureBuilder, title: string, filter: string) =>
         ]),
     )
 
+/**
+ * Review queues for generated concepts and prerequisite edges (development
+ * plan §5 PR-3). Like assessments, neither offers "create".
+ */
+const reviewList = (
+  S: StructureBuilder,
+  schemaType: string,
+  title: string,
+  filter: string,
+  ordering: Array<{field: string; direction: 'asc' | 'desc'}>,
+) =>
+  S.listItem()
+    .title(title)
+    .schemaType(schemaType)
+    .child(
+      S.documentList()
+        .title(title)
+        .schemaType(schemaType)
+        .apiVersion('2026-08-31')
+        .filter(`_type == "${schemaType}" && ${filter}`)
+        .initialValueTemplates([])
+        .defaultOrdering(ordering),
+    )
+
+const BY_NAME = [{field: 'name', direction: 'asc' as const}]
+const BY_GENERATED = [{field: 'generation.generatedAt', direction: 'desc' as const}]
+
 export const structure: StructureResolver = (S) =>
   S.list()
     .title('Vertex')
@@ -60,6 +88,38 @@ export const structure: StructureResolver = (S) =>
                 .child(
                   S.documentTypeList('assessmentGenerationRecord')
                     .title('Generation records')
+                    .initialValueTemplates([])
+                    .defaultOrdering([{field: 'processedAt', direction: 'desc'}]),
+                ),
+            ]),
+        ),
+      S.listItem()
+        .title('Concepts')
+        .icon(BulbOutlineIcon)
+        .child(
+          S.list()
+            .title('Concepts')
+            .items([
+              reviewList(S, 'concept', 'Needs review', 'reviewStatus == "needs_review" && sourceStatus != "stale"', BY_NAME),
+              reviewList(S, 'concept', 'Approved', 'reviewStatus == "approved" && sourceStatus != "stale"', BY_NAME),
+              reviewList(S, 'concept', 'Stale (source changed)', 'sourceStatus == "stale"', BY_NAME),
+              reviewList(S, 'concept', 'Merged, split, or archived', 'reviewStatus in ["merged", "split", "archived"]', BY_NAME),
+              reviewList(S, 'concept', 'Rejected', 'reviewStatus == "rejected"', BY_NAME),
+              S.divider(),
+              reviewList(S, 'conceptPrerequisite', 'Proposed prerequisites', 'status == "proposed" && sourceStatus != "stale"', BY_GENERATED),
+              reviewList(S, 'conceptPrerequisite', 'Approved prerequisites', 'status == "approved" && sourceStatus != "stale"', BY_GENERATED),
+              reviewList(S, 'conceptPrerequisite', 'Stale prerequisites', 'sourceStatus == "stale"', BY_GENERATED),
+              reviewList(S, 'conceptPrerequisite', 'Rejected or retired prerequisites', 'status in ["rejected", "retired"]', BY_GENERATED),
+              S.divider(),
+              reviewList(S, 'conceptMergeProposal', 'Merge proposals to review', 'status == "proposed"', BY_GENERATED),
+              reviewList(S, 'conceptMergeProposal', 'Accepted or rejected merges', 'status in ["accepted", "rejected"]', BY_GENERATED),
+              S.divider(),
+              S.listItem()
+                .title('Generation records')
+                .schemaType('conceptGenerationRecord')
+                .child(
+                  S.documentTypeList('conceptGenerationRecord')
+                    .title('Concept generation records')
                     .initialValueTemplates([])
                     .defaultOrdering([{field: 'processedAt', direction: 'desc'}]),
                 ),

@@ -312,6 +312,17 @@ export const assessment = defineType({
       ],
     }),
     defineField({
+      name: 'primaryConcept',
+      title: 'Primary concept',
+      type: 'reference',
+      group: 'review',
+      to: [{type: 'concept'}],
+      options: {filter: 'reviewStatus == "approved"', disableNew: true},
+      // Deliberately not in ASSESSMENT_CONTENT_FIELDS: linking an approved item is an association, not a content change.
+      description:
+        'The single concept this item is evidence for (development plan PR-3/PR-4). Stays editable after approval; `npm run validate:concepts` suggests links.',
+    }),
+    defineField({
       name: 'sourceExcerpt',
       type: 'text',
       group: 'source',
