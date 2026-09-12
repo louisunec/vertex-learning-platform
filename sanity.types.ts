@@ -52,6 +52,22 @@ export type BlockContent = Array<
     }
 >;
 
+export type LessonReference = {
+  _ref: string;
+  _type: "reference";
+  _weak?: boolean;
+  [internalGroqTypeReferenceTo]?: "lesson";
+};
+
+export type ConceptSourceRef = {
+  _type: "conceptSourceRef";
+  chunkId?: string;
+  chunkRevision?: string;
+  startSeconds?: number;
+  endSeconds?: number;
+  lesson?: LessonReference;
+};
+
 export type TranscriptChunk = {
   _type: "transcriptChunk";
   startSeconds: number;
@@ -79,13 +95,6 @@ export type LearningOutcome = {
   description?: string;
 };
 
-export type LessonReference = {
-  _ref: string;
-  _type: "reference";
-  _weak?: boolean;
-  [internalGroqTypeReferenceTo]?: "lesson";
-};
-
 export type Module = {
   _type: "module";
   title: string;
@@ -95,6 +104,141 @@ export type Module = {
       _key: string;
     } & LessonReference
   >;
+};
+
+export type CourseReference = {
+  _ref: string;
+  _type: "reference";
+  _weak?: boolean;
+  [internalGroqTypeReferenceTo]?: "course";
+};
+
+export type ConceptGenerationRecord = {
+  _id: string;
+  _type: "conceptGenerationRecord";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  kind?: "span_extraction" | "course_prerequisites" | "course_consolidation";
+  lesson?: LessonReference;
+  course?: CourseReference;
+  spanIndex?: number;
+  outcome?: "extracted" | "proposed" | "no_candidates" | "all_rejected";
+  candidates?: Array<{
+    role?: "primary" | "secondary";
+    fingerprint?: string;
+    name?: string;
+    aliases?: Array<string>;
+    summary?: string;
+    objectives?: Array<string>;
+    independenceReason?: string;
+    sourceRefs?: Array<
+      {
+        _key: string;
+      } & ConceptSourceRef
+    >;
+    _type: "conceptCandidate";
+    _key: string;
+  }>;
+  rejectedCandidates?: Array<{
+    candidateId?: string;
+    role?: string;
+    name?: string;
+    reason?: string;
+    fingerprint?: string;
+    _type: "rejectedConceptCandidate";
+    _key: string;
+  }>;
+  excludedDetails?: Array<string>;
+  droppedAliases?: number;
+  draftIds?: Array<string>;
+  rejectionReasons?: Array<string>;
+  modelSkipReason?: string;
+  key?: string;
+  promptVersion?: string;
+  model?: string;
+  configVersion?: string;
+  processedAt?: string;
+};
+
+export type ConceptReference = {
+  _ref: string;
+  _type: "reference";
+  _weak?: boolean;
+  [internalGroqTypeReferenceTo]?: "concept";
+};
+
+export type ConceptMergeProposal = {
+  _id: string;
+  _type: "conceptMergeProposal";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  status: "proposed" | "accepted" | "rejected";
+  canonical?: {
+    conceptId?: string;
+    candidateIds?: Array<string>;
+  };
+  members?: Array<{
+    conceptId?: string;
+    name?: string;
+    candidateIds?: Array<string>;
+    concept?: ConceptReference;
+    _type: "conceptMergeMember";
+    _key: string;
+  }>;
+  rationale?: string;
+  evidence?: Array<
+    {
+      _key: string;
+    } & ConceptSourceRef
+  >;
+  note?: string;
+  generation?: {
+    course?: CourseReference;
+    key?: string;
+    suppressionKey?: string;
+    model?: string;
+    promptVersion?: string;
+    configVersion?: string;
+    contentHash?: string;
+    generatedAt?: string;
+  };
+};
+
+export type ConceptPrerequisite = {
+  _id: string;
+  _type: "conceptPrerequisite";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  status: "proposed" | "approved" | "rejected" | "retired";
+  sourceStatus: "current" | "stale";
+  prerequisite: ConceptReference;
+  dependent: ConceptReference;
+  rationale: string;
+  evidence?: Array<
+    {
+      _key: string;
+    } & ConceptSourceRef
+  >;
+  review?: {
+    genuineDependency?: boolean;
+    directionCorrect?: boolean;
+    evidenceSupports?: boolean;
+    note?: string;
+  };
+  generation?: {
+    course?: CourseReference;
+    key?: string;
+    model?: string;
+    promptVersion?: string;
+    configVersion?: string;
+    suppressionKey?: string;
+    reconsiders?: Array<string>;
+    contentHash?: string;
+    generatedAt?: string;
+  };
 };
 
 export type AssessmentGenerationRecord = {
@@ -159,6 +303,7 @@ export type Assessment = {
     hintsProgressive?: boolean;
     note?: string;
   };
+  primaryConcept?: ConceptReference;
   sourceExcerpt?: string;
   sourceChunkRefs: Array<{
     chunkId?: string;
@@ -178,6 +323,66 @@ export type Assessment = {
     model?: string;
     promptVersion?: string;
     configVersion?: string;
+    generatedAt?: string;
+  };
+};
+
+export type Concept = {
+  _id: string;
+  _type: "concept";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  reviewStatus:
+    "needs_review" | "approved" | "rejected" | "merged" | "split" | "archived";
+  sourceStatus: "current" | "stale";
+  mergedInto?: ConceptReference;
+  splitInto?: Array<
+    {
+      _key: string;
+    } & ConceptReference
+  >;
+  conceptId: string;
+  name: string;
+  aliases?: Array<string>;
+  summary: string;
+  objectives: Array<{
+    text: string;
+    _type: "conceptObjective";
+    _key: string;
+  }>;
+  revision: number;
+  review?: {
+    nameAccurate?: boolean;
+    summarySupported?: boolean;
+    objectivesAssessable?: boolean;
+    notDuplicate?: boolean;
+    granularityAppropriate?: boolean;
+    note?: string;
+  };
+  lessons?: Array<
+    {
+      _key: string;
+    } & LessonReference
+  >;
+  sourceRefs: Array<
+    {
+      _key: string;
+    } & ConceptSourceRef
+  >;
+  sourceExcerpt?: string;
+  generation?: {
+    course?: CourseReference;
+    model?: string;
+    promptVersion?: string;
+    configVersion?: string;
+    extractionKeys?: Array<string>;
+    candidateIds?: Array<string>;
+    role?: string;
+    suppressionKey?: string;
+    reconsiders?: string;
+    appliedMerges?: Array<string>;
+    contentHash?: string;
     generatedAt?: string;
   };
 };
@@ -466,14 +671,21 @@ export type Geopoint = {
 export type AllSanitySchemaTypes =
   | SanityImageAssetReference
   | BlockContent
+  | LessonReference
+  | ConceptSourceRef
   | TranscriptChunk
   | Chapter
   | Resource
   | LearningOutcome
-  | LessonReference
   | Module
+  | CourseReference
+  | ConceptGenerationRecord
+  | ConceptReference
+  | ConceptMergeProposal
+  | ConceptPrerequisite
   | AssessmentGenerationRecord
   | Assessment
+  | Concept
   | Progress
   | Video
   | Lesson
