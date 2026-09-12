@@ -4,6 +4,7 @@ import {z} from 'zod'
 
 // Relative `.ts` import (like rank.ts) so `node --test` can load this module.
 import {parseVideoUrl} from '../video/provider.ts'
+import {MAX_MOMENTS_PER_VIDEO, MAX_VISUAL_LINES} from './queries.ts'
 import type {SearchCourseContext} from './schema'
 
 /**
@@ -100,8 +101,32 @@ const videoRowSchema = z.object({
   transcriptMatches: z.array(momentSchema.extend({text: z.string()})).nullish(),
 })
 
+/**
+ * One `videoVisualIndex` row: matching OCR/VLM chunks with only their matching
+ * lines. Validated independently of the Context allowlist: the row and the
+ * video it references must be published documents of the expected types, the
+ * video's id must be the one derived from its `videoId`, and any malformed or
+ * over-long part rejects the whole row rather than being partially trusted.
+ */
+const visualRowSchema = z.object({
+  _id: publishedIdSchema,
+  _type: z.literal('videoVisualIndex'),
+  video: z
+    .object({_id: publishedIdSchema, _type: z.literal('video'), videoId: z.string().min(1)})
+    .refine((video) => video._id === `video-${video.videoId}`, 'video document id does not match its videoId'),
+  visualMatches: z
+    .array(
+      momentSchema.extend({
+        source: z.enum(['ocr', 'vlm']),
+        lines: z.array(z.string()).min(1).max(MAX_VISUAL_LINES),
+      }),
+    )
+    .max(MAX_MOMENTS_PER_VIDEO),
+})
+
 const lessonVideoIndexRowSchema = z.object({
   _id: publishedIdSchema,
+  _type: z.literal('lesson'),
   title: z.string(),
   slug: z.string(),
   durationSeconds: z.number().int().nonnegative().nullish(),
@@ -139,7 +164,8 @@ export type VideoMomentCandidate = {
   posterUrl: string | null
   course: SearchCourseContext | null
   startSeconds: number
-  matchKind: 'chapter' | 'transcript'
+  /** `ocr`/`vlm`: on-screen text or a labelled model interpretation from the visual index. */
+  matchKind: 'chapter' | 'transcript' | 'ocr' | 'vlm'
   momentText: string
 }
 
@@ -240,9 +266,14 @@ export function parseCourseCandidates(rows: unknown): LessonCandidate[] {
  * Grounds matched video moments to the lesson that uses the video: a moment
  * survives only when a lesson's `parseVideoUrl(videoUrl).videoId` equals the
  * video document's `videoId` (SEARCH.md §7). Chapter matches suppress the
- * transcript fallback for the same video (SEARCH.md §4).
+ * transcript and visual fallbacks for the same video (SEARCH.md §4).
+ * `visualRows` come from `buildVisualCandidatesQuery` (flag-gated).
  */
-export function parseVideoMomentCandidates(videoRows: unknown, lessonIndexRows: unknown): VideoMomentCandidate[] {
+export function parseVideoMomentCandidates(
+  videoRows: unknown,
+  lessonIndexRows: unknown,
+  visualRows: unknown = [],
+): VideoMomentCandidate[] {
   const lessonsByVideoId = new Map<string, z.infer<typeof lessonVideoIndexRowSchema>>()
   for (const lesson of parseRows(lessonIndexRows, lessonVideoIndexRowSchema)) {
     const parsed = parseVideoUrl(lesson.videoUrl)
@@ -251,25 +282,11 @@ export function parseVideoMomentCandidates(videoRows: unknown, lessonIndexRows: 
   }
 
   const candidates: VideoMomentCandidate[] = []
-  for (const video of parseRows(videoRows, videoRowSchema)) {
-    const lesson = lessonsByVideoId.get(video.videoId)
-    if (!lesson) continue
-
-    const chapters = video.chapterMatches ?? []
-    const moments =
-      chapters.length > 0
-        ? chapters.map((chapter) => ({
-            startSeconds: chapter.startSeconds,
-            matchKind: 'chapter' as const,
-            momentText: chapter.label,
-          }))
-        : (video.transcriptMatches ?? []).map((chunk) => ({
-            startSeconds: chunk.startSeconds,
-            matchKind: 'transcript' as const,
-            momentText:
-              chunk.text.length > MAX_SNIPPET_LENGTH ? `${chunk.text.slice(0, MAX_SNIPPET_LENGTH).trimEnd()}…` : chunk.text,
-          }))
-
+  const chapterMatched = new Set<string>()
+  const push = (
+    lesson: z.infer<typeof lessonVideoIndexRowSchema>,
+    moments: Array<Pick<VideoMomentCandidate, 'startSeconds' | 'matchKind' | 'momentText'>>,
+  ) => {
     for (const moment of moments) {
       candidates.push({
         lessonId: lesson._id,
@@ -283,5 +300,46 @@ export function parseVideoMomentCandidates(videoRows: unknown, lessonIndexRows: 
       })
     }
   }
+
+  for (const video of parseRows(videoRows, videoRowSchema)) {
+    const lesson = lessonsByVideoId.get(video.videoId)
+    if (!lesson) continue
+
+    const chapters = video.chapterMatches ?? []
+    if (chapters.length > 0) chapterMatched.add(video.videoId)
+    push(
+      lesson,
+      chapters.length > 0
+        ? chapters.map((chapter) => ({
+            startSeconds: chapter.startSeconds,
+            matchKind: 'chapter' as const,
+            momentText: chapter.label,
+          }))
+        : (video.transcriptMatches ?? []).map((chunk) => ({
+            startSeconds: chunk.startSeconds,
+            matchKind: 'transcript' as const,
+            momentText: snippet(chunk.text),
+          })),
+    )
+  }
+
+  for (const visual of parseRows(visualRows, visualRowSchema)) {
+    const lesson = lessonsByVideoId.get(visual.video.videoId)
+    if (!lesson || chapterMatched.has(visual.video.videoId)) continue
+    push(
+      lesson,
+      visual.visualMatches
+        .map((chunk) => ({
+          startSeconds: chunk.startSeconds,
+          matchKind: chunk.source,
+          momentText: snippet(chunk.lines.map((line) => line.trim()).filter(Boolean).join(' … ')),
+        }))
+        .filter((moment) => moment.momentText.length > 0),
+    )
+  }
   return candidates
+}
+
+function snippet(text: string): string {
+  return text.length > MAX_SNIPPET_LENGTH ? `${text.slice(0, MAX_SNIPPET_LENGTH).trimEnd()}…` : text
 }

@@ -7,7 +7,7 @@ import {gatePublish} from './actions/assessment-publish'
 import {schemaTypes} from './schemaTypes'
 import {structure} from './structure'
 
-const GENERATOR_ONLY_TYPES = new Set(['assessment', 'assessmentGenerationRecord'])
+const GENERATOR_ONLY_TYPES = new Set(['assessment', 'assessmentGenerationRecord', 'videoVisualIndex'])
 
 const projectId = process.env.SANITY_STUDIO_PROJECT_ID
 const dataset = process.env.SANITY_STUDIO_DATASET
@@ -25,7 +25,8 @@ export default defineConfig({
   document: {
     // Assessments and generation records are created only by the generator
     // (`npm run generate:assessments`): an assessment needs server-resolved
-    // source chunks, so a hand-made one could never be published.
+    // source chunks, so a hand-made one could never be published. Visual
+    // indexes come only from the visual indexer (`npm run index:visuals`).
     newDocumentOptions: (prev) => prev.filter((item) => !GENERATOR_ONLY_TYPES.has(item.templateId)),
     // Assessments publish only after review; approved versions stay immutable.
     // Duplicating would copy source refs and family id into an off-scheme document.

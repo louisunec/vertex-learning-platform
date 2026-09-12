@@ -11,6 +11,8 @@ import {getPostHogClient} from '@/lib/posthog-server'
 export const FLAGS = {
   /** PR-0: route search query interpretation through `lib/ai/gateway`. */
   aiGatewaySearch: 'ai-gateway-search',
+  /** PR-2: add on-screen (OCR/VLM) video moments from `videoVisualIndex` to search. */
+  searchVisualEvidence: 'search-visual-evidence',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

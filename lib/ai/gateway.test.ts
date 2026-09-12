@@ -121,6 +121,44 @@ describe('generateBoundedObject', () => {
     assert.equal(received.maxOutputTokens, 96)
   })
 
+  it('sends one image after the text prompt and keeps it out of diagnostics', async () => {
+    let received: {prompt?: unknown} = {}
+    const model = new MockLanguageModelV4({
+      doGenerate: async (options) => {
+        received = options
+        return {
+          content: [{type: 'text', text: '{"keywords":["frame"]}'}],
+          finishReason: {unified: 'stop', raw: undefined},
+          usage,
+          warnings: [],
+        }
+      },
+    })
+    const logs: AiCallDiagnostics[] = []
+    const data = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+    await generateBoundedObject({
+      model,
+      schema,
+      system: 'system',
+      prompt: PROMPT,
+      image: {data, mediaType: 'image/png'},
+      maxOutputTokens: 100,
+      versions,
+      log: (diagnostics) => logs.push(diagnostics),
+    })
+    const messages = received.prompt as Array<{role: string; content: Array<Record<string, unknown>>}>
+    const user = messages.find((message) => message.role === 'user')!
+    assert.deepEqual(
+      user.content.map((part) => part.type),
+      ['text', 'file'],
+    )
+    assert.equal(user.content[0].text, PROMPT)
+    assert.equal(user.content[1].mediaType, 'image/png')
+    assert.deepEqual(logs.map((log) => Object.keys(log).sort()), [
+      ['inputTokens', 'latencyMs', 'modelId', 'outputTokens', 'promptVersion', 'status', 'task'],
+    ])
+  })
+
   it('never puts prompt or output text in diagnostics', async () => {
     const {promise, logs} = await call(textModel('{"keywords":["unique-output-token"]}'))
     await promise

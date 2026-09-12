@@ -1,5 +1,7 @@
 import {z} from 'zod'
 
+import {EVIDENCE_SOURCES} from '../evidence/chunks.ts'
+
 /**
  * Shared grounded-AI contracts (development plan §3 "Evidence envelope").
  * Schemas only: generation that produces them arrives with its first consumer
@@ -30,10 +32,15 @@ export const evidenceRefSchema = z.object({
   chunkRevision: idSchema,
 })
 
+/** Modality of a cited chunk; `vlm` marks a model interpretation, not ground truth. */
+export const evidenceSourceSchema = z.enum(EVIDENCE_SOURCES)
+
 /** A server-built citation resolved from stored chunk and lesson records. */
 export const resolvedCitationSchema = z
   .object({
     chunkId: idSchema,
+    /** Absent on citations built before visual evidence existed; read as `transcript`. */
+    source: evidenceSourceSchema.optional(),
     lessonId: idSchema,
     sourceRevision: idSchema,
     startSeconds: secondsSchema,

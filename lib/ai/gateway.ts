@@ -5,6 +5,7 @@ import {
   Output,
   type LanguageModel,
   type LanguageModelUsage,
+  type ModelMessage,
 } from 'ai'
 import type {z} from 'zod'
 
@@ -60,11 +61,16 @@ export function logAiDiagnostics(diagnostics: AiCallDiagnostics): void {
   else console.warn(line)
 }
 
+/** One image sent with the text prompt (e.g. a video frame for a vision-capable model). */
+export type BoundedImage = {data: Uint8Array; mediaType: 'image/png' | 'image/jpeg'}
+
 type GenerateBoundedObjectOptions<T> = {
   model: LanguageModel
   schema: z.ZodType<T>
   system: string
   prompt: string
+  /** At most one image; the model must support image input. Never logged. */
+  image?: BoundedImage
   maxOutputTokens: number
   timeoutMs?: number
   /** Provider-specific settings (e.g. OpenAI reasoning effort), passed through unchanged. */
@@ -83,6 +89,7 @@ export async function generateBoundedObject<T>({
   schema,
   system,
   prompt,
+  image,
   maxOutputTokens,
   timeoutMs = AI_GATEWAY_TIMEOUT_MS,
   providerOptions,
@@ -105,7 +112,7 @@ export async function generateBoundedObject<T>({
       model,
       output: Output.object({schema}),
       system,
-      prompt,
+      prompt: image ? withImage(prompt, image) : prompt,
       maxOutputTokens,
       maxRetries: MAX_PROVIDER_RETRIES,
       timeout: timeoutMs,
@@ -120,6 +127,19 @@ export async function generateBoundedObject<T>({
     report(category, NoObjectGeneratedError.isInstance(error) ? error.usage : undefined)
     throw new AiCallError(category, `${versions.task} model call failed (${category})`, {cause: error})
   }
+}
+
+/** One user message carrying the text prompt followed by the image. */
+function withImage(prompt: string, image: BoundedImage): ModelMessage[] {
+  return [
+    {
+      role: 'user',
+      content: [
+        {type: 'text', text: prompt},
+        {type: 'image', image: image.data, mediaType: image.mediaType},
+      ],
+    },
+  ]
 }
 
 /** Maps SDK/provider errors onto the three failure categories. */
