@@ -53,14 +53,17 @@ describe('buildSpans', () => {
     assert.deepEqual(sizes(spans), [7, 6])
   })
 
-  it('merges a tiny chapter into the previous span when it fits', () => {
+  it('keeps a tiny chapter as its own span, so every span carries its own chapter label', () => {
     const spans = buildSpans(chunks(7), [
       {startSeconds: 0, label: 'Main'},
       {startSeconds: 100, label: 'Outro'},
     ])
-    // 5 chunks + 2-chunk outro → one span labelled with the first chapter.
-    assert.deepEqual(sizes(spans), [7])
-    assert.equal(spans[0].chapterLabel, 'Main')
+    // 5 chunks + 2-chunk outro → two spans; merging would send the outro labelled "Main".
+    assert.deepEqual(sizes(spans), [5, 2])
+    assert.deepEqual(
+      spans.map((span) => span.chapterLabel),
+      ['Main', 'Outro'],
+    )
   })
 
   it('ignores invalid chapters and is deterministic', () => {

@@ -5,9 +5,11 @@ import {openai, type OpenAILanguageModelResponsesOptions} from '@ai-sdk/openai'
 import {generateBoundedObject} from '../lib/ai/gateway.ts'
 import {ASSESSMENT_PROMPT_VERSION, type AssessmentDraft, type ExistingVersion} from '../lib/assessments/generate.ts'
 import {
+  committedPart,
   processLesson,
   type GenerateFn,
   type GenerationRecord,
+  type LessonResult,
   type LessonVideo,
   type Mutation,
   type SectionOutcome,
@@ -52,6 +54,8 @@ const MAX_OUTPUT_TOKENS = 6000
 const TIMEOUT_MS = 90_000
 /** Spend cap per run; remaining sections are reported as deferred. */
 const MAX_MODEL_CALLS_PER_RUN = 100
+/** Bound on each Sanity request, including reading its body (`AbortSignal.timeout`, Node ≥ 17.3). */
+const SANITY_TIMEOUT_MS = 30_000
 
 type Lesson = {_id: string; title: string; slug: string; videoUrl: string | null}
 type Outcome = {where: string; status: SectionOutcome['status'] | 'lesson-skipped' | 'lesson-failed'; detail: string}
@@ -154,8 +158,21 @@ async function generateForLesson(lesson: Lesson): Promise<void> {
   })
 
   // Each transaction is atomic: a section's drafts and its record land together or not at all.
-  if (!dryRun) for (const transaction of result.transactions) await mutate(transaction)
+  // If a later transaction fails, the units already committed are still reported.
+  let committed = dryRun ? result.transactions.length : 0
+  try {
+    if (!dryRun) {
+      for (const transaction of result.transactions) {
+        await mutate(transaction)
+        committed++
+      }
+    }
+  } finally {
+    account(lesson, committedPart(result, committed))
+  }
+}
 
+function account(lesson: Lesson, result: LessonResult): void {
   modelCalls += result.modelCalls
   markedStale += result.staleIds.length
   replacedDrafts += result.replacedIds.length
@@ -216,9 +233,20 @@ function authHeaders(token: string | undefined): Record<string, string> {
 }
 
 async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
-  const response = await fetch(url, init)
-  const body = await response.text()
-  if (!response.ok) throw new Error(`${init?.method ?? 'GET'} ${new URL(url).pathname} → ${response.status}: ${body.slice(0, 200)}`)
+  const method = init?.method ?? 'GET'
+  const path = new URL(url).pathname
+  let response: Response
+  let body: string
+  try {
+    response = await fetch(url, {...init, signal: AbortSignal.timeout(SANITY_TIMEOUT_MS)})
+    body = await response.text()
+  } catch (error) {
+    if ((error as {name?: unknown})?.name !== 'TimeoutError') throw error
+    const mayHaveApplied =
+      method === 'POST' ? '; the write may still have applied, and a rerun is safe because recorded units are skipped' : ''
+    throw new Error(`${method} ${path} timed out after ${SANITY_TIMEOUT_MS / 1000}s${mayHaveApplied}`)
+  }
+  if (!response.ok) throw new Error(`${method} ${path} → ${response.status}: ${body.slice(0, 200)}`)
   return JSON.parse(body)
 }
 

@@ -172,12 +172,15 @@ export function formatSourceExcerpt(span: Span): string {
   return span.chunks.map((chunk) => `[${formatClock(chunk.startSeconds)}] ${chunk.text}`).join('\n')
 }
 
-type KeyInput = {lessonId: string; videoDocumentId: string; span: Span; model: string}
+type KeyInput = {lessonId: string; lessonTitle: string; videoDocumentId: string; span: Span; model: string}
 
 function generationKey(input: KeyInput, kind: string[]): string {
   return hashParts([
     input.lessonId,
     input.videoDocumentId,
+    // Everything `buildGenerationPrompt` sends: a renamed lesson or chapter is a new prompt.
+    input.lessonTitle,
+    input.span.chapterLabel ?? '',
     input.span.chunks.map((chunk) => `${chunk.chunkId}@${chunk.chunkRevision}`).join(','),
     ASSESSMENT_PROMPT_VERSION,
     input.model,
@@ -187,8 +190,8 @@ function generationKey(input: KeyInput, kind: string[]): string {
 }
 
 /**
- * Pre-call key for one section: lesson, video, ordered chunk revisions, and
- * the prompt/model/config versions. Objective and type are model outputs, so
+ * Pre-call key for one section: lesson, video, lesson title, chapter label,
+ * ordered chunk revisions, and the prompt/model/config versions. Objective and type are model outputs, so
  * idempotency is decided per section, not per item.
  */
 export function spanKeyFor(input: KeyInput): string {

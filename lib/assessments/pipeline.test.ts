@@ -10,6 +10,7 @@ import {
   type GeneratedItem,
 } from './generate.ts'
 import {
+  committedPart,
   generationRecordId,
   processLesson,
   type GenerateFn,
@@ -374,5 +375,46 @@ describe('processLesson writes', () => {
     const staleRun = await run({generate: fakeModel(EMPTY), existing: citing0, processed: keysOf(firstRun)})
     assert.deepEqual(staleRun.staleIds, existing.map((doc) => doc._id))
     assert.deepEqual(staleRun.transactions[0], existing.map((doc) => ({patch: {id: doc._id, set: {sourceStatus: 'stale'}}})))
+  })
+})
+
+describe('committedPart', () => {
+  it('keeps exactly what the committed transactions wrote when a later one fails', async () => {
+    const result = await run({generate: fakeModel(DRAFTED, TRANSFER), budget: 2})
+    // Section 0 and section 1 each wrote a transaction; the transfer unit was deferred by the cap.
+    assert.equal(result.transactions.length, 2)
+    const part = committedPart(result, 1)
+    assert.deepEqual(part.transactions, result.transactions.slice(0, 1))
+    assert.deepEqual(part.records, result.records.slice(0, 1))
+    assert.deepEqual(part.drafts, result.drafts.slice(0, 1))
+    assert.deepEqual(
+      part.sections.map((section) => [section.kind, section.spanIndex, section.status]),
+      [
+        ['section', 0, 'drafted'],
+        ['lesson_transfer', 0, 'deferred'],
+      ],
+    )
+    assert.equal(part.modelCalls, result.modelCalls)
+  })
+
+  it('keeps a stale patch without the later draft that reuses its id', async () => {
+    const firstRun = await run({generate: fakeModel(DRAFTED)})
+    const existing = asExisting(firstRun.drafts).map((doc) => ({
+      ...doc,
+      sourceChunkRefs: [{...doc.sourceChunkRefs![0], chunkRevision: 'old'}],
+    }))
+    const result = await run({generate: fakeModel(DRAFTED), existing, editedText: 'edited caption'})
+    // The stale patch (transaction 0) and the in-place replacement (a later one) touch the same draft id.
+    assert.ok(result.replacedIds.some((id) => result.staleIds.includes(id)))
+    const part = committedPart(result, 1)
+    assert.deepEqual(part.staleIds, result.staleIds)
+    assert.deepEqual(part.drafts, [])
+    assert.deepEqual(part.replacedIds, [])
+    assert.deepEqual(part.records, [])
+  })
+
+  it('returns the whole result when every transaction committed (and for a dry run)', async () => {
+    const result = await run({generate: fakeModel(DRAFTED, TRANSFER)})
+    assert.deepEqual(committedPart(result, result.transactions.length), result)
   })
 })

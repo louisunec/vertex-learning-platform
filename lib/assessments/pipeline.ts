@@ -173,7 +173,7 @@ export async function processLesson(input: {
   }
 
   const spans = buildSpans(chunks, video.chapters ?? [])
-  const keyInput = (span: Span) => ({lessonId: lesson._id, videoDocumentId: video._id, span, model})
+  const keyInput = (span: Span) => ({lessonId: lesson._id, lessonTitle: lesson.title, videoDocumentId: video._id, span, model})
   const units: Unit[] = spans.map((span) => ({
     kind: 'section',
     span,
@@ -303,4 +303,34 @@ export async function processLesson(input: {
     })
   }
   return result
+}
+
+const WRITES_NOTHING: ReadonlySet<SectionOutcome['status']> = new Set(['skipped', 'deferred', 'failed'])
+
+/**
+ * The part of a lesson result that its first `count` transactions wrote, so a
+ * run still reports committed units when a later transaction fails. Outcomes
+ * that write nothing (skipped, deferred, failed) are kept; a processed unit
+ * is kept only when its record was committed.
+ */
+export function committedPart(result: LessonResult, count: number): LessonResult {
+  const transactions = result.transactions.slice(0, count)
+  const mutations = transactions.flat()
+  const created = new Set(mutations.flatMap((mutation) => ('createOrReplace' in mutation ? [mutation.createOrReplace._id] : [])))
+  const deleted = new Set(mutations.flatMap((mutation) => ('delete' in mutation ? [mutation.delete.id] : [])))
+  const patched = new Set(mutations.flatMap((mutation) => ('patch' in mutation ? [mutation.patch.id] : [])))
+  const records = result.records.filter((record) => created.has(record._id))
+  const recordedUnits = new Set(records.map((record) => `${record.kind}:${record.spanIndex}`))
+  return {
+    ...result,
+    transactions,
+    sections: result.sections.filter(
+      (section) => WRITES_NOTHING.has(section.status) || recordedUnits.has(`${section.kind}:${section.spanIndex}`),
+    ),
+    drafts: result.drafts.filter((draft) => created.has(draft._id)),
+    records,
+    staleIds: result.staleIds.filter((id) => patched.has(id)),
+    replacedIds: result.replacedIds.filter((id) => created.has(id)),
+    deletedIds: result.deletedIds.filter((id) => deleted.has(id)),
+  }
 }

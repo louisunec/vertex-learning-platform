@@ -84,10 +84,10 @@ All learner-visible text is checked: question, options, both reason fields, hint
 
 - `generator_language`: the existing list, plus `instructor(s)`, `demo(s)`, `demonstration(s)` and `the demonstrated`.
 - `source_pointer`: "sentence/lines in the source" phrasing. Patterns:
-  - "the sentence(s)/line(s)/part(s)/statement(s)/remark(s)/comment(s)/discussion/description/warning/analogy/walkthrough" followed by "that / which / where / about / describing / explaining / mentioning / comparing / listing / showing / on…";
-  - "look at / look for / find / check / re-read / refer to / review / revisit" followed within 3 words by "sentence / statement / remark / discussion / description / analogy / walkthrough / recommendation / guidance / warning".
+  - "the/this/that/these/those sentence(s)/line(s)/part(s)/portion(s)/segment(s)/remark(s)/discussion/description/warning/analogy/walkthrough" followed by "that / which / where / about / describing / explaining / mentioning / discussing / comparing / contrasting / listing / naming / defining / showing / on";
+  - "look at / look for / look in / find / check / re-read / refer to / review / revisit" followed within 3 words by "sentence(s) / statement(s) / remark(s) / discussion / description / analogy / walkthrough / recommendation / guidance / warning".
 
-  In v2 this matches 72/102 items, all in hint 1, and every sampled hit was a true pointer. Not flagged: "the first two lines of the config file", "the example request below".
+  Counted with `findSourcePointer` (`lib/assessments/quality.ts`) over the 102 Run 2 (v2) items: 66/102 match, all in hint 1, the same count as the Run 2 audit (`prompts/pr-1-candidate-audit.md`). An earlier version of this note said 72/102; that count does not reproduce with the committed detector. Every sampled hit was a true pointer. Not flagged: "the first two lines of the config file", "the example request below".
 - `chunk_label`: lowercase `c` plus 1–2 digits as a standalone token (`c0`, `c1`, `c0–c1`, `(c3)`). Uppercase `C2 server` is not flagged.
 - The prompt changes too, because v1 invited pointing:
   - hint 1 becomes "a nudge about which consideration or concept matters, written for a learner who has never seen any source";

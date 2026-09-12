@@ -5,13 +5,13 @@ import {ASSESSMENT_CONTENT_FIELDS, REVIEW_CHECKS} from '../schemaTypes/documents
 /**
  * Editorial gate on publishing assessments (development plan §5 PR-1):
  * a draft publishes only when approved with every review check ticked, or
- * when archiving. Approved published versions are immutable: a draft that
- * changes their content cannot publish — status-only changes can.
+ * when archiving. Published versions are immutable, archived ones included:
+ * a draft that changes their content cannot publish — status-only changes can.
  */
 export function publishBlockReason(draft: SanityDocument | null, published: SanityDocument | null): string | null {
   if (!draft) return null
-  if (published?.reviewStatus === 'approved' && contentChanged(draft, published)) {
-    return 'Approved versions are immutable. Generate or author a new version instead.'
+  if (published && contentChanged(draft, published)) {
+    return 'Published versions are immutable. Generate or author a new version instead.'
   }
   if (draft.reviewStatus === 'archived') return null
   if (draft.reviewStatus !== 'approved') return 'Set the review status to Approved before publishing.'

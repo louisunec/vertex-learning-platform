@@ -334,13 +334,28 @@ describe('generation output schema', () => {
 })
 
 describe('span keys and planning', () => {
-  const key = spanKeyFor({lessonId: LESSON_ID, videoDocumentId: VIDEO_DOC, span, model: 'gpt-5-mini'})
+  const keyInput = {lessonId: LESSON_ID, lessonTitle: 'Secrets', videoDocumentId: VIDEO_DOC, span, model: 'gpt-5-mini'}
+  const key = spanKeyFor(keyInput)
 
   it('changes the span key when a chunk revision or the model changes', () => {
     const revised: Span = {...span, chunks: [chunk(0), chunk(1, 'edited'), chunk(2)].map((c, i) => (i === 1 ? {...c, chunkRevision: 'new'} : c))}
-    assert.notEqual(key, spanKeyFor({lessonId: LESSON_ID, videoDocumentId: VIDEO_DOC, span: revised, model: 'gpt-5-mini'}))
-    assert.notEqual(key, spanKeyFor({lessonId: LESSON_ID, videoDocumentId: VIDEO_DOC, span, model: 'gpt-5'}))
-    assert.equal(key, spanKeyFor({lessonId: LESSON_ID, videoDocumentId: VIDEO_DOC, span, model: 'gpt-5-mini'}))
+    assert.notEqual(key, spanKeyFor({...keyInput, span: revised}))
+    assert.notEqual(key, spanKeyFor({...keyInput, model: 'gpt-5'}))
+    assert.equal(key, spanKeyFor({...keyInput}))
+  })
+
+  it('changes both keys when only the lesson title or chapter label changes (both are prompt inputs)', () => {
+    const renamedLesson = {...keyInput, lessonTitle: 'Secrets management'}
+    const renamedChapter = {...keyInput, span: {...span, chapterLabel: 'useState in depth'}}
+    const unlabelled = {...keyInput, span: {...span, chapterLabel: null}}
+    for (const changed of [renamedLesson, renamedChapter, unlabelled]) {
+      assert.deepEqual(
+        changed.span.chunks.map((c) => c.chunkRevision),
+        span.chunks.map((c) => c.chunkRevision),
+      )
+      assert.notEqual(spanKeyFor(changed), key)
+      assert.notEqual(transferKeyFor(changed), transferKeyFor(keyInput))
+    }
   })
 
   const families = sectionFamilyIds(LESSON_ID, span.index)
@@ -420,7 +435,7 @@ describe('lesson transfer unit', () => {
   })
 
   it('has its own key and family, separate from the section it reads', () => {
-    const input = {lessonId: LESSON_ID, videoDocumentId: VIDEO_DOC, span, model: 'gpt-5-mini'}
+    const input = {lessonId: LESSON_ID, lessonTitle: 'Secrets', videoDocumentId: VIDEO_DOC, span, model: 'gpt-5-mini'}
     assert.notEqual(transferKeyFor(input), spanKeyFor(input))
     assert.ok(!sectionFamilyIds(LESSON_ID, span.index).includes(transferFamilyId(LESSON_ID)))
     assert.match(transferFamilyId(LESSON_ID), /^asm-[0-9a-f]{8}-t-q0$/)

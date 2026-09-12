@@ -107,7 +107,7 @@ describe('learner practice query', () => {
     assert.ok(Array.isArray(rows))
     assert.deepEqual(
       rows.map((row) => (row as {_id: string})._id),
-      ['assessment-fam1-v2', 'assessment-fam1-v1'],
+      ['assessment-fam1-v2'],
     )
     for (const row of rows) {
       assert.deepEqual(Object.keys(row as object).sort(), [
@@ -139,5 +139,40 @@ describe('learner practice query', () => {
     const items = toLearnerAssessments(await runQuery(DATASET))
     assert.ok(items.every((item) => !item._id.startsWith('drafts.')))
     assertNoPrivateData(items)
+  })
+
+  it('excludes draft and release ids in the query itself, even on a raw read', async () => {
+    const rows = (await runQuery([
+      ...DATASET,
+      assessment('drafts.assessment-fam1-v3'),
+      assessment('versions.r1.assessment-fam1-v4'),
+    ])) as Array<{_id: string}>
+    // A newer draft or release version must not hide the published latest version either.
+    assert.deepEqual(
+      rows.map((row) => row._id),
+      ['assessment-fam1-v2'],
+    )
+  })
+
+  it('keeps one row per family before bounding, so older versions never push families out', async () => {
+    const families = Array.from({length: 60}, (_, i) => `many${String(i).padStart(2, '0')}`)
+    const dataset = families.flatMap((family) => [assessment(`assessment-${family}-v1`), assessment(`assessment-${family}-v2`)])
+    const rows = (await runQuery(dataset)) as Array<{familyId: string; version: number}>
+    assert.equal(rows.length, 50)
+    assert.equal(new Set(rows.map((row) => row.familyId)).size, 50)
+    assert.ok(rows.every((row) => row.version === 2))
+    assert.equal(toLearnerAssessments(rows).length, 50)
+  })
+
+  it('falls back to the latest current version when a newer one is stale, and requires sourceStatus "current"', async () => {
+    const rows = (await runQuery([
+      assessment('assessment-famA-v1'),
+      assessment('assessment-famA-v2', {sourceStatus: 'stale'}),
+      assessment('assessment-famB-v1', {sourceStatus: undefined}),
+    ])) as Array<{_id: string}>
+    assert.deepEqual(
+      rows.map((row) => row._id),
+      ['assessment-famA-v1'],
+    )
   })
 })

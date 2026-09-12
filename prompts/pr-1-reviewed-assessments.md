@@ -194,8 +194,15 @@ All `lib/` modules are framework-free with relative `.ts` imports (no `@/`, no
 
 1. The span builder is deterministic and bounded (≤12 chunks). It is
    chapter-aligned when chapters exist and otherwise uses windows, with merge rules as in Decision 1.
-2. The generator validates model output with Zod (bounded lengths: question ≤400,
-   option ≤200, hint ≤500, objective ≤200, explanation ≤800; ≤2 items per span).
+   *Revised in the review fixes:* a small piece merges only into a span of the same chapter.
+2. The generator validates model output with Zod (≤2 items per span).
+   *Revised in the structured-explanations change:* the free-text
+   `explanation` field is gone. The answer key is `correctOptionId`,
+   `correctReason` (≤300) and `distractorReasons[] {optionId, reason}` (each
+   `reason` ≤200). The other limits are question ≤400, option ≤200,
+   objective ≤200, hints 1–2 ≤500 and solution ≤800. Limits are checked after
+   generation (the provider schema has no `maxLength`), and an over-limit item
+   is rejected, never truncated. Each lesson's transfer call yields ≤1 item.
 3. The candidate mapper rejects out-of-span chunk indices, <3 or >4 options, duplicate
    options, a missing correct option, and leaky hints 1–2, each with a reason code.
 4. Reruns with unchanged inputs write nothing ("0 new, N skipped").

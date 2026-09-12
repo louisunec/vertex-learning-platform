@@ -227,6 +227,8 @@ export const assessment = defineType({
       type: 'object',
       group: 'item',
       readOnly: lockedWhenApproved,
+      // Required so its field rules run even when the whole object is missing.
+      validation: (rule) => rule.required(),
       fields: [
         defineField({
           name: 'correctOptionId',
@@ -283,6 +285,7 @@ export const assessment = defineType({
       type: 'object',
       group: 'item',
       readOnly: lockedWhenApproved,
+      validation: (rule) => rule.required(),
       fields: [
         earlyHint('direction', 'Level 1 — direction', 'Where to look or what to consider. Must not reveal the answer.'),
         earlyHint('keyConcept', 'Level 2 — key concept', 'The concept or rule needed. Must not say which option is correct.'),

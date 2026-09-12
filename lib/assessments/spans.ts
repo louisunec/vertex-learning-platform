@@ -11,7 +11,7 @@ import type {SourceChunk} from '../evidence/chunks.ts'
 export const MAX_SPAN_CHUNKS = 12
 /** Window size when a video has no chapters. */
 export const WINDOW_CHUNKS = 10
-/** Spans smaller than this merge into the previous span when the result stays within the cap. */
+/** Spans smaller than this merge into the previous span of the same chapter when the result stays within the cap. */
 export const MIN_SPAN_CHUNKS = 3
 
 export type Span = {
@@ -42,7 +42,12 @@ export function buildSpans(
   const merged: Group[] = []
   for (const piece of pieces) {
     const previous = merged.at(-1)
-    if (previous && piece.chunks.length < MIN_SPAN_CHUNKS && previous.chunks.length + piece.chunks.length <= MAX_SPAN_CHUNKS) {
+    if (
+      previous &&
+      previous.chapterLabel === piece.chapterLabel &&
+      piece.chunks.length < MIN_SPAN_CHUNKS &&
+      previous.chunks.length + piece.chunks.length <= MAX_SPAN_CHUNKS
+    ) {
       previous.chunks.push(...piece.chunks)
     } else {
       merged.push({chapterLabel: piece.chapterLabel, chunks: [...piece.chunks]})
