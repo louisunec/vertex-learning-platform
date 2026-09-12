@@ -24,8 +24,12 @@ const PUBLISH_GATES: Record<string, PublishBlockReason> = {
   conceptPrerequisite: prerequisitePublishBlockReason,
 }
 
-/** Concept ids are stable and retired concepts stay as tombstones, so concepts are never deleted or unpublished. */
-const PERMANENT_TYPES = new Set(['concept'])
+/**
+ * Never deleted or unpublished in the Studio: concept ids are stable and
+ * retired concepts stay as tombstones; an edge is retired, not removed, and
+ * rejected ones are kept for audit.
+ */
+const PERMANENT_TYPES = new Set(['concept', 'conceptPrerequisite'])
 
 /** Generated drafts that are kept for audit even when rejected: discarding a never-published one is disabled. */
 const AUDITED_DRAFT_TYPES = new Set(['concept', 'conceptPrerequisite'])

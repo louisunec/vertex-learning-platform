@@ -255,3 +255,25 @@ This section covers the approved plan `prompts/pr-3-equivalence-merges.md`. The 
 - The model may still label a sub-topic as `same_concept`. Editors decide every proposal.
 - Between accepting a merge and rejecting it later, absorbed members are absent until the next `extract` run restores them.
 - Prerequisite edges were not exercised in the Studio: `prerequisites` writes only among published, approved concepts.
+
+---
+
+# Final verification (2026-09-13, `prompts/pr-3-final-verification.md`)
+
+- **Dataset and writes.** The run used the private throwaway dataset `pr3-verify`, seeded from a read-only production export plus the 63 v2 records, and deleted afterwards. Every write went through the fail-closed sentinel wrapper. Nothing was written to production.
+- **Model calls:** 3 for assessments (one lesson) and 1 for prerequisites (4 concepts).
+- **Browser.** A fresh isolated Chrome profile with default security. The user signed in normally, and the checks were driven over the Chrome debugging port.
+
+| Check | Result |
+| --- | --- |
+| Assessments generated for `authentication-vs-authorization` | 5 drafts, 0 rejections |
+| Assessment draft actions | Publish is gated, with the gate message on hover. The menu has Discard changes and Delete. No Schedule publish and no Duplicate ✓ |
+| Assessment publish | Blocked with only the 6 checks ticked; publishes after Approved plus every check ✓ |
+| 4 concepts approved and published (SQL injection, parameterized queries, XSS, CSP) | Each blocked with checks only, then published after Approved ✓ |
+| `prerequisites` over the 4 published concepts | 2 `proposed` edges: XSS → CSP, and SQL injection → parameterized queries |
+| Edge SQL injection → parameterized queries | Publish blocked with "Set the status to Approved before publishing."; still blocked with only the 3 checks ticked; published after Approved ✓. The Discard action is disabled |
+| Edge XSS → CSP | Left `proposed` |
+| Edge actions | ✗ at first: Delete was offered. Fixed (edges are permanent), then re-checked: a published edge shows only a disabled Publish, and a proposed edge shows only a disabled Discard ✓ |
+| `validate:concepts` on `pr3-verify` | 4 approved concepts, 1 active edge, **no graph defects** ✓ |
+
+**Still pending review.** The salting merge proposal and all 38 edges from the 55-concept dry run, including the 12 doubtful ones, exist only in dry-run output. None was accepted, approved or written to production.

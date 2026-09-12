@@ -309,7 +309,7 @@ An `assessment` document is one version of a single-choice practice item for a l
 - `answerKey`, `hints`, `sourceExcerpt`, and `generation` are private. The learner projection (`sanity/queries/assessments.ts`, parsed by `lib/assessments/learner.ts`) never selects them. It returns approved, `current`, published items only, one per family (the latest such version), before applying its per-lesson bound.
 - `reviewStatus` (`needs_review | approved | rejected | archived`) is separate from Sanity's publish state. The Studio publishes an item only when it is approved with every review check ticked, or when it is archived.
 - `sourceStatus` becomes `stale` when a cited chunk's revision changes. Stale items are not served.
-- Approved content is read-only in the Studio, and a draft that changes the content of any published version (approved or archived) cannot publish. The API does not enforce this, so attempts record the exact `_id` and `_rev` they were delivered.
+- Approved content is read-only in the Studio, and a draft that changes the content of any published version (approved or archived) cannot publish. The API does not enforce this, so attempts record the exact `_id` and `_rev` they were delivered. See "Authorization boundaries" in §16: these Studio rules are workflow controls, not API authorization.
 - Every unit the generator processes gets an `assessmentGenerationRecord` with id `assessment-generation-<key>`. A unit is either a section (`kind: section`, recall/apply items) or the lesson's single transfer call over one chosen span (`kind: lesson_transfer`). The key covers every prompt input (lesson, video, lesson title, chapter label, ordered chunk revisions) plus prompt, model and config versions, so a renamed lesson or chapter is generated again. The record's outcome is `drafted`, `no_candidates` or `all_rejected`, and it is written in the same transaction as that unit's drafts. Reruns skip recorded units unless `--force` is passed. Provider failures leave no record and are retried. Records are an operational log: never assessments, never served to learners, and read-only in the Studio.
 - `primaryConcept` (optional reference to an approved `concept`) names the single concept an item is evidence for. It is an association, not item content: it stays editable after approval and is not covered by the immutability rule, so linking changes `_rev`. Evidence records (PR-4) must therefore snapshot the concept id they counted.
 
@@ -323,7 +323,6 @@ Concepts are the reviewed skill vocabulary. A generator (`npm run generate:conce
 - **Lifecycle.** `reviewStatus` is one of `needs_review | approved | rejected | merged | split | archived`. Only `approved` concepts are active.
   - `merged` requires `mergedInto`, and `split` requires at least two `splitInto` concepts. Both stay published as tombstones.
   - Concepts have no delete, unpublish, duplicate or schedule-publish action in the Studio, and assessment references also block deletion. "Discard changes" is disabled on a never-published concept or edge (it would delete a generated draft, and rejected ones are kept for audit).
-  - Studio publish gates are client-side document actions: a Releases workflow is not gated.
   - `lib/concepts/resolve.ts` follows merges (at most 8 hops, with cycle detection). A split never resolves to one concept: learner projections reconcile it conservatively.
 - **`sourceStatus`** becomes `stale` when a cited chunk changes, for concepts and edges alike.
 - **Generation.**
@@ -360,6 +359,7 @@ Concepts are the reviewed skill vocabulary. A generator (`npm run generate:conce
   - Edges are proposed only among published, approved concepts, in one bounded course-level call (a `kind: course_prerequisites` record). The call takes at most 60 concepts, and it is refused rather than truncated above that.
   - Speaking order and topic similarity are not prerequisites. Both directions of a pair are rejected. The pair's first edge has the base id; a reconsideration after a rejection gets a suffixed id.
   - An edge publishes only when approved with every review check ticked, or when retired. Its endpoints never change once it is published.
+  - Edges have no delete, unpublish, duplicate or schedule-publish action in the Studio: an edge is retired, not removed, and rejected edges are kept for audit.
 - **Validation.** `npm run validate:concepts -- --course <slug>` reads the published perspective only. It reports:
   - self-edges, duplicate pairs, dangling endpoints;
   - inactive endpoints (not approved, including tombstones);
@@ -369,3 +369,14 @@ Concepts are the reviewed skill vocabulary. A generator (`npm run generate:conce
 
   It exits non-zero on any graph defect. Any consumer of the graph must read only a validated graph.
 - Concepts, edges, merge proposals, and records are outside the search Context MCP `groqFilter` allowlist and are never learner search results.
+
+### Authorization boundaries
+
+- **Studio gates are editorial workflow controls, not API authorization.** The publish gates, the hidden and disabled document actions, and read-only fields all run client-side in the Studio. They guide editors; they do not stop a request that reaches the Content Lake API another way.
+- **Learner reads are the enforcement point.** A learner-facing read must require approved, eligible, published records, never "anything the token can see":
+  - Assessments: `LESSON_PRACTICE_ITEMS_QUERY` (`sanity/queries/assessments.ts`) reads the published perspective. It requires `reviewStatus == "approved"` and `sourceStatus == "current"`, excludes `drafts.` and `versions.` ids, and keeps the latest servable version per family. `toLearnerAssessments` then drops any row outside its strict learner schema. `lib/assessments/learner-query.test.ts` covers this.
+  - Concepts and edges: PR-3 has no learner read. Any future reader must read the published perspective, use only `approved` concepts with `sourceStatus == "current"` and `approved` edges between them, resolve ids through `lib/concepts/resolve.ts` (anything not approved is `unavailable`), and read only a graph that `validate:concepts` accepts.
+- **Separate boundaries the gates do not cover:**
+  - **Privileged API writers.** Any write-capable token or CLI session can create, publish or delete documents directly, gates or not. Keep such credentials server-side and offline (generators, imports), give the learner app a read-only (Viewer) token, and treat every write-capable credential as editor-equivalent.
+  - **Releases.** Content added to a Release is published with the Release, outside the document publish action, so the gates do not apply there.
+
