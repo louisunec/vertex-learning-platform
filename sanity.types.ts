@@ -97,6 +97,91 @@ export type Module = {
   >;
 };
 
+export type AssessmentGenerationRecord = {
+  _id: string;
+  _type: "assessmentGenerationRecord";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  kind?: "section" | "lesson_transfer";
+  lesson?: LessonReference;
+  spanIndex?: number;
+  outcome?: "drafted" | "no_candidates" | "all_rejected";
+  draftIds?: Array<string>;
+  rejectionReasons?: Array<string>;
+  modelSkipReason?: string;
+  spanKey?: string;
+  promptVersion?: string;
+  model?: string;
+  configVersion?: string;
+  processedAt?: string;
+};
+
+export type Assessment = {
+  _id: string;
+  _type: "assessment";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  reviewStatus: "needs_review" | "approved" | "rejected" | "archived";
+  sourceStatus: "current" | "stale";
+  lesson: LessonReference;
+  objective: string;
+  type: "recall" | "apply" | "transfer";
+  responseFormat: "single_choice";
+  question: string;
+  options: Array<{
+    text: string;
+    _type: "assessmentOption";
+    _key: string;
+  }>;
+  answerKey: {
+    correctOptionId: string;
+    correctReason: string;
+    distractorReasons: Array<{
+      optionId: string;
+      reason: string;
+      _type: "distractorReason";
+      _key: string;
+    }>;
+  };
+  hints: {
+    direction: string;
+    keyConcept: string;
+    solution: string;
+  };
+  review?: {
+    correct?: boolean;
+    unambiguous?: boolean;
+    distractorsPlausible?: boolean;
+    sourceSupported?: boolean;
+    difficultyAppropriate?: boolean;
+    hintsProgressive?: boolean;
+    note?: string;
+  };
+  sourceExcerpt?: string;
+  sourceChunkRefs: Array<{
+    chunkId?: string;
+    chunkRevision?: string;
+    startSeconds?: number;
+    endSeconds?: number;
+    _type: "sourceChunkRef";
+    _key: string;
+  }>;
+  familyId: string;
+  version: number;
+  generation?: {
+    spanKey?: string;
+    inputHash?: string;
+    spanIndex?: number;
+    ordinal?: number;
+    model?: string;
+    promptVersion?: string;
+    configVersion?: string;
+    generatedAt?: string;
+  };
+};
+
 export type Progress = {
   _id: string;
   _type: "progress";
@@ -387,6 +472,8 @@ export type AllSanitySchemaTypes =
   | LearningOutcome
   | LessonReference
   | Module
+  | AssessmentGenerationRecord
+  | Assessment
   | Progress
   | Video
   | Lesson
@@ -407,6 +494,24 @@ export type AllSanitySchemaTypes =
   | SanityAssetSourceData
   | SanityImageAsset
   | Geopoint;
+
+// Source: ../sanity/queries/assessments.ts
+// Variable: LESSON_PRACTICE_ITEMS_QUERY
+// Query: *[    _type == "assessment" &&    lesson._ref == $lessonId &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    count(*[      _type == "assessment" &&      familyId == ^.familyId &&      version > ^.version &&      reviewStatus == "approved" &&      sourceStatus == "current" &&      !(_id in path("drafts.**")) &&      !(_id in path("versions.**"))    ]) == 0  ] | order(familyId asc, version desc)[0...50] {    _id,    _rev,    familyId,    version,    "lessonId": lesson._ref,    type,    responseFormat,    question,    "options": options[] { "id": _key, text }  }
+export type LESSON_PRACTICE_ITEMS_QUERY_RESULT = Array<{
+  _id: string;
+  _rev: string;
+  familyId: string;
+  version: number;
+  lessonId: string;
+  type: "apply" | "recall" | "transfer";
+  responseFormat: "single_choice";
+  question: string;
+  options: Array<{
+    id: string;
+    text: string;
+  }>;
+}>;
 
 // Source: ../sanity/queries/categories.ts
 // Variable: CATEGORIES_QUERY
@@ -948,6 +1053,7 @@ export type VIDEO_BY_VIDEO_ID_QUERY_RESULT = {
 import "@sanity/client";
 declare module "@sanity/client" {
   interface SanityQueries {
+    '\n  *[\n    _type == "assessment" &&\n    lesson._ref == $lessonId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(*[\n      _type == "assessment" &&\n      familyId == ^.familyId &&\n      version > ^.version &&\n      reviewStatus == "approved" &&\n      sourceStatus == "current" &&\n      !(_id in path("drafts.**")) &&\n      !(_id in path("versions.**"))\n    ]) == 0\n  ] | order(familyId asc, version desc)[0...50] {\n    _id,\n    _rev,\n    familyId,\n    version,\n    "lessonId": lesson._ref,\n    type,\n    responseFormat,\n    question,\n    "options": options[] { "id": _key, text }\n  }\n': LESSON_PRACTICE_ITEMS_QUERY_RESULT;
     '\n  *[_type == "category" && defined(slug.current)] | order(title asc) {\n    \n  _id,\n  title,\n  "slug": slug.current\n,\n    description,\n    "courseCount": count(*[_type == "course" && category._ref == ^._id])\n  }\n': CATEGORIES_QUERY_RESULT;
     '\n  *[_type == "category" && slug.current == $slug][0] {\n    \n  _id,\n  title,\n  "slug": slug.current\n,\n    description,\n    "courses": *[_type == "course" && category._ref == ^._id && defined(slug.current)]\n      | order(popular desc, title asc) { \n  _id,\n  title,\n  "slug": slug.current,\n  summary,\n  level,\n  priceDisplay,\n  popular,\n  studentCountDisplay,\n  coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n  instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n  category->{ \n  _id,\n  title,\n  "slug": slug.current\n },\n  "moduleCount": count(modules),\n  "lessonCount": count(modules[].lessons[]),\n  "durationSeconds": math::sum(modules[].lessons[]->durationSeconds)\n }\n  }\n': CATEGORY_BY_SLUG_QUERY_RESULT;
     '\n  *[_type == "course" && defined(slug.current)]\n    | order(popular desc, title asc) {\n    \n  _id,\n  title,\n  "slug": slug.current,\n  summary,\n  level,\n  priceDisplay,\n  popular,\n  studentCountDisplay,\n  coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n  instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n  category->{ \n  _id,\n  title,\n  "slug": slug.current\n },\n  "moduleCount": count(modules),\n  "lessonCount": count(modules[].lessons[]),\n  "durationSeconds": math::sum(modules[].lessons[]->durationSeconds)\n\n  }\n': COURSES_QUERY_RESULT;

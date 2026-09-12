@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --conditions=react-server --test 'lib/**/*.test.ts'",
     "ingest:videos": "node --env-file-if-exists=.env.local scripts/ingest-videos.mts",
+    "generate:assessments": "node --env-file-if-exists=.env.local scripts/generate-assessments.mts",
     "studio": "npm --prefix studio run dev",
     "typegen": "npm --prefix studio run typegen"
   },
@@ -35,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "groq-js": "1.30.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

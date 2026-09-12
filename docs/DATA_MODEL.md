@@ -154,6 +154,16 @@ It contains at least:
 
 Do not store/retrieve the transcript as one giant field for request-path use.
 
+### Evidence identity
+
+Features that cite transcript evidence derive chunk identity with `lib/evidence/chunks.ts`, never ad hoc:
+
+- `chunkId`: `<video document id>:<chunk _key>`,
+- `chunkRevision`: a content hash of `startSeconds` + `text`,
+- `endSeconds`: the next chunk's start (the last chunk is capped by duration).
+
+These values are computed from stored records, not stored on the video. Changed caption text changes the revision, and anything citing the old revision becomes stale.
+
 Video documents are not independently displayed in learner-facing search results.
 
 A video result is always resolved through the lesson that uses the video's URL.
@@ -284,3 +294,20 @@ Once concrete schemas/types exist, the canonical implementation lives in:
 - migrations.
 
 If this document and code disagree, do not silently guess. Identify the conflict in the implementation prompt.
+
+---
+
+## 15. Assessments
+
+An `assessment` document is one version of a single-choice practice item for a lesson. The generator (`npm run generate:assessments`) drafts it from one bounded transcript span; it is the only way to create one (the Studio has no create or duplicate action for assessments). It is served only after editorial review.
+
+- Identity: a stable `familyId` plus an integer `version`, with id `assessment-<familyId>-v<version>`. Section families are `asm-<sha8(lesson)>-s<span>-q<ordinal>`. Each lesson also has one transfer family, `asm-<sha8(lesson)>-t-q0`.
+- Regeneration replaces a family's unpublished latest draft in place (same id). When the latest version is published, the generator drafts the next version, and it never writes a published version. `--force` also deletes unpublished drafts that the new output does not reproduce.
+- Options are stored in a deterministic seeded-shuffle order. Option ids (`_key`) derive from the option text. The answer key holds `correctOptionId`, `correctReason`, and `distractorReasons[] {optionId, reason}`: one short reason per wrong option, tied to its id and never to its position. No answer index is stored.
+- The generator never truncates text. Field limits are checked after generation, and the schema sent to the model carries no string `maxLength`, because strict structured output would cut text mid-word at that limit. Over-limit, cut-off, or corrupted text rejects the candidate, as does wording that points at a source learners cannot see ("the instructor", "find the sentence that…", chunk labels such as `c0`).
+- The lesson is referenced from the assessment. The lesson does not list its assessments.
+- `answerKey`, `hints`, `sourceExcerpt`, and `generation` are private. The learner projection (`sanity/queries/assessments.ts`, parsed by `lib/assessments/learner.ts`) never selects them. It returns approved, `current`, published items only, one per family (the latest such version), before applying its per-lesson bound.
+- `reviewStatus` (`needs_review | approved | rejected | archived`) is separate from Sanity's publish state. The Studio publishes an item only when it is approved with every review check ticked, or when it is archived.
+- `sourceStatus` becomes `stale` when a cited chunk's revision changes. Stale items are not served.
+- Approved content is read-only in the Studio, and a draft that changes the content of any published version (approved or archived) cannot publish. The API does not enforce this, so attempts record the exact `_id` and `_rev` they were delivered.
+- Every unit the generator processes gets an `assessmentGenerationRecord` with id `assessment-generation-<key>`. A unit is either a section (`kind: section`, recall/apply items) or the lesson's single transfer call over one chosen span (`kind: lesson_transfer`). The key covers every prompt input (lesson, video, lesson title, chapter label, ordered chunk revisions) plus prompt, model and config versions, so a renamed lesson or chapter is generated again. The record's outcome is `drafted`, `no_candidates` or `all_rejected`, and it is written in the same transaction as that unit's drafts. Reruns skip recorded units unless `--force` is passed. Provider failures leave no record and are retried. Records are an operational log: never assessments, never served to learners, and read-only in the Studio.
