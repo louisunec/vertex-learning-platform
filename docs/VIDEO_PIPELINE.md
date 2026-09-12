@@ -259,3 +259,17 @@ For ingestion changes, verify as applicable:
 - each declared provider supports both ingestion and playback.
 
 Provider support is complete only when an actual ingested result can be opened and played at the expected second.
+
+---
+
+## 16. Visual index (OCR-first)
+
+`npm run index:visuals -- --file <path> --video <video document id>` indexes on-screen text that speech never says: code, identifiers, and slide text. It writes the `visual-<video id>` document (see `DATA_MODEL.md` §6). It is offline tooling. Search reads its output only behind the `search-visual-evidence` flag (`SEARCH.md` §4).
+
+- **Media input.** A local file the team owns or is licensed to process. The tool downloads nothing, and third-party provider videos are out of scope. The file's content hash becomes `sourceRevision`. Vimeo or Bunny owner-API adapters can implement the same `MediaSource` interface (`lib/visual/media.ts`) later.
+- **Sampling.** Frames are decoded once at 2 fps as small greyscale images. A frame is kept when any of three signals fires: a periodic frame (default every 2 s), an ffmpeg scene score above 0.3 (a starting point only; slide changes and code edits often stay under it), or a change in a text-like, high-contrast block since the last kept frame.
+- **OCR, then merge.** tesseract.js reads each kept frame, and identical-looking frames reuse the previous result. Consecutive texts merge only when they are equal after whitespace normalization, or at least 90% similar with every changed word explained as OCR noise. A changed operator, digit, identifier, short word, or inserted word always starts a new chunk, so `x < 10` and `x <= 10` stay separate. Appearance intervals are kept, so A → B → A gives three chunks.
+- **VLM gate.** The vision model (`gpt-5-mini` through `lib/ai/gateway.ts`) sees a frame only if it changed and has text-like structure. Its score must also pass a threshold built from low OCR confidence, unread structure, and transcript cues. A deictic phrase ("as you can see here") adds weight but can never open the gate alone. Output is a short, labelled `vlm` chunk. Each call sends one frame plus a clipped OCR excerpt and a clipped transcript excerpt, never the whole transcript.
+- **Caps.** Frames, OCR frames, VLM calls, wall time, and estimated spend are capped per video by the `VISUAL_*` variables, with a price table, in `.env.example`. A refusal records a skipped span and marks the index partial. Each run logs one `[visual]` line with its cost and coverage.
+- **Tools.** ffmpeg and ffprobe come from PATH or `FFMPEG_PATH`/`FFPROBE_PATH`. OCR language data is downloaded on first use and cached in `node_modules/.cache/tesseract`.
+- **Fixtures.** `node scripts/fixtures/make-visual-fixtures.mts [outDir]` renders five synthetic clips: silent typing, a one-character code edit, slide changes, an unlabelled diagram, and a talking head. In the diagram clip, a code screen carries an identifier that is never spoken, followed by a component tree and a flame chart that OCR cannot read, so it opens the default VLM gate. Code, slide, and diagram frames come from local HTML rendered by headless Chrome; the talking head is drawn by ffmpeg. `lib/visual/fixtures.test.ts` runs the acceptance checks, and `lib/search/visual-retrieval.test.ts` runs the scoped end-to-end retrieval check. Both skip when ffmpeg, ffprobe, or Chrome is missing.

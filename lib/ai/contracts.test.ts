@@ -75,6 +75,12 @@ describe('resolvedCitationSchema', () => {
     assert.ok(resolvedCitationSchema.safeParse({...citation, href: '/lessons/react-hooks'}).success)
   })
 
+  it('accepts an optional evidence source and rejects unknown ones', () => {
+    assert.ok(resolvedCitationSchema.safeParse({...citation, source: 'ocr'}).success)
+    assert.ok(resolvedCitationSchema.safeParse({...citation, source: 'vlm'}).success)
+    assert.ok(!resolvedCitationSchema.safeParse({...citation, source: 'screenshot'}).success)
+  })
+
   it('rejects a range that ends before it starts', () => {
     assert.ok(!resolvedCitationSchema.safeParse({...citation, endSeconds: 119}).success)
   })

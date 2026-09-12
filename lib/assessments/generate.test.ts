@@ -30,6 +30,7 @@ const VIDEO_DOC = 'video-youtube-dQw4w9WgXcQ'
 const chunk = (i: number, text = `chunk ${i}`): SourceChunk => ({
   chunkId: `${VIDEO_DOC}:tc-${i * 20}-${i}`,
   chunkRevision: `rev${i}`,
+  source: 'transcript',
   startSeconds: i * 20,
   endSeconds: i * 20 + 20,
   text,

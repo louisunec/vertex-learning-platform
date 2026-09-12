@@ -11,8 +11,19 @@ import {MAX_CHUNK_SECONDS} from '../video/ingest.ts'
  * Both values are computed from stored `video` records rather than stored on
  * them: identical re-ingested captions keep their revision, changed text gets
  * a new one, and a shifted chunk key reads (conservatively) as a new chunk.
+ * Visual chunks (OCR/VLM, stored on `videoVisualIndex`) follow the same rule
+ * with their own revision inputs; transcript identity is unchanged.
  * Framework-free so offline tooling and `node --test` can load it.
  */
+
+/**
+ * Where a chunk's text came from. `ocr` and `vlm` chunks come from a video's
+ * visual index (PR-2); a `vlm` chunk is a model interpretation, never ground
+ * truth. OCR and VLM text is untrusted data like transcript text.
+ */
+export const EVIDENCE_SOURCES = ['transcript', 'ocr', 'vlm'] as const
+export type EvidenceSource = (typeof EVIDENCE_SOURCES)[number]
+export type VisualSource = Exclude<EvidenceSource, 'transcript'>
 
 /** A transcript chunk as stored on a `video` document. */
 export type StoredChunk = {
@@ -21,10 +32,20 @@ export type StoredChunk = {
   text: string
 }
 
-/** A transcript chunk with its evidence identity and derived time range. */
+/** A source chunk with its evidence identity and time range. */
 export type SourceChunk = {
   chunkId: string
   chunkRevision: string
+  source: EvidenceSource
+  startSeconds: number
+  endSeconds: number
+  text: string
+}
+
+/** A visual chunk as stored on a `videoVisualIndex` document. */
+export type StoredVisualChunk = {
+  _key: string
+  source: VisualSource
   startSeconds: number
   endSeconds: number
   text: string
@@ -83,9 +104,69 @@ export function toSourceChunks(video: {
     return {
       chunkId: chunkIdFor(video._id, chunk._key),
       chunkRevision: chunkRevisionOf(chunk),
+      source: 'transcript',
       startSeconds: chunk.startSeconds,
       endSeconds: Math.max(chunk.startSeconds, end),
       text: chunk.text,
     }
   })
+}
+
+/** Id of a video's visual index document: `visual-<video document id>`. */
+export function visualIndexIdFor(videoDocumentId: string): string {
+  return `visual-${videoDocumentId}`
+}
+
+/**
+ * Content revision of one visual chunk. Unlike transcript chunks it covers
+ * the stored end time and the extraction version, so re-extracting with a
+ * changed sampler, OCR engine, or merge rule reads as new evidence.
+ */
+export function visualChunkRevisionOf(
+  chunk: {source: VisualSource; startSeconds: number; endSeconds: number; text: string},
+  extractionVersion: string,
+): string {
+  return hashParts([
+    chunk.source,
+    String(chunk.startSeconds),
+    String(chunk.endSeconds),
+    chunk.text,
+    extractionVersion,
+  ]).slice(0, REVISION_LENGTH)
+}
+
+/**
+ * Valid stored visual chunks in time order with ids and revisions. Chunk ids
+ * use the visual index document id (`<visual index id>:<chunk _key>`). An
+ * index without an extraction version has no citable chunks.
+ */
+export function toVisualSourceChunks(index: {
+  _id: string
+  extractionVersion?: string | null
+  chunks?: ReadonlyArray<Partial<StoredVisualChunk>> | null
+}): SourceChunk[] {
+  const extractionVersion = index.extractionVersion
+  if (typeof extractionVersion !== 'string' || extractionVersion.length === 0) return []
+  return (index.chunks ?? [])
+    .filter(
+      (chunk): chunk is StoredVisualChunk =>
+        typeof chunk._key === 'string' &&
+        chunk._key.length > 0 &&
+        (chunk.source === 'ocr' || chunk.source === 'vlm') &&
+        Number.isInteger(chunk.startSeconds) &&
+        (chunk.startSeconds as number) >= 0 &&
+        Number.isInteger(chunk.endSeconds) &&
+        (chunk.endSeconds as number) >= (chunk.startSeconds as number) &&
+        typeof chunk.text === 'string' &&
+        chunk.text.trim().length > 0,
+    )
+    .toSorted((a, b) => a.startSeconds - b.startSeconds || a._key.localeCompare(b._key))
+    .map((chunk) => ({
+      chunkId: chunkIdFor(index._id, chunk._key),
+      chunkRevision: visualChunkRevisionOf(chunk, extractionVersion),
+      source: chunk.source,
+      startSeconds: chunk.startSeconds,
+      endSeconds: chunk.endSeconds,
+      text: chunk.text,
+    }))
 }

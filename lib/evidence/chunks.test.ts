@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import {describe, it} from 'node:test'
 
-import {chunkIdFor, chunkRevisionOf, hashParts, toSourceChunks} from './chunks.ts'
+import {
+  chunkIdFor,
+  chunkRevisionOf,
+  hashParts,
+  toSourceChunks,
+  toVisualSourceChunks,
+  visualChunkRevisionOf,
+  visualIndexIdFor,
+} from './chunks.ts'
 
 const VIDEO_ID = 'video-youtube-dQw4w9WgXcQ'
 
@@ -77,5 +85,62 @@ describe('toSourceChunks', () => {
       chunks.map((c) => c.text),
       ['kept'],
     )
+  })
+})
+
+describe('visual chunk identity', () => {
+  const INDEX_ID = visualIndexIdFor(VIDEO_ID)
+  const chunk = {source: 'ocr' as const, startSeconds: 5, endSeconds: 10, text: 'if (x <= 10) {'}
+
+  it('ids the index by video document and chunks by index and key', () => {
+    assert.equal(INDEX_ID, 'visual-video-youtube-dQw4w9WgXcQ')
+    const [source] = toVisualSourceChunks({_id: INDEX_ID, extractionVersion: 'v1', chunks: [{_key: 'ocr-5-a', ...chunk}]})
+    assert.equal(source.chunkId, 'visual-video-youtube-dQw4w9WgXcQ:ocr-5-a')
+    assert.equal(source.source, 'ocr')
+  })
+
+  it('changes the revision with source, times, text, or extraction version', () => {
+    const base = visualChunkRevisionOf(chunk, 'v1')
+    assert.equal(base, visualChunkRevisionOf({...chunk}, 'v1'))
+    assert.match(base, /^[0-9a-f]{16}$/)
+    for (const changed of [
+      visualChunkRevisionOf({...chunk, source: 'vlm'}, 'v1'),
+      visualChunkRevisionOf({...chunk, startSeconds: 6}, 'v1'),
+      visualChunkRevisionOf({...chunk, endSeconds: 11}, 'v1'),
+      visualChunkRevisionOf({...chunk, text: 'if (x < 10) {'}, 'v1'),
+      visualChunkRevisionOf(chunk, 'v2'),
+    ]) {
+      assert.notEqual(changed, base)
+    }
+  })
+
+  it('keeps transcript revisions unchanged and labels transcript chunks', () => {
+    const [transcript] = toSourceChunks({_id: VIDEO_ID, transcriptChunks: [{_key: 'a', startSeconds: 42, text: 'useState returns a pair'}]})
+    assert.equal(transcript.chunkRevision, chunkRevisionOf({startSeconds: 42, text: 'useState returns a pair'}))
+    assert.equal(transcript.source, 'transcript')
+  })
+
+  it('orders valid chunks and drops invalid ones', () => {
+    const chunks = toVisualSourceChunks({
+      _id: INDEX_ID,
+      extractionVersion: 'v1',
+      chunks: [
+        {_key: 'b', source: 'vlm', startSeconds: 8, endSeconds: 12, text: 'diagram of the render cycle'},
+        {_key: 'a', ...chunk},
+        {_key: 'no-source', startSeconds: 1, endSeconds: 2, text: 'x'},
+        {_key: 'transcript', source: 'transcript' as never, startSeconds: 1, endSeconds: 2, text: 'x'},
+        {_key: 'reversed', source: 'ocr', startSeconds: 9, endSeconds: 3, text: 'x'},
+        {_key: 'frac', source: 'ocr', startSeconds: 1.5, endSeconds: 3, text: 'x'},
+        {_key: 'blank', source: 'ocr', startSeconds: 1, endSeconds: 3, text: '  '},
+      ],
+    })
+    assert.deepEqual(
+      chunks.map((c) => c.chunkId.split(':')[1]),
+      ['a', 'b'],
+    )
+  })
+
+  it('has no citable chunks without an extraction version', () => {
+    assert.deepEqual(toVisualSourceChunks({_id: INDEX_ID, chunks: [{_key: 'a', ...chunk}]}), [])
   })
 })

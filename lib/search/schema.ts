@@ -44,9 +44,12 @@ export const videoSearchResultSchema = z.object({
   ...lessonBaseShape,
   /** Real matched timestamp within the lesson's video. */
   startSeconds: z.number().int().nonnegative(),
-  /** Chapter matches outrank transcript fallbacks (SEARCH.md §4). */
-  matchKind: z.enum(['chapter', 'transcript']),
-  /** Matched chapter label or short transcript snippet. */
+  /**
+   * Chapter matches outrank transcript fallbacks (SEARCH.md §4); `ocr` is
+   * on-screen text and `vlm` a labelled model interpretation of the frame.
+   */
+  matchKind: z.enum(['chapter', 'transcript', 'ocr', 'vlm']),
+  /** Matched chapter label, or a short transcript or on-screen snippet. */
   momentLabel: z.string(),
 })
 

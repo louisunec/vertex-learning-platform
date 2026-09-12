@@ -11,6 +11,7 @@
     "test": "node --conditions=react-server --test 'lib/**/*.test.ts'",
     "ingest:videos": "node --env-file-if-exists=.env.local scripts/ingest-videos.mts",
     "generate:assessments": "node --env-file-if-exists=.env.local scripts/generate-assessments.mts",
+    "index:visuals": "node --env-file-if-exists=.env.local scripts/index-visuals.mts",
     "studio": "npm --prefix studio run dev",
     "typegen": "npm --prefix studio run typegen"
   },
@@ -38,6 +39,7 @@
     "eslint-config-next": "16.3.3",
     "groq-js": "1.30.3",
     "tailwindcss": "^4",
+    "tesseract.js": "^7.0.0",
     "typescript": "^5"
   }
 }
