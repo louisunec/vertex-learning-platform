@@ -10,8 +10,10 @@ import {generateBoundedObject, type AiCallDiagnostics} from './gateway.ts'
  * shows that a chunk was retrieved, not that it states the claim. A second
  * bounded model call reads each claim with only the text of the chunks it
  * cites and says whether every factual part is stated there; each pointer
- * with its chunk and says whether the chunk addresses the question; and
- * whether a level-1 guiding question gives the answer away.
+ * with its chunk and says whether the chunk addresses the question; each
+ * connective with the text the whole answer cites, and says whether it
+ * asserts a fact not stated there; and whether a level-1 guiding question
+ * gives the answer away.
  *
  * This is model-assisted checking, not proof (development plan §3): the
  * server drops whatever is not confirmed, fails closed on a missing
@@ -20,7 +22,7 @@ import {generateBoundedObject, type AiCallDiagnostics} from './gateway.ts'
 
 export const TUTOR_SUPPORT_TASK = 'tutor-support'
 /** Bump whenever the prompt or schema changes. */
-export const TUTOR_SUPPORT_PROMPT_VERSION = 'tutor-support-v1'
+export const TUTOR_SUPPORT_PROMPT_VERSION = 'tutor-support-v2'
 /** Entailment needs some deliberation; `low` keeps reasoning tokens bounded. */
 const PROVIDER_OPTIONS = {
   openai: {reasoningEffort: 'low', reasoningSummary: null} satisfies OpenAILanguageModelResponsesOptions,
@@ -28,7 +30,8 @@ const PROVIDER_OPTIONS = {
 /** Verdicts are short; this covers `low` reasoning over at most 8 items. */
 export const TUTOR_SUPPORT_MAX_OUTPUT_TOKENS = 2000
 
-export type SupportItem = {id: number; kind: 'claim' | 'pointer'; text: string; sources: readonly string[]}
+/** A connective's `sources` stay empty: it is checked against the input's `answerSources`. */
+export type SupportItem = {id: number; kind: 'claim' | 'pointer' | 'connective'; text: string; sources: readonly string[]}
 
 export type SupportResult = {
   /** Ids confirmed as supported; any other id is unsupported. */
@@ -47,6 +50,7 @@ const SYSTEM_PROMPT = [
   'Rules:',
   '- kind "claim": verdict "supported" only if every factual part of the text is stated in its sources. Paraphrase is fine. Inferences, generalizations, added details, examples, or advice that the sources do not state make it "not_supported".',
   '- kind "pointer": the text is the learner question; verdict "supported" only if the sources discuss what the question asks about.',
+  '- kind "connective": a transition sentence; judge it against answerSources, the text the whole answer cites. Verdict "supported" if it asserts no fact, or only facts stated in answerSources; "not_supported" if it adds a fact, generalization, or conclusion they do not state.',
   '- Return exactly one verdict for every item id. When unsure, answer "not_supported".',
   '- guidingQuestionRevealsAnswer: true when the guiding question states, contains, or gives away the answer to the learner question (for example a yes/no question that already contains the conclusion); false otherwise, and false when there is no guiding question.',
 ].join('\n')
@@ -54,13 +58,17 @@ const SYSTEM_PROMPT = [
 export function buildSupportPrompt({
   question,
   items,
+  answerSources = [],
   guidingQuestion,
 }: {
   question: string
   items: readonly SupportItem[]
+  answerSources?: readonly string[]
   guidingQuestion: string | null
 }): string {
-  return `Input:\n${JSON.stringify({question, items, guidingQuestion})}`
+  // Connective-free inputs keep their earlier shape.
+  const connective = items.some((item) => item.kind === 'connective')
+  return `Input:\n${JSON.stringify({question, items, ...(connective ? {answerSources} : {}), guidingQuestion})}`
 }
 
 /** One bounded call; rejects with `AiCallError`, so an unchecked answer is never returned. */
@@ -68,6 +76,7 @@ export async function checkSupport({
   model,
   question,
   items,
+  answerSources,
   guidingQuestion,
   timeoutMs = TUTOR_TIMEOUT_MS,
   log,
@@ -75,6 +84,7 @@ export async function checkSupport({
   model: LanguageModel
   question: string
   items: readonly SupportItem[]
+  answerSources?: readonly string[]
   guidingQuestion: string | null
   timeoutMs?: number
   log?: (diagnostics: AiCallDiagnostics) => void
@@ -83,7 +93,7 @@ export async function checkSupport({
     model,
     schema: supportSchema,
     system: SYSTEM_PROMPT,
-    prompt: buildSupportPrompt({question, items, guidingQuestion}),
+    prompt: buildSupportPrompt({question, items, answerSources, guidingQuestion}),
     maxOutputTokens: TUTOR_SUPPORT_MAX_OUTPUT_TOKENS,
     timeoutMs,
     providerOptions: PROVIDER_OPTIONS,

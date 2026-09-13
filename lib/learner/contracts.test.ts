@@ -222,6 +222,12 @@ describe('tutorResponseSchema', () => {
     assert.equal(tutorResponseSchema.safeParse({...answer, statements: [{...pointer, citations: []}]}).success, false)
   })
 
+  it('carries up to six chunk citations per claim (two passages of three chunks)', () => {
+    const chunks = (n: number) => Array.from({length: n}, (_, i) => ({...citation, chunkId: `video-youtube-hooksvideo1:tc-${100 + i * 18}`, startSeconds: 100 + i * 18, endSeconds: 118 + i * 18}))
+    assert.ok(tutorResponseSchema.safeParse({...answer, statements: [{kind: 'claim', text: 'x', citations: chunks(6)}]}).success)
+    assert.equal(tutorResponseSchema.safeParse({...answer, statements: [{kind: 'claim', text: 'x', citations: chunks(7)}]}).success, false)
+  })
+
   it('ties citations to claims and help to delivery', () => {
     const uncitedClaim = {...answer, statements: [{kind: 'claim', text: 'Unsupported.', citations: []}]}
     const citedAnalogy = {...answer, statements: [{kind: 'analogy', text: 'Like a note.', citations: [citation]}]}

@@ -177,6 +177,7 @@ const usage = {
 }
 
 type PromptSource = {chunkId: string; chunkRevision: string; text: string}
+export type PromptPassage = {passageId: string; chunks: PromptSource[]}
 type Message = {role: string; content: unknown}
 
 function inputOf(options: {prompt: ReadonlyArray<Message>}): unknown {
@@ -189,12 +190,22 @@ function inputOf(options: {prompt: ReadonlyArray<Message>}): unknown {
   return null
 }
 
-/** The sources the tutor put in the user message. */
-export function promptSources(options: {prompt: ReadonlyArray<Message>}): PromptSource[] {
-  return (inputOf(options) as {sources?: PromptSource[]} | null)?.sources ?? []
+/** The passages the tutor put in the user message. */
+export function promptPassages(options: {prompt: ReadonlyArray<Message>}): PromptPassage[] {
+  return (inputOf(options) as {passages?: PromptPassage[]} | null)?.passages ?? []
 }
 
-export type SupportInput = {question: string; items: Array<{id: number; kind: string; text: string; sources: string[]}>; guidingQuestion: string | null}
+/** The chunks of those passages, in order. */
+export function promptSources(options: {prompt: ReadonlyArray<Message>}): PromptSource[] {
+  return promptPassages(options).flatMap((passage) => passage.chunks)
+}
+
+export type SupportInput = {
+  question: string
+  items: Array<{id: number; kind: string; text: string; sources: string[]}>
+  answerSources?: string[]
+  guidingQuestion: string | null
+}
 
 type Task = 'answer' | 'direction' | 'support'
 
@@ -206,8 +217,8 @@ function taskOf(options: {prompt: ReadonlyArray<Message>}): Task {
 }
 
 export type TutorModelHandlers = {
-  /** Levels 2–3 output (default: one claim repeating the first source's opening words). */
-  answer?: (sources: PromptSource[], question: string) => unknown
+  /** Levels 2–3 output (default: one claim repeating the first chunk's opening words, citing its passage). */
+  answer?: (sources: PromptSource[], question: string, passages: PromptPassage[]) => unknown
   /** Level 1 output (default: point at the first source sharing a question word, one neutral guiding question). */
   direction?: (sources: PromptSource[], question: string) => unknown
   /** Support verdicts (default: every item supported, no leak). */
@@ -217,15 +228,11 @@ export type TutorModelHandlers = {
 export const DEFAULT_GUIDING_QUESTION = 'What does the instructor emphasise at that point?'
 
 const defaults: Required<TutorModelHandlers> = {
-  answer: (sources) => ({
+  answer: (sources, _question, passages) => ({
     status: 'supported',
     statements: [
-      {kind: 'connective', text: 'Here is what the lesson says.', evidence: []},
-      {
-        kind: 'claim',
-        text: sources[0].text.split(' ').slice(0, 8).join(' '),
-        evidence: [{chunkId: sources[0].chunkId, chunkRevision: sources[0].chunkRevision}],
-      },
+      {kind: 'connective', text: 'Here is what the lesson says.', passages: []},
+      {kind: 'claim', text: sources[0].text.split(' ').slice(0, 8).join(' '), passages: [passages[0].passageId]},
     ],
     followUp: null,
   }),
@@ -259,11 +266,12 @@ export function tutorModel(handlers: TutorModelHandlers = {}) {
         output = (handlers.support ?? defaults.support)(input as SupportInput)
       } else {
         model.calls++
-        const {sources, question} = input as {sources: PromptSource[]; question: string}
+        const {passages, question} = input as {passages: PromptPassage[]; question: string}
+        const sources = passages.flatMap((passage) => passage.chunks)
         output =
           task === 'direction'
             ? (handlers.direction ?? defaults.direction)(sources, question)
-            : (handlers.answer ?? defaults.answer)(sources, question)
+            : (handlers.answer ?? defaults.answer)(sources, question, passages)
       }
       return {content: [{type: 'text', text: JSON.stringify(output)}], finishReason: {unified: 'stop', raw: undefined}, usage, warnings: []}
     },
@@ -275,7 +283,8 @@ export function tutorModel(handlers: TutorModelHandlers = {}) {
 }
 
 /** Levels 2–3 answer from `respond`, everything else by default. */
-export const scriptedModel = (respond: (sources: PromptSource[]) => unknown) => tutorModel({answer: respond})
+export const scriptedModel = (respond: (sources: PromptSource[], question: string, passages: PromptPassage[]) => unknown) =>
+  tutorModel({answer: respond})
 
 /** Cites the first source with a claim that repeats its opening words (so it passes the relevance floor). */
 export const citingModel = () => tutorModel()

@@ -1,8 +1,8 @@
 import {z} from 'zod'
 
-import {MAX_EVIDENCE_PER_STATEMENT, MAX_FOLLOW_UP_LENGTH, MAX_STATEMENT_LENGTH, MAX_STATEMENTS, resolvedCitationSchema} from '../ai/contracts.ts'
+import {MAX_FOLLOW_UP_LENGTH, MAX_STATEMENT_LENGTH, MAX_STATEMENTS, resolvedCitationSchema} from '../ai/contracts.ts'
 import {HELP_MODES, HELP_REASON_CODES, HELP_REQUESTS} from '../ai/help-policy.ts'
-import {CITED_STATEMENT_KINDS, RETRIEVAL_SCOPES, TUTOR_STATEMENT_KINDS, TUTOR_STATUSES} from '../ai/tutor.ts'
+import {CITED_STATEMENT_KINDS, MAX_TUTOR_CITATIONS, RETRIEVAL_SCOPES, TUTOR_STATEMENT_KINDS, TUTOR_STATUSES} from '../ai/tutor.ts'
 import {MAX_HINT_LENGTH} from '../assessments/hints.ts'
 import {learnerAssessmentSchema} from '../assessments/learner.ts'
 import {EVIDENCE_KINDS, EVIDENCE_REASONS} from './evidence.ts'
@@ -116,7 +116,8 @@ export type TutorRequest = z.infer<typeof tutorRequestSchema>
 const tutorStatementSchema = z.strictObject({
   kind: z.enum(TUTOR_STATEMENT_KINDS),
   text: z.string().min(1).max(MAX_STATEMENT_LENGTH),
-  citations: z.array(resolvedCitationSchema).max(MAX_EVIDENCE_PER_STATEMENT),
+  // A claim cites up to two passages of up to three chunks, each chunk its own citation.
+  citations: z.array(resolvedCitationSchema).max(MAX_TUTOR_CITATIONS),
 })
 
 /**
