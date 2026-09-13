@@ -2,12 +2,13 @@ import 'server-only'
 
 import {toGradingItem, toConceptIndex} from '@/lib/assessments/grading'
 import {toHintLadder} from '@/lib/assessments/hints'
-import {toLearnerAssessments} from '@/lib/assessments/learner'
+import {toCheckCandidates, toLearnerAssessments} from '@/lib/assessments/learner'
 import {CONTENT_REVALIDATE_SECONDS, sanityFetch} from '@/sanity/lib/fetch'
 import {
   CONCEPT_NODES_QUERY,
   GRADING_ASSESSMENT_QUERY,
   HINT_LADDER_QUERY,
+  LESSON_CHECK_CANDIDATES_QUERY,
   SERVABLE_ASSESSMENT_QUERY,
 } from '@/sanity/queries/assessments'
 
@@ -55,5 +56,12 @@ export const sanityLearnerContent: LearnerContentSource = {
       sanityFetch({query: CONCEPT_NODES_QUERY, revalidate: CONTENT_REVALIDATE_SECONDS}),
     )
     return toConceptIndex(rows)
+  },
+
+  async loadLessonCheckCandidates(lessonId) {
+    const rows = await read('Check candidates', () =>
+      sanityFetch({query: LESSON_CHECK_CANDIDATES_QUERY, params: {lessonId}, revalidate: 0}),
+    )
+    return toCheckCandidates(rows)
   },
 }

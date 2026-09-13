@@ -7,12 +7,20 @@
 export type YouTubePlayer = {
   getCurrentTime(): number
   getDuration(): number
+  /** Seeks within the provider's own player (lesson-page citations, PR-7). */
+  seekTo(seconds: number, allowSeekAhead: boolean): void
+  playVideo(): void
 }
 
 export type YouTubeNamespace = {
   Player: new (
     element: HTMLIFrameElement,
-    options: {events: {onStateChange: (event: {target: YouTubePlayer; data: number}) => void}},
+    options: {
+      events: {
+        onReady?: (event: {target: YouTubePlayer}) => void
+        onStateChange: (event: {target: YouTubePlayer; data: number}) => void
+      }
+    },
   ) => YouTubePlayer
   PlayerState: {ENDED: number; PLAYING: number; PAUSED: number; BUFFERING: number; CUED: number}
 }

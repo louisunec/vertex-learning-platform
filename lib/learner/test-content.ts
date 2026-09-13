@@ -1,6 +1,6 @@
 import type {GradingItem} from '../assessments/grading.ts'
 import type {HintLadder} from '../assessments/hints.ts'
-import type {LearnerAssessment} from '../assessments/learner.ts'
+import type {CheckCandidate, LearnerAssessment} from '../assessments/learner.ts'
 import type {ConceptNode} from '../concepts/resolve.ts'
 import type {LearnerContentSource} from './content-source.ts'
 
@@ -21,6 +21,8 @@ export class FixtureContent implements LearnerContentSource {
   grading = new Map<string, GradingItem>()
   hints = new Map<string, HintLadder>()
   concepts = new Map<string, ConceptNode>()
+  /** Earliest cited source second per item id (check ordering); absent = none cited. */
+  firstSeconds = new Map<string, number>()
 
   async loadServableItem(id: string) {
     return this.servable.get(id) ?? null
@@ -34,10 +36,28 @@ export class FixtureContent implements LearnerContentSource {
   async loadConceptIndex() {
     return this.concepts
   }
+  async loadLessonCheckCandidates(lessonId: string): Promise<CheckCandidate[]> {
+    return [...this.servable.values()]
+      .filter((item) => item.lessonId === lessonId)
+      .map((item) => ({
+        item,
+        primaryConceptRef: this.grading.get(item._id)?.primaryConceptRef ?? null,
+        firstSeconds: this.firstSeconds.get(item._id) ?? null,
+      }))
+  }
 
   /** Adds an approved, current item; `opt-a` is correct. */
-  addItem(familyId: string, {version = 1, concept = 'concept-cpt-state' as string | null} = {}) {
+  addItem(
+    familyId: string,
+    {
+      version = 1,
+      concept = 'concept-cpt-state' as string | null,
+      lessonId = 'lesson-hooks',
+      firstSeconds = null as number | null,
+    } = {},
+  ) {
     const id = `assessment-${familyId}-v${version}`
+    if (firstSeconds !== null) this.firstSeconds.set(id, firstSeconds)
     const options = [
       {id: 'opt-a', text: 'useState'},
       {id: 'opt-b', text: 'useEffect'},
@@ -49,7 +69,7 @@ export class FixtureContent implements LearnerContentSource {
       _rev: 'rev-1',
       familyId,
       version,
-      lessonId: 'lesson-hooks',
+      lessonId,
       type: 'apply',
       responseFormat: 'single_choice',
       question: 'Which hook keeps a value between renders?',
@@ -59,7 +79,7 @@ export class FixtureContent implements LearnerContentSource {
       _id: id,
       familyId,
       version,
-      lessonId: 'lesson-hooks',
+      lessonId,
       optionIds,
       correctOptionId: 'opt-a',
       primaryConceptRef: concept,

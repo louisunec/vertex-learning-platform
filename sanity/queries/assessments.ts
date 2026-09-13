@@ -41,6 +41,50 @@ export const LESSON_PRACTICE_ITEMS_QUERY = defineQuery(/* groq */ `
 `)
 
 /**
+ * SERVER-ONLY candidates for a lesson's understanding check (development plan
+ * §5 PR-7): the lesson query's servable rules and learner-safe item, plus the
+ * item's primary concept reference and earliest source second, which the
+ * server uses to pick the next question and a same-concept variant. Only
+ * while the lesson is published, as for issuing. The concept and seconds
+ * never reach a response; parse with `toCheckCandidates`
+ * (`lib/assessments/learner.ts`).
+ */
+export const LESSON_CHECK_CANDIDATES_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "assessment" &&
+    lesson._ref == $lessonId &&
+    reviewStatus == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**")) &&
+    lesson->_type == "lesson" &&
+    count(*[
+      _type == "assessment" &&
+      familyId == ^.familyId &&
+      version > ^.version &&
+      reviewStatus == "approved" &&
+      sourceStatus == "current" &&
+      !(_id in path("drafts.**")) &&
+      !(_id in path("versions.**"))
+    ]) == 0
+  ] | order(familyId asc, version desc)[0...50] {
+    "item": {
+      _id,
+      _rev,
+      familyId,
+      version,
+      "lessonId": lesson._ref,
+      type,
+      responseFormat,
+      question,
+      "options": options[] { "id": _key, text }
+    },
+    "primaryConceptRef": primaryConcept._ref,
+    "firstSeconds": math::min(sourceChunkRefs[].startSeconds)
+  }
+`)
+
+/**
  * One learner-safe item to issue as a task instance (development plan §5
  * PR-4): the same projection and servable rules as the lesson query, only
  * the latest servable version of its family, and only while its lesson is

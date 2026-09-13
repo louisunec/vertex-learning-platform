@@ -3,8 +3,8 @@ import {describe, it} from 'node:test'
 
 import {evaluate, parse} from 'groq-js'
 
-import {LESSON_PRACTICE_ITEMS_QUERY} from '../../sanity/queries/assessments.ts'
-import {toLearnerAssessments} from './learner.ts'
+import {LESSON_CHECK_CANDIDATES_QUERY, LESSON_PRACTICE_ITEMS_QUERY} from '../../sanity/queries/assessments.ts'
+import {toCheckCandidates, toLearnerAssessments} from './learner.ts'
 
 /**
  * Evaluates the real learner GROQ projection over full assessment documents
@@ -174,5 +174,68 @@ describe('learner practice query', () => {
       rows.map((row) => row._id),
       ['assessment-famA-v1'],
     )
+  })
+})
+
+describe('check candidates query (PR-7)', () => {
+  const LESSON = {_id: LESSON_ID, _type: 'lesson'}
+  const ref = (key: string, startSeconds: number) => ({_key: key, _type: 'sourceChunkRef', chunkId: `v:${key}`, chunkRevision: 'r', startSeconds, endSeconds: startSeconds + 10})
+
+  async function runCandidates(dataset: unknown[]): Promise<unknown> {
+    const value = await evaluate(parse(LESSON_CHECK_CANDIDATES_QUERY), {dataset, params: {lessonId: LESSON_ID}})
+    return value.get()
+  }
+
+  it('applies the practice rules and adds only the concept reference and earliest cited second', async () => {
+    const rows = (await runCandidates([
+      LESSON,
+      ...published(DATASET),
+      assessment('assessment-famC-v1', {
+        primaryConcept: {_type: 'reference', _ref: 'concept-cpt-state'},
+        sourceChunkRefs: [ref('late', 40), ref('early', 12)],
+      }),
+    ])) as Array<Record<string, unknown>>
+    assert.deepEqual(
+      rows.map((row) => Object.keys(row).sort()),
+      [
+        ['firstSeconds', 'item', 'primaryConceptRef'],
+        ['firstSeconds', 'item', 'primaryConceptRef'],
+      ],
+    )
+    assert.deepEqual(
+      rows.map((row) => [(row.item as {_id: string})._id, row.primaryConceptRef ?? null, row.firstSeconds]),
+      [
+        ['assessment-fam1-v2', null, 0],
+        ['assessment-famC-v1', 'concept-cpt-state', 12],
+      ],
+    )
+    for (const row of rows) {
+      assert.deepEqual(Object.keys(row.item as object).sort(), [
+        '_id',
+        '_rev',
+        'familyId',
+        'lessonId',
+        'options',
+        'question',
+        'responseFormat',
+        'type',
+        'version',
+      ])
+    }
+    assertNoPrivateData(rows)
+  })
+
+  it('returns nothing while the lesson itself is unpublished, as issuing does', async () => {
+    assert.deepEqual(await runCandidates(published(DATASET)), [])
+  })
+
+  it('parses to issuable learner-safe items and drops malformed rows', async () => {
+    const rows = (await runCandidates([LESSON, ...published(DATASET)])) as unknown[]
+    const candidates = toCheckCandidates([...rows, {item: {_id: 'assessment-broken-v1'}, primaryConceptRef: null, firstSeconds: 3}, null])
+    assert.deepEqual(
+      candidates.map((candidate) => [candidate.item._id, candidate.primaryConceptRef, candidate.firstSeconds]),
+      [['assessment-fam1-v2', null, 0]],
+    )
+    assertNoPrivateData(candidates)
   })
 })

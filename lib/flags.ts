@@ -19,6 +19,11 @@ export const FLAGS = {
   tutor: 'tutor',
   /** The My Learning knowledge map (`/my-learning/knowledge-map`). Requires `learner-evidence` too. */
   knowledgeMap: 'knowledge-map',
+  /**
+   * PR-7: the lesson-page tutor panel and understanding check (`/api/lesson-check`). The check
+   * requires `learner-evidence`, its hints `help-policy`, and the panel all three flags above.
+   */
+  lessonIntegration: 'lesson-integration',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

@@ -10,6 +10,7 @@ import {imageFragment, instructorSummaryFragment, lessonSummaryFragment} from '.
 export const LESSON_BY_SLUG_QUERY = defineQuery(/* groq */ `
   *[_type == "lesson" && slug.current == $slug][0] {
     _id,
+    _rev,
     title,
     "slug": slug.current,
     videoUrl,
