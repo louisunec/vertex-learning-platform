@@ -1,18 +1,23 @@
 import 'server-only'
 
+import {z} from 'zod'
+
 import {toGradingItem, toConceptIndex} from '@/lib/assessments/grading'
 import {toHintLadder} from '@/lib/assessments/hints'
 import {toCheckCandidates, toLearnerAssessments} from '@/lib/assessments/learner'
-import {CONTENT_REVALIDATE_SECONDS, sanityFetch} from '@/sanity/lib/fetch'
+import {cacheTags, CONTENT_REVALIDATE_SECONDS, sanityFetch} from '@/sanity/lib/fetch'
 import {
+  CONCEPT_NAMES_QUERY,
   CONCEPT_NODES_QUERY,
   GRADING_ASSESSMENT_QUERY,
   HINT_LADDER_QUERY,
   LESSON_CHECK_CANDIDATES_QUERY,
+  REVIEW_CANDIDATES_QUERY,
   SERVABLE_ASSESSMENT_QUERY,
 } from '@/sanity/queries/assessments'
+import {LESSONS_BY_IDS_QUERY} from '@/sanity/queries/my-learning'
 
-import {ContentUnavailableError, type LearnerContentSource} from './content-source'
+import {ContentUnavailableError, type LearnerContentSource, type LessonRef} from './content-source'
 
 /**
  * Sanity-backed content for the learner-evidence routes, through the
@@ -64,4 +69,39 @@ export const sanityLearnerContent: LearnerContentSource = {
     )
     return toCheckCandidates(rows)
   },
+  async loadReviewCandidates(conceptRefs) {
+    if (conceptRefs.length === 0) return []
+    const rows = await read('Review candidates', () =>
+      sanityFetch({query: REVIEW_CANDIDATES_QUERY, params: {conceptRefs}, revalidate: 0}),
+    )
+    return toCheckCandidates(rows)
+  },
+
+  async loadConceptNames(conceptIds) {
+    if (conceptIds.length === 0) return new Map()
+    const rows = await read('Concept names', () =>
+      sanityFetch({query: CONCEPT_NAMES_QUERY, params: {conceptIds}, revalidate: CONTENT_REVALIDATE_SECONDS}),
+    )
+    return new Map(parseRows(conceptNameRowSchema, rows).map((row) => [row.id, row.name]))
+  },
+
+  async loadLessons(lessonIds) {
+    if (lessonIds.length === 0) return new Map()
+    const rows = await read('Lessons', () =>
+      sanityFetch({query: LESSONS_BY_IDS_QUERY, params: {lessonIds}, tags: [cacheTags.lesson]}),
+    )
+    return new Map<string, LessonRef>(parseRows(lessonRowSchema, rows).map((row) => [row._id, {title: row.title, slug: row.slug}]))
+  },
+}
+
+const conceptNameRowSchema = z.object({id: z.string().min(1), name: z.string().trim().min(1)})
+const lessonRowSchema = z.object({_id: z.string().min(1), title: z.string().trim().min(1), slug: z.string().min(1)})
+
+/** Keeps the rows that parse; a malformed row is left out, never guessed. */
+function parseRows<T>(schema: z.ZodType<T>, rows: unknown): T[] {
+  if (!Array.isArray(rows)) return []
+  return rows.flatMap((row) => {
+    const parsed = schema.safeParse(row)
+    return parsed.success ? [parsed.data] : []
+  })
 }

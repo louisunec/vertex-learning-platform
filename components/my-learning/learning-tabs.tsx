@@ -1,18 +1,26 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-export type LearningTab = "overview" | "knowledge-map";
+export type LearningTab = "overview" | "knowledge-map" | "reviews";
 
 /**
- * My Learning sub-navigation. Knowledge map is a link only when its flag is
- * on for this learner; Reviews exists only in the design so far and is shown
- * disabled, never linked.
+ * My Learning sub-navigation. Knowledge map and Reviews are links only when
+ * their flags are on for this learner; otherwise they are shown disabled,
+ * never linked.
  */
-export function LearningTabs({ active, knowledgeMap = false }: { active: LearningTab; knowledgeMap?: boolean }) {
+export function LearningTabs({
+  active,
+  knowledgeMap = false,
+  reviews = false,
+}: {
+  active: LearningTab;
+  knowledgeMap?: boolean;
+  reviews?: boolean;
+}) {
   const tabs = [
     { key: "overview", label: "Overview", href: "/my-learning" },
     { key: "knowledge-map", label: "Knowledge map", href: knowledgeMap ? "/my-learning/knowledge-map" : null },
-    { key: "reviews", label: "Reviews", href: null },
+    { key: "reviews", label: "Reviews", href: reviews ? "/my-learning/reviews" : null },
   ] as const;
 
   return (

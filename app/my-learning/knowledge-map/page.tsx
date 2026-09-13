@@ -14,7 +14,7 @@ import { monogram } from "@/components/my-learning/knowledge-map/states";
 import { LearningTabs } from "@/components/my-learning/learning-tabs";
 import { SignedOut } from "@/components/my-learning/signed-out";
 import { getDb } from "@/lib/db/client";
-import { isKnowledgeMapEnabled } from "@/lib/flags";
+import { isKnowledgeMapEnabled, isReviewEnabled } from "@/lib/flags";
 import { formatClock, formatRelativeTime } from "@/lib/format";
 import {
   ATTEMPT_BADGES,
@@ -66,13 +66,16 @@ function param(value: string | string[] | undefined, pattern: RegExp): string | 
 
 export default async function KnowledgeMapPage({ searchParams }: Props) {
   const [{ userId }, sp] = await Promise.all([auth(), searchParams]);
-  if (userId && !(await isKnowledgeMapEnabled(userId))) notFound();
+  const [mapEnabled, reviews] = userId
+    ? await Promise.all([isKnowledgeMapEnabled(userId), isReviewEnabled(userId)])
+    : [true, false];
+  if (!mapEnabled) notFound();
 
   return (
     <div className="bg-hatch flex flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col border-x border-neutral-200 bg-canvas">
         <SiteHeader activeHref="/my-learning" returnTo="/my-learning/knowledge-map" />
-        <LearningTabs active="knowledge-map" knowledgeMap />
+        <LearningTabs active="knowledge-map" knowledgeMap reviews={reviews} />
 
         <main className="flex flex-col px-6 pt-10 pb-16 md:px-12" aria-labelledby="knowledge-map">
           <Link

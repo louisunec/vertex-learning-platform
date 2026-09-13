@@ -94,7 +94,7 @@ describe('POST /api/lesson-check gating', {skip: SKIP_WITHOUT_DATABASE}, () => {
   after(() => db?.drop())
 
   beforeEach(async () => {
-    await db.sql`truncate learner.tutor_request, learner.event_outbox, learner.help_event, learner.attempt_log, learner.task_instance`
+    await db.sql`truncate learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox, learner.help_event, learner.attempt_log, learner.task_instance`
     const content = new FixtureContent()
     content.addItem('fam1')
     Object.assign(state, {userId: ALICE, flagsOn: new Set(), flagChecks: [], dbCalls: 0, contentCalls: 0, content})

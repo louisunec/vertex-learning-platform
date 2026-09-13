@@ -37,6 +37,7 @@ export type IconName =
   | "refresh"
   | "message"
   | "network"
+  | "info"
   | "play-solid";
 
 type Glyph = { outline: React.ReactNode; filled?: React.ReactNode };
@@ -288,6 +289,15 @@ const glyphs: Record<IconName, Glyph> = {
         <circle cx="5" cy="19" r="2" />
         <circle cx="19" cy="19" r="2" />
         <path d="M12 7v5M12 12l-5.6 5.4M12 12l5.6 5.4" />
+      </>
+    ),
+  },
+  info: {
+    outline: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5" />
+        <path d="M12 8h.01" />
       </>
     ),
   },

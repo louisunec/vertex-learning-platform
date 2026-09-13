@@ -8,7 +8,7 @@ import { NextStepCard } from "@/components/my-learning/next-step-card";
 import { RecentLearningCard } from "@/components/my-learning/recent-learning-card";
 import { SignedOut } from "@/components/my-learning/signed-out";
 import { getDb } from "@/lib/db/client";
-import { FLAGS, isFlagEnabled, isKnowledgeMapEnabled } from "@/lib/flags";
+import { FLAGS, isFlagEnabled, isKnowledgeMapEnabled, isReviewEnabled } from "@/lib/flags";
 import { formatRelativeTime } from "@/lib/format";
 import { sanityLearnerContent } from "@/lib/learner/content";
 import { readLearnerOverview } from "@/lib/learner/overview";
@@ -35,13 +35,15 @@ export const metadata: Metadata = {
 
 export default async function MyLearningPage() {
   const { userId } = await auth();
-  const knowledgeMap = userId ? await isKnowledgeMapEnabled(userId) : false;
+  const [knowledgeMap, reviews] = userId
+    ? await Promise.all([isKnowledgeMapEnabled(userId), isReviewEnabled(userId)])
+    : [false, false];
 
   return (
     <div className="bg-hatch flex flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col border-x border-neutral-200 bg-canvas">
         <SiteHeader activeHref="/my-learning" returnTo="/my-learning" />
-        <LearningTabs active="overview" knowledgeMap={knowledgeMap} />
+        <LearningTabs active="overview" knowledgeMap={knowledgeMap} reviews={reviews} />
 
         <main className="flex flex-col px-6 pt-10 pb-16 md:px-12" aria-labelledby="my-learning">
           <h1 id="my-learning" className="font-display text-display-1 text-neutral-900">
@@ -49,7 +51,7 @@ export default async function MyLearningPage() {
           </h1>
           <p className="mt-3 text-[20px] leading-7 text-neutral-500">A clear next step, every time.</p>
           {userId ? (
-            <Overview userId={userId} />
+            <Overview userId={userId} reviews={reviews} />
           ) : (
             <SignedOut
               message="Sign in to see your courses, progress, and recent learning."
@@ -63,7 +65,7 @@ export default async function MyLearningPage() {
 }
 
 /** Everything below is keyed by the server-resolved Clerk user id. */
-async function Overview({ userId }: { userId: string }) {
+async function Overview({ userId, reviews }: { userId: string; reviews: boolean }) {
   const [progress, evidence] = await Promise.all([
     settle("progress", getProgressForUser(userId)),
     readEvidence(userId),
@@ -110,7 +112,7 @@ async function Overview({ userId }: { userId: string }) {
           partial={state.recent.status === "ready" && state.recent.partial}
         />
       </div>
-      <ComingSoon />
+      <ComingSoon reviews={reviews} />
     </div>
   );
 }

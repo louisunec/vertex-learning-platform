@@ -19,7 +19,15 @@ export type LearnerContentSource = {
   loadConceptIndex(): Promise<ReadonlyMap<string, ConceptNode>>
   /** Items a published lesson's understanding check may issue now (PR-7), at most 50. */
   loadLessonCheckCandidates(lessonId: string): Promise<CheckCandidate[]>
+  /** Items a focused review may issue now, whose primary concept is one of `conceptRefs` (document ids), at most 100. */
+  loadReviewCandidates(conceptRefs: string[]): Promise<CheckCandidate[]>
+  /** Names of servable concepts by document id. */
+  loadConceptNames(conceptIds: string[]): Promise<ReadonlyMap<string, string>>
+  /** Titles and slugs of published lessons by id. */
+  loadLessons(lessonIds: string[]): Promise<ReadonlyMap<string, LessonRef>>
 }
+
+export type LessonRef = {title: string; slug: string}
 
 /** Published content could not be read; the request may be retried. */
 export class ContentUnavailableError extends Error {

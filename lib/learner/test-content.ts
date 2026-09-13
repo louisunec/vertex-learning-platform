@@ -2,7 +2,7 @@ import type {GradingItem} from '../assessments/grading.ts'
 import type {HintLadder} from '../assessments/hints.ts'
 import type {CheckCandidate, LearnerAssessment} from '../assessments/learner.ts'
 import type {ConceptNode} from '../concepts/resolve.ts'
-import type {LearnerContentSource} from './content-source.ts'
+import type {LearnerContentSource, LessonRef} from './content-source.ts'
 
 /**
  * In-memory content for the learner database tests, shaped like the parsed
@@ -16,6 +16,9 @@ export const HINTS = {
   solution: 'useState stores a value that persists between renders.',
 } as const
 
+/** The default earliest cited second of a fixture item (5:41). */
+export const FIRST_SECONDS = 341
+
 export class FixtureContent implements LearnerContentSource {
   servable = new Map<string, LearnerAssessment>()
   grading = new Map<string, GradingItem>()
@@ -23,6 +26,10 @@ export class FixtureContent implements LearnerContentSource {
   concepts = new Map<string, ConceptNode>()
   /** Earliest cited source second per item id (check ordering); absent = none cited. */
   firstSeconds = new Map<string, number>()
+  names = new Map<string, string>()
+  lessons = new Map<string, LessonRef>([['lesson-hooks', {title: 'Hooks', slug: 'hooks'}]])
+  /** Earliest cited second per item id (`FIRST_SECONDS` when unset; null when it cites none). */
+  seconds = new Map<string, number | null>()
 
   async loadServableItem(id: string) {
     return this.servable.get(id) ?? null
@@ -44,6 +51,25 @@ export class FixtureContent implements LearnerContentSource {
         primaryConceptRef: this.grading.get(item._id)?.primaryConceptRef ?? null,
         firstSeconds: this.firstSeconds.get(item._id) ?? null,
       }))
+  }
+  /** The latest servable version per family whose primary concept is in `refs`. */
+  async loadReviewCandidates(refs: string[]) {
+    const latest = new Map<string, CheckCandidate>()
+    for (const item of this.servable.values()) {
+      const concept = this.grading.get(item._id)?.primaryConceptRef ?? null
+      if (!concept || !refs.includes(concept)) continue
+      const current = latest.get(item.familyId)
+      if (current && current.item.version >= item.version) continue
+      const firstSeconds = this.seconds.has(item._id) ? (this.seconds.get(item._id) ?? null) : FIRST_SECONDS
+      latest.set(item.familyId, {item, primaryConceptRef: concept, firstSeconds})
+    }
+    return [...latest.values()]
+  }
+  async loadConceptNames(ids: string[]) {
+    return new Map([...this.names].filter(([id]) => ids.includes(id)))
+  }
+  async loadLessons(ids: string[]) {
+    return new Map([...this.lessons].filter(([id]) => ids.includes(id)))
   }
 
   /** Adds an approved, current item; `opt-a` is correct. */

@@ -16,9 +16,11 @@ const TABLES = [
   'explanation_log',
   'event_outbox',
   'tutor_request',
+  'review_session',
+  'review_session_item',
   'schema_migrations',
 ]
-const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql']
+const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql', '0003_review_sessions.sql']
 
 describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
