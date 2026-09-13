@@ -101,7 +101,9 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.deepEqual(body.help && {level: body.help.level, reasonCode: body.help.reasonCode}, {level: 1, reasonCode: 'first_help'})
     const [pointer] = body.statements.filter((statement) => statement.kind === 'pointer')
     assert.match(pointer.citations[0].href, /^\/lessons\/react-hooks\?t=\d+$/)
+    // The answer and its support check: retrieval terms take no model call.
     assert.equal(model.calls, 1)
+    assert.equal(model.doGenerateCalls.length, 2)
 
     const [request] = await db.sql`select * from learner.tutor_request`
     assert.deepEqual(

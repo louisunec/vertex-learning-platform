@@ -19,10 +19,10 @@ import type {ChunkRange, TutorLesson, TutorSource, TutorVideo} from './source.ts
  * 3. `course`: when neither tier holds a strong match for the learner's own
  *    words, matching chunks from the other lessons of the parent course.
  *
- * `terms` are the learner's words plus list words or model-suggested
- * variants (`lib/tutor/terms.ts`), used for recall and ranking. `baseTerms` are
+ * `terms` are the learner's words plus fixed list words
+ * (`lib/tutor/terms.ts`), used for recall and ranking. `baseTerms` are
  * the learner's words alone: a chunk matches strongly when it contains two
- * of them, or the only one, so a variant or a single incidental word
+ * of them, or the only one, so a list word or a single incidental word
  * ("contextually") never stops the search. `scope` reports the widest tier
  * searched. A course-tier chunk counts only when its video resolves to a
  * published lesson, which its citation then points at.

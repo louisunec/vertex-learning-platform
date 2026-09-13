@@ -7,7 +7,9 @@ import {MAX_TERMS, tokenize} from '../search/terms.ts'
  * questions: transcripts and chapter labels teach downsides as "Pros and
  * Cons", "Limitations", or "Disadvantages of …" (23 of the 440 chapter
  * labels in the published dataset, 2026-09-13), words a learner asking about
- * "downsides" does not use. No model is involved.
+ * "downsides" does not use. No model is involved: a `tutor-terms-v1` model
+ * expansion was compared on the nine evaluation cases and removed
+ * (`docs/evals/pr-6-tutor-comparison.md`).
  *
  * List words are constants that already fit the GROQ term shape, so they
  * skip `contentTerms`, which would stem `cons` to `con` (and `con*` matches
@@ -42,13 +44,12 @@ export function listTerms(question: string): string[] {
 }
 
 /**
- * The learner's terms, then list words, then `variants` (untrusted, e.g.
- * model output, sanitized by `contentTerms`), without duplicates, at most
+ * The learner's terms, then list words, without duplicates, at most
  * `MAX_TERMS`. The learner's terms are cut to `MAX_BASE_TERMS` only as far
- * as needed to make room for added terms.
+ * as needed to make room for list words.
  */
-export function mergeTerms(baseTerms: readonly string[], list: readonly string[], variants: readonly string[] = []): string[] {
-  const added = [...new Set([...list, ...contentTerms(variants.join(' '))])].filter((term) => !baseTerms.includes(term))
+export function mergeTerms(baseTerms: readonly string[], list: readonly string[]): string[] {
+  const added = [...new Set(list)].filter((term) => !baseTerms.includes(term))
   const room = Math.max(MAX_BASE_TERMS, MAX_TERMS - added.length)
   return [...new Set([...baseTerms.slice(0, room), ...added])].slice(0, MAX_TERMS)
 }

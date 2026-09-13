@@ -6,7 +6,6 @@ import {decideHelpLevel, type HelpDecision, type HelpLevel} from '../ai/help-pol
 import {
   answerTutorQuestion,
   CLARIFYING_QUESTION,
-  contentTerms,
   INSUFFICIENT_EVIDENCE_MESSAGE,
   TUTOR_PROMPT_VERSION,
   type RetrievalScope,
@@ -14,7 +13,6 @@ import {
   type TutorStatus,
 } from '../ai/tutor.ts'
 import {TUTOR_SUPPORT_PROMPT_VERSION} from '../ai/tutor-support.ts'
-import {expandTutorTerms} from '../ai/tutor-terms.ts'
 import {asLearner, type LearnerTx} from '../db/learner-scope.ts'
 import {tutorResponseSchema, type TutorRequest, type TutorResponse} from '../learner/contracts.ts'
 import {
@@ -27,6 +25,7 @@ import {
 import {findOwnedTaskInstance, type TaskInstanceRow} from '../learner/task-instances.ts'
 import {resolveLessonScope, retrieveEvidence} from './retrieve.ts'
 import type {TutorSource} from './source.ts'
+import {deterministicTerms} from './terms.ts'
 
 /**
  * The time-anchored tutor (development plan §5 PR-6). In order:
@@ -34,11 +33,12 @@ import type {TutorSource} from './source.ts'
  * 1. Resolve the published lesson and check the playhead against its duration.
  * 2. tx1: replay check, task ownership and lesson match, hourly budget, and
  *    the help level already given on the task instance or session.
- * 3. Widen the learner's terms (one small model call, after the budget
- *    check so a rejected request costs nothing), retrieve bounded evidence,
- *    decide the level (PR-5 policy), and, unless the request needs
- *    clarifying or nothing was found, answer and support-check it (two
- *    more calls; `lib/ai/tutor.ts`).
+ * 3. Make retrieval terms without a model (`./terms.ts`: the learner's
+ *    words and a fixed word list; a model expansion call was measured and
+ *    dropped, `docs/evals/pr-6-tutor-comparison.md`), retrieve bounded
+ *    evidence, decide the level (PR-5 policy), and, unless the request
+ *    needs clarifying or nothing was found, answer and support-check it
+ *    (two model calls; `lib/ai/tutor.ts`).
  * 4. tx2: record the request, the help event when help was delivered, and
  *    their outbox events.
  *
@@ -130,8 +130,7 @@ export async function askTutor({
   if (typeof checked === 'string') return rejected(checked)
   const {instance, currentLevel} = checked
 
-  const baseTerms = contentTerms(request.question)
-  const terms = await expandTutorTerms({model, question: request.question, baseTerms})
+  const {baseTerms, terms} = deterministicTerms(request.question)
   const retrieval = await retrieveEvidence(source, scope, {currentSeconds: request.currentSeconds, terms, baseTerms})
   const decision = decideHelpLevel({
     mode: request.mode,
