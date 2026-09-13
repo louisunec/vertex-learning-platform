@@ -13,12 +13,14 @@ import type {ChunkRange, TutorLesson, TutorSource, TutorVideo} from './source.ts
  *    A question with no topic words stays here.
  * 2. `lesson`: always searched when the question has topic words. Chapters
  *    first (AGENTS.md §9): chunks inside a chapter whose label matches a
- *    term; then same-video chunks outside the window that prefix-match one.
+ *    term; then same-video chunks outside the window that prefix-match one,
+ *    the best few each followed by their neighbours (a ≤30 s chunk often
+ *    cuts the sentence that answers the question).
  * 3. `course`: when neither tier holds a strong match for the learner's own
  *    words, matching chunks from the other lessons of the parent course.
  *
- * `terms` are the learner's words plus model-suggested variants
- * (`lib/ai/tutor-terms.ts`), used for recall and ranking. `baseTerms` are
+ * `terms` are the learner's words plus list words or model-suggested
+ * variants (`lib/tutor/terms.ts`), used for recall and ranking. `baseTerms` are
  * the learner's words alone: a chunk matches strongly when it contains two
  * of them, or the only one, so a variant or a single incidental word
  * ("contextually") never stops the search. `scope` reports the widest tier
@@ -29,6 +31,8 @@ import type {ChunkRange, TutorLesson, TutorSource, TutorVideo} from './source.ts
 export const WINDOW_SECONDS = 90
 export const MAX_WINDOW_CHUNKS = 14
 export const MAX_LESSON_CHUNKS = 8
+/** Top lesson-tier hits whose previous and next chunks join the evidence. */
+export const NEIGHBOR_HITS = 3
 /** Chapters whose label matches a term, and chunks taken from their spans (split evenly). */
 export const MAX_MATCHED_CHAPTERS = 2
 export const MAX_CHAPTER_CHUNKS = 8
@@ -44,6 +48,8 @@ export const STRONG_MATCH_TERMS = 2
 const WINDOW_FETCH = 32
 const LESSON_FETCH = 16
 const COURSE_FETCH_PER_VIDEO = 8
+/** Chunks read around a hit to find its neighbours (±30 s holds one of each at the usual ~18 s). */
+const NEIGHBOR_FETCH = 7
 
 /** The lesson being watched, its video, and the course lessons eligible for the course tier. */
 export type TutorLessonScope = {
@@ -134,6 +140,7 @@ async function chapterChunks(
 ): Promise<EvidenceChunk[]> {
   const video = scope.video
   if (!video || video.chapters.length === 0) return []
+  const window = windowRange(currentSeconds).overlap
   const spans = video.chapters
     .map((chapter, i) => ({
       hits: countTermHits(chapter.label, terms),
@@ -141,13 +148,13 @@ async function chapterChunks(
       // A chapter ends where the next begins, else at the video end.
       toSeconds: (video.chapters[i + 1]?.startSeconds ?? video.durationSeconds ?? chapter.startSeconds + 600) - 1,
     }))
-    .filter((span) => span.hits > 0 && span.toSeconds >= span.fromSeconds)
+    // A chapter wholly inside the window adds nothing and must not take a slot.
+    .filter((span) => span.hits > 0 && span.toSeconds >= span.fromSeconds && outside(span, window).length > 0)
     .toSorted((a, b) => b.hits - a.hits || a.fromSeconds - b.fromSeconds)
     .slice(0, MAX_MATCHED_CHAPTERS)
   if (spans.length === 0) return []
 
   const quota = Math.floor(MAX_CHAPTER_CHUNKS / spans.length)
-  const window = windowRange(currentSeconds).overlap
   const perChapter = await Promise.all(
     spans.map(async (span) => {
       const chunks: EvidenceChunk[] = []
@@ -173,11 +180,23 @@ async function lessonChunks(
   if (!scope.video) return []
   const video = scope.video
   const [row] = await source.searchChunks([video.id], terms, windowRange(currentSeconds).fetch, LESSON_FETCH)
-  return (row?.chunks ?? [])
+  const hits = (row?.chunks ?? [])
     .flatMap((chunk) => isolated(video, chunk, scope.lesson))
     .filter((chunk) => countTermHits(chunk.text, terms) > 0)
     .toSorted(byRelevance(terms))
     .slice(0, MAX_LESSON_CHUNKS)
+  const neighbors = await Promise.all(hits.slice(0, NEIGHBOR_HITS).map((hit) => neighborChunks(source, scope, video, hit)))
+  // Each of the best hits is followed by its neighbours, then the remaining hits.
+  return [...hits.slice(0, NEIGHBOR_HITS).flatMap((hit, i) => [hit, ...neighbors[i]]), ...hits.slice(NEIGHBOR_HITS)]
+}
+
+/** The chunks just before and just after `hit` in its video (zero to two). */
+async function neighborChunks(source: TutorSource, scope: TutorLessonScope, video: TutorVideo, hit: EvidenceChunk): Promise<EvidenceChunk[]> {
+  const range = {fromSeconds: Math.max(0, hit.startSeconds - MAX_CHUNK_SECONDS), toSeconds: hit.startSeconds + MAX_CHUNK_SECONDS}
+  const stored = await source.loadWindow(video.id, range, NEIGHBOR_FETCH)
+  const at = stored.findIndex((chunk) => chunk.startSeconds === hit.startSeconds)
+  if (at < 0) return []
+  return [stored[at - 1], stored[at + 1]].flatMap((chunk) => (chunk ? isolated(video, chunk, scope.lesson) : []))
 }
 
 async function courseChunks(source: TutorSource, scope: TutorLessonScope, terms: readonly string[]): Promise<EvidenceChunk[]> {

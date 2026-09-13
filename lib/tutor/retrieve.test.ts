@@ -4,7 +4,9 @@ import {describe, it} from 'node:test'
 import {contentTerms} from '../ai/tutor.ts'
 import {
   MAX_EVIDENCE_CHARS,
+  MAX_LESSON_CHUNKS,
   MAX_WINDOW_CHUNKS,
+  NEIGHBOR_HITS,
   resolveLessonScope,
   retrieveEvidence,
   type TutorLessonScope,
@@ -17,7 +19,8 @@ import {
   LESSON_CONTEXT_QUERY,
   VIDEOS_QUERY,
 } from './source.ts'
-import {EFFECTS_LESSON, FixtureTutorSource, HOOKS_VIDEO_ID, MEMO_VIDEO_ID, READING_LESSON} from './test-source.ts'
+import {deterministicTerms} from './terms.ts'
+import {EFFECTS_LESSON, FixtureTutorSource, HOOKS_VIDEO_ID, MEMO_VIDEO_ID, READING_LESSON, SAMPLING_LESSON, withSamplingLesson} from './test-source.ts'
 
 async function setup(lessonId = 'lesson-hooks') {
   const source = new FixtureTutorSource()
@@ -94,8 +97,11 @@ describe('retrieveEvidence', () => {
     })
     assert.equal(retrieval.scope, 'lesson')
     assert.ok(starts(retrieval.chunks).includes(520), 'the Pros and Cons chunk is retrieved')
-    // Chapter fetches never re-read the window.
-    assert.ok(source.windows.slice(1).every((range) => range.fromSeconds > 200 || range.toSeconds < 20))
+    // Chapter fetches never re-read the window (20–200): the rest of "useState", then "Pros and Cons".
+    assert.deepEqual(source.windows.slice(1, 3), [
+      {fromSeconds: 201, toSeconds: 379},
+      {fromSeconds: 500, toSeconds: 599},
+    ])
   })
 
   it('does not stop at a window chunk sharing only one of several question terms', async () => {
@@ -110,7 +116,8 @@ describe('retrieveEvidence', () => {
     const {source, scope} = await setup()
     const retrieval = await retrieve(source, scope, 110, 'When does the effect cleanup run?')
     assert.equal(retrieval.scope, 'lesson')
-    assert.deepEqual(source.calls.toSorted(), ['loadWindow', 'loadWindow', 'searchChunks'])
+    assert.equal(source.calls.filter((call) => call === 'searchChunks').length, 1)
+    assert.equal(source.calls.includes('loadVideos'), false)
     assert.ok(starts(retrieval.chunks).includes(420))
     assert.equal(retrieval.chunks.filter((chunk) => chunk.startSeconds > 200).every((chunk) => chunk.lessonId === 'lesson-hooks'), true)
   })
@@ -121,6 +128,54 @@ describe('retrieveEvidence', () => {
     assert.equal(retrieval.scope, 'course')
     const memo = retrieval.chunks.find((chunk) => chunk.chunkId === `${MEMO_VIDEO_ID}:tc-60`)
     assert.deepEqual([memo?.lessonId, memo?.lessonSlug, memo?.endSeconds], [EFFECTS_LESSON.id, EFFECTS_LESSON.slug, 90])
+  })
+
+  describe('on the published "Temperature and sampling" layout', () => {
+    const DOWNSIDES = 'What are the downsides of a high temperature?'
+    const LESS_COHERENT = 359
+    const sampling = async (chapters?: Parameters<typeof withSamplingLesson>[1]) => {
+      const source = withSamplingLesson(new FixtureTutorSource(), chapters)
+      const scope = (await resolveLessonScope(source, SAMPLING_LESSON.id)) as TutorLessonScope
+      source.calls = []
+      source.windows = []
+      return {source, scope}
+    }
+
+    it('reaches "less coherent outputs" (5:59) for the downsides question with no model terms', async () => {
+      const {source, scope} = await sampling()
+      const retrieval = await retrieveEvidence(source, scope, {currentSeconds: 250, ...deterministicTerms(DOWNSIDES)})
+      assert.ok(starts(retrieval.chunks).includes(LESS_COHERENT))
+      // Through the "Pros and Cons" chapter (310–449), which the list word "cons" matches.
+      assert.ok(source.windows.some((range) => range.fromSeconds === 341 && range.toSeconds === 449))
+    })
+
+    it('adds the chunk that finishes a hit\'s sentence: "the excessive temperature" (5:41) → "can lead to less coherent outputs" (5:59)', async () => {
+      // No chapters: only the keyword tier and its neighbours. 5:59 shares no word with the question.
+      const {source, scope} = await sampling([])
+      const retrieval = await retrieve(source, scope, 250, 'What does an excessive temperature cause?')
+      const found = starts(retrieval.chunks)
+      assert.ok(found.includes(341) && found.includes(LESS_COHERENT))
+      assert.equal(found.indexOf(LESS_COHERENT), found.indexOf(341) + 1, 'the neighbour follows its hit')
+    })
+
+    it('does not give a chapter slot to a chapter wholly inside the window', async () => {
+      const {source, scope} = await sampling()
+      // At 0:40 "Random Sampling" (1:05–1:49) is inside the window; "Top-k" and "Top-p" take the slots.
+      const retrieval = await retrieveEvidence(source, scope, {currentSeconds: 40, ...deterministicTerms('What is nucleus sampling?')})
+      assert.deepEqual(source.windows.slice(1, 3), [
+        {fromSeconds: 235, toSeconds: 266},
+        {fromSeconds: 267, toSeconds: 309},
+      ])
+      for (const start of [266, 287, 304]) assert.ok(starts(retrieval.chunks).includes(start), `${start}`)
+    })
+
+    it('bounds the neighbours', async () => {
+      const {source, scope} = await sampling([])
+      const retrieval = await retrieve(source, scope, 0, 'temperature sampling probability words')
+      assert.equal(source.calls.filter((call) => call === 'loadWindow').length, 1 + NEIGHBOR_HITS)
+      const window = 5
+      assert.ok(retrieval.chunks.length <= window + MAX_LESSON_CHUNKS + 2 * NEIGHBOR_HITS, `${retrieval.chunks.length}`)
+    })
   })
 
   it('parses chapters leniently and in time order', async () => {

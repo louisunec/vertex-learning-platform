@@ -2,9 +2,8 @@ import type {OpenAILanguageModelResponsesOptions} from '@ai-sdk/openai'
 import type {LanguageModel} from 'ai'
 import {z} from 'zod'
 
-import {MAX_TERMS} from '../search/terms.ts'
+import {listTerms, mergeTerms} from '../tutor/terms.ts'
 import {generateBoundedObject, type AiCallDiagnostics} from './gateway.ts'
-import {contentTerms} from './tutor.ts'
 
 /**
  * Retrieval terms for a tutor question (PR-6 follow-up). Transcripts rarely
@@ -13,15 +12,13 @@ import {contentTerms} from './tutor.ts'
  * search interpretation (`lib/search/interpret.ts`), the model only widens
  * keyword recall: its output passes through `contentTerms` (safe
  * `[a-z0-9-]` tokens) before reaching any GROQ param, the learner's own
- * terms always come first, and any failure falls back to them.
+ * terms always come first, then the fixed word list (`lib/tutor/terms.ts`),
+ * and any failure falls back to those two.
  */
 
 export const TUTOR_TERMS_TASK = 'tutor-terms'
 /** Bump whenever the prompt or schema changes. */
 export const TUTOR_TERMS_PROMPT_VERSION = 'tutor-terms-v1'
-/** Room kept for the learner's own terms before variants are added. */
-const MAX_BASE_TERMS = 8
-
 const termsSchema = z.object({
   keywords: z.array(z.string().max(40)).max(8),
 })
@@ -39,16 +36,6 @@ const SYSTEM_PROMPT = [
   '- Do not include filler words or words unrelated to the question.',
 ].join('\n')
 
-/** The learner's terms, then sanitized variants, at most `MAX_TERMS`. */
-export function mergeTerms(baseTerms: readonly string[], variants: readonly string[]): string[] {
-  const merged: string[] = []
-  for (const term of [...baseTerms.slice(0, MAX_BASE_TERMS), ...contentTerms(variants.join(' '))]) {
-    if (!merged.includes(term)) merged.push(term)
-    if (merged.length >= MAX_TERMS) break
-  }
-  return merged
-}
-
 export async function expandTutorTerms({
   model,
   question,
@@ -60,8 +47,10 @@ export async function expandTutorTerms({
   baseTerms: readonly string[]
   log?: (diagnostics: AiCallDiagnostics) => void
 }): Promise<string[]> {
-  // Nothing to widen (a deictic question stays on the window), or no provider.
-  if (!model || baseTerms.length === 0) return [...baseTerms]
+  // Nothing to widen: a deictic question stays on the window.
+  if (baseTerms.length === 0) return []
+  const list = listTerms(question)
+  if (!model) return mergeTerms(baseTerms, list)
   try {
     const {keywords} = await generateBoundedObject({
       model,
@@ -73,8 +62,8 @@ export async function expandTutorTerms({
       versions: {task: TUTOR_TERMS_TASK, promptVersion: TUTOR_TERMS_PROMPT_VERSION},
       log,
     })
-    return mergeTerms(baseTerms, keywords)
+    return mergeTerms(baseTerms, list, keywords)
   } catch {
-    return [...baseTerms]
+    return mergeTerms(baseTerms, list)
   }
 }
