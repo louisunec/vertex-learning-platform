@@ -35,3 +35,23 @@ export function formatLevel(level: string): string {
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`
 }
+
+const RELATIVE_UNITS: ReadonlyArray<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['year', 365 * 86400],
+  ['month', 30 * 86400],
+  ['week', 7 * 86400],
+  ['day', 86400],
+  ['hour', 3600],
+  ['minute', 60],
+]
+
+const relativeTime = new Intl.RelativeTimeFormat('en', {numeric: 'always'})
+
+/** `2 hours ago`, `1 day ago`; `just now` under a minute or for a timestamp ahead of `now`. */
+export function formatRelativeTime(at: string | Date, now: Date): string {
+  const seconds = Math.floor((now.getTime() - new Date(at).getTime()) / 1000)
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (seconds >= size) return relativeTime.format(-Math.floor(seconds / size), unit)
+  }
+  return 'just now'
+}

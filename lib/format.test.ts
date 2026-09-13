@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {describe, it} from 'node:test'
 
-import {formatClock, formatDuration, formatLevel, pluralize} from './format.ts'
+import {formatClock, formatDuration, formatLevel, formatRelativeTime, pluralize} from './format.ts'
 
 describe('formatDuration', () => {
   it('renders hours and minutes', () => {
@@ -38,5 +38,19 @@ describe('formatLevel / pluralize', () => {
   it('pluralises counts', () => {
     assert.equal(pluralize(1, 'module'), '1 module')
     assert.equal(pluralize(12, 'module'), '12 modules')
+  })
+})
+
+describe('formatRelativeTime', () => {
+  const now = new Date('2026-09-13T12:00:00Z')
+  it('uses the largest whole unit', () => {
+    assert.equal(formatRelativeTime('2026-09-13T10:00:00Z', now), '2 hours ago')
+    assert.equal(formatRelativeTime('2026-09-12T11:00:00Z', now), '1 day ago')
+    assert.equal(formatRelativeTime('2026-09-13T11:15:00Z', now), '45 minutes ago')
+    assert.equal(formatRelativeTime('2026-08-20T12:00:00Z', now), '3 weeks ago')
+  })
+  it('says just now under a minute and for future timestamps', () => {
+    assert.equal(formatRelativeTime('2026-09-13T11:59:30Z', now), 'just now')
+    assert.equal(formatRelativeTime('2026-09-13T12:05:00Z', now), 'just now')
   })
 })

@@ -6,12 +6,17 @@ const items: NavItem[] = [
   { label: "My Learning", href: "/my-learning" },
 ];
 
-/** Learner app header: primary navigation, notifications, and Clerk auth controls. */
-export function SiteHeader() {
+/**
+ * Learner app header: primary navigation, notifications, and Clerk auth controls.
+ * `activeHref` highlights one primary item; pages whose design shows no active item omit it.
+ * `returnTo` brings a learner who signs in or up here back to that page instead of
+ * the global fallback (`/`).
+ */
+export function SiteHeader({ activeHref, returnTo }: { activeHref?: string; returnTo?: string } = {}) {
   return (
     <header className="border-b border-neutral-200">
       <div className="flex h-24 items-center justify-between px-6 md:px-12">
-        <Navbar items={items} />
+        <Navbar items={items.map((item) => ({ ...item, active: item.href === activeHref }))} />
         <div className="flex items-center gap-4 sm:gap-6">
           <Show when="signed-in">
             <button
@@ -24,14 +29,17 @@ export function SiteHeader() {
             <UserButton appearance={{ elements: { avatarBox: "size-12" } }} />
           </Show>
           <Show when="signed-out">
-            <SignInButton mode="modal">
+            <SignInButton mode="modal" forceRedirectUrl={returnTo} signUpForceRedirectUrl={returnTo}>
               <Button variant="tertiary" size="md">
                 Sign in
               </Button>
             </SignInButton>
-            <SignUpButton mode="modal">
-              <Button size="md">Sign up</Button>
-            </SignUpButton>
+            {/* Below `sm` only Sign in fits; its modal links to sign-up. */}
+            <span className="hidden sm:inline-flex">
+              <SignUpButton mode="modal" forceRedirectUrl={returnTo} signInForceRedirectUrl={returnTo}>
+                <Button size="md">Sign up</Button>
+              </SignUpButton>
+            </span>
           </Show>
         </div>
       </div>

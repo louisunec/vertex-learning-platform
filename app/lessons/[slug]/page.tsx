@@ -196,10 +196,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
                   title={lesson.title}
                   tracking={{
                     provider: parsed.provider,
+                    lessonId: lesson._id,
                     lessonSlug: slug,
                     courseSlug: course?.slug ?? null,
                     startSeconds,
                     startSource,
+                    saveProgress: Boolean(userId),
                   }}
                 />
               ) : poster ? (
