@@ -6,7 +6,7 @@
   "",
   "- **Part 1: the current answer for each of the nine cases.** Each entry names the code commit and prompt versions that produced it, and whether it is a fresh run or a stored older result. Stored results were not re-run; the current deterministic gates 2c/2d were replayed on them offline, and the entry says what those would remove.",
   "- **Part 2: superseded answers**, for reference only (no verdicts needed).",
-  "- Full live evaluations are paused; only the cases named as fresh were re-run."
+  "- Full live evaluations are paused. Fresh in this packet: `elsewhere-nucleus` and `prompt-injection` (one run each at `609ac45`), the only cases whose current answer the new gates 2c/2d change. The other seven are stored results."
  ],
  "sections": [
   {
@@ -15,14 +15,52 @@
    "review": true,
    "sources": [
     {
+     "results": "docs/evals/pr-6-tutor-targeted-2.json",
+     "cases": [
+      "elsewhere-nucleus",
+      "prompt-injection"
+     ],
+     "provenance": {
+      "kind": "fresh",
+      "run": "targeted check 2",
+      "commit": "609ac45",
+      "date": "2026-09-13",
+      "promptVersion": "tutor-v5",
+      "supportPromptVersion": "tutor-support-v3"
+     }
+    },
+    {
      "results": "docs/evals/pr-6-tutor-targeted-1.json",
-     "cases": ["local-temperature", "elsewhere-nucleus", "wrong-citation-downsides"],
-     "provenance": {"kind": "stored", "run": "the targeted check", "commit": "201ccba", "date": "2026-09-13", "promptVersion": "tutor-v4", "supportPromptVersion": "tutor-support-v2"}
+     "cases": [
+      "local-temperature",
+      "wrong-citation-downsides"
+     ],
+     "provenance": {
+      "kind": "stored",
+      "run": "the targeted check",
+      "commit": "201ccba",
+      "date": "2026-09-13",
+      "promptVersion": "tutor-v4",
+      "supportPromptVersion": "tutor-support-v2"
+     }
     },
     {
      "results": "docs/evals/pr-6-tutor-run-4.json",
-     "cases": ["local-deictic", "local-level1-direction", "elsewhere-context-window", "out-of-scope-sourdough", "prompt-injection", "inaccessible-draft"],
-     "provenance": {"kind": "stored", "run": "run 4", "commit": "4a48f3e", "date": "2026-09-13", "promptVersion": "tutor-v3", "supportPromptVersion": "tutor-support-v1"}
+     "cases": [
+      "local-deictic",
+      "local-level1-direction",
+      "elsewhere-context-window",
+      "out-of-scope-sourdough",
+      "inaccessible-draft"
+     ],
+     "provenance": {
+      "kind": "stored",
+      "run": "run 4",
+      "commit": "4a48f3e",
+      "date": "2026-09-13",
+      "promptVersion": "tutor-v3",
+      "supportPromptVersion": "tutor-support-v1"
+     }
     }
    ]
   },
@@ -32,9 +70,35 @@
    "review": false,
    "sources": [
     {
+     "results": "docs/evals/pr-6-tutor-targeted-1.json",
+     "cases": [
+      "elsewhere-nucleus"
+     ],
+     "provenance": {
+      "kind": "stored",
+      "run": "the targeted check",
+      "commit": "201ccba",
+      "date": "2026-09-13",
+      "promptVersion": "tutor-v4",
+      "supportPromptVersion": "tutor-support-v2"
+     }
+    },
+    {
      "results": "docs/evals/pr-6-tutor-run-4.json",
-     "cases": ["local-temperature", "elsewhere-nucleus", "wrong-citation-downsides"],
-     "provenance": {"kind": "stored", "run": "run 4", "commit": "4a48f3e", "date": "2026-09-13", "promptVersion": "tutor-v3", "supportPromptVersion": "tutor-support-v1"}
+     "cases": [
+      "local-temperature",
+      "elsewhere-nucleus",
+      "wrong-citation-downsides",
+      "prompt-injection"
+     ],
+     "provenance": {
+      "kind": "stored",
+      "run": "run 4",
+      "commit": "4a48f3e",
+      "date": "2026-09-13",
+      "promptVersion": "tutor-v3",
+      "supportPromptVersion": "tutor-support-v1"
+     }
     }
    ]
   }
