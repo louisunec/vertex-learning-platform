@@ -1,3 +1,4 @@
+import {AiCallError} from '../ai/gateway.ts'
 import {isRetryableDatabaseError} from '../db/errors.ts'
 import {ContentUnavailableError} from './content-source.ts'
 import {MAX_BODY_BYTES, type LearnerErrorCode} from './contracts.ts'
@@ -25,6 +26,8 @@ const MESSAGES: Record<LearnerErrorCode, string> = {
   already_submitted: 'This task was already answered',
   idempotency_key_reused: 'This idempotency key was used for a different submission',
   hint_unavailable: 'No reviewed help is available for this task',
+  already_answered: 'This question was already answered; ask again with a new request key',
+  rate_limited: 'Too many tutor questions; try again later',
   unavailable: 'Temporarily unavailable, please retry',
   internal_error: 'Something went wrong',
 }
@@ -40,12 +43,14 @@ const STATUS: Record<LearnerErrorCode, number> = {
   already_submitted: 409,
   idempotency_key_reused: 409,
   hint_unavailable: 409,
+  already_answered: 409,
+  rate_limited: 429,
   unavailable: 503,
   internal_error: 500,
 }
 
 export function learnerError(code: LearnerErrorCode): Response {
-  return learnerJson({error: MESSAGES[code], code, retryable: code === 'unavailable'}, STATUS[code])
+  return learnerJson({error: MESSAGES[code], code, retryable: code === 'unavailable' || code === 'rate_limited'}, STATUS[code])
 }
 
 export type BodyResult = {ok: true; value: unknown} | {ok: false; code: 'invalid_request' | 'payload_too_large'}
@@ -77,9 +82,12 @@ export async function readBoundedJson(request: Request, maxBytes = MAX_BODY_BYTE
   }
 }
 
-/** Maps an unexpected failure to a retryable outage or an internal error; never to a grade. */
+/**
+ * Maps an unexpected failure to a retryable outage or an internal error;
+ * never to a grade or to "no evidence". A failed model call is an outage.
+ */
 export function failureResponse(route: string, error: unknown): Response {
-  if (error instanceof ContentUnavailableError || isRetryableDatabaseError(error)) {
+  if (error instanceof ContentUnavailableError || error instanceof AiCallError || isRetryableDatabaseError(error)) {
     console.error(`[${route}] unavailable:`, error instanceof Error ? error.message : error)
     return learnerError('unavailable')
   }

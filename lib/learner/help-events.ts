@@ -103,6 +103,19 @@ export async function getInstanceHelpLevel(tx: LearnerTx, learnerId: string, tas
 }
 
 /**
+ * The highest help level `learnerId` has received in one tutor session
+ * outside any task (0 when none). Task help is scoped to its instance.
+ */
+export async function getSessionHelpLevel(tx: LearnerTx, learnerId: string, sessionId: string): Promise<number> {
+  const [row] = await tx<{maxLevel: number}[]>`
+    select coalesce(max(level), 0)::int as "maxLevel"
+    from learner.help_event
+    where learner_id = ${learnerId} and session_id = ${sessionId} and task_instance_id is null
+  `
+  return row?.maxLevel ?? 0
+}
+
+/**
  * Serializes help and grading for one learner and assessment family until
  * the transaction ends, so a help level and the evidence that depends on it
  * are never decided from the same stale read.

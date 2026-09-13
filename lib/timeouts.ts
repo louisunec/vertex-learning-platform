@@ -25,5 +25,8 @@ export function readTimeoutMs(
 /** Structured model calls through `lib/ai/gateway`. */
 export const AI_GATEWAY_TIMEOUT_MS = readTimeoutMs('AI_GATEWAY_TIMEOUT_MS', 10_000)
 
+/** The tutor's explanation call (`lib/ai/tutor.ts`), which needs longer than keyword extraction. */
+export const TUTOR_TIMEOUT_MS = readTimeoutMs('TUTOR_TIMEOUT_MS', 20_000)
+
 /** Sanity Context MCP connection and each `groq_query` call. */
 export const MCP_TIMEOUT_MS = readTimeoutMs('MCP_TIMEOUT_MS', 8_000)

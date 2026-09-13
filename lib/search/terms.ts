@@ -12,7 +12,7 @@ const MIN_TERM_LENGTH = 2
 const MAX_TERM_LENGTH = 32
 
 /** Query filler that would only produce broad noise (SEARCH.md §5). */
-const STOPWORDS = new Set([
+export const STOPWORDS: ReadonlySet<string> = new Set([
   'a', 'about', 'an', 'and', 'any', 'are', 'at', 'be', 'best', 'can', 'do',
   'does', 'explain', 'find', 'for', 'from', 'get', 'how', 'i', 'in', 'is',
   'it', 'learn', 'me', 'my', 'of', 'on', 'or', 'part', 'show', 'teach',

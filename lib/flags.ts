@@ -15,6 +15,8 @@ export const FLAGS = {
   learnerEvidence: 'learner-evidence',
   /** PR-5: the server-side help policy (`/api/help`). Requires `learner-evidence` too. */
   helpPolicy: 'help-policy',
+  /** PR-6: the time-anchored tutor (`/api/tutor`). Requires `learner-evidence` and `help-policy` too. */
+  tutor: 'tutor',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

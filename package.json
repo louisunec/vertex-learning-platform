@@ -14,6 +14,7 @@
     "generate:concepts": "node --env-file-if-exists=.env.local scripts/generate-concepts.mts",
     "validate:concepts": "node --env-file-if-exists=.env.local scripts/validate-concepts.mts",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mts",
+    "eval:tutor": "node --env-file-if-exists=.env.local scripts/eval-tutor.mts",
     "studio": "npm --prefix studio run dev",
     "typegen": "npm --prefix studio run typegen"
   },
