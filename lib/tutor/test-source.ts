@@ -92,7 +92,7 @@ export const SAMPLING_CHUNKS: StoredChunk[] = [
   {_key: 'tc-246', startSeconds: 246, text: "the value of k sets the size of the list so a small k keeps things safe and a large k allows more variety and the cut removes very unlikely tokens that would"},
   {_key: 'tc-266', startSeconds: 266, text: "only add noise the last technique is top p also called nucleus sampling where the model keeps the smallest group of words whose combined probability passes a threshold p"},
   {_key: 'tc-287', startSeconds: 287, text: "because that group grows or shrinks with the shape of the distribution the model considers more words when it is uncertain and fewer when one word clearly dominates which keeps a"},
-  {_key: 'tc-304', startSeconds: 304, text: "reasonable balance of variety and focus and often reads more coherent than a fixed top k list to sum up these three settings give you several ways to steer the model and in the"},
+  {_key: 'tc-304', startSeconds: 304, text: "reasonable balance of variety and focus and often reads more coherent compared to top k sampling to sum up these three settings give you several ways to steer the model and in the"},
   {_key: 'tc-322', startSeconds: 322, text: "final part we weigh the pros and cons of every setting so you can decide which to use for temperature the main benefit is that a higher value makes the writing more"},
   {_key: 'tc-341', startSeconds: 341, text: "inventive and less repetitive which helps for brainstorming or fiction however on the downside an excessive temperature"},
   {_key: 'tc-359', startSeconds: 359, text: "tends to produce rambling sentences that drift away from the topic since the model keeps choosing unlikely words and the result can stop making sense for top k"},

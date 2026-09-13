@@ -34,6 +34,10 @@ import {checkSupport, type SupportItem} from './tutor-support.ts'
  * 2. a cited passage shares a content term with it (a cheap floor);
  *    2b. a lexical heuristic: no uncited passage holds several of its words
  *    that the cited passages lack (the detail likely came from elsewhere);
+ *    2c. a lexical heuristic: a contrast it draws ("rather than a fixed K")
+ *    uses only words its cited passages hold;
+ *    2d. a lexical heuristic for connectives: they add no topic word beyond
+ *    the kept claims and their cited text;
  * 3. the support check (`tutor-support.ts`) confirms the cited text states
  *    it. Connective statements are checked there too, against the text the
  *    answer cites.
@@ -49,7 +53,7 @@ import {checkSupport, type SupportItem} from './tutor-support.ts'
 
 export const TUTOR_TASK = 'tutor-answer'
 /** Bump whenever the system prompt, input shape, or output schema changes. */
-export const TUTOR_PROMPT_VERSION = 'tutor-v4'
+export const TUTOR_PROMPT_VERSION = 'tutor-v5'
 export const TUTOR_MODEL_ID = 'gpt-5-mini'
 /** Explanations need some deliberation; `low` keeps reasoning tokens bounded. */
 export const TUTOR_PROVIDER_OPTIONS = {
@@ -157,7 +161,14 @@ export function assemblePassages(chunks: readonly EvidenceChunk[]): EvidencePass
 
 export type TutorStatement = {kind: TutorStatementKind; text: string; citations: ResolvedCitation[]}
 
-export type DropReason = 'unknown_or_stale_ref' | 'no_shared_term' | 'uncited_source' | 'not_supported' | 'reveals_answer'
+export type DropReason =
+  | 'unknown_or_stale_ref'
+  | 'no_shared_term'
+  | 'uncited_source'
+  | 'unsupported_contrast'
+  | 'connective_adds_content'
+  | 'not_supported'
+  | 'reveals_answer'
 
 /** Model output the server removed, for the evaluation report; never part of a response. */
 export type DroppedStatement = {
@@ -166,6 +177,8 @@ export type DroppedStatement = {
   reason: DropReason
   /** For `uncited_source`: the first chunk of the uncited passage holding the claim's wording. */
   uncitedChunkId?: string
+  /** For `unsupported_contrast`: the contrast phrase; for `connective_adds_content`: the added word. */
+  detail?: string
 }
 
 export type TutorAnswer = {
@@ -280,6 +293,68 @@ function uncitedHolder<T>(claim: string, citedTexts: readonly string[], candidat
   return best?.candidate ?? null
 }
 
+/** Opens a contrast: what follows names what the claim is compared with. */
+const CONTRAST_MARKER = /\b(?:rather than|instead of|as opposed to|unlike|compared (?:to|with)|versus|vs\.?)\s+/gi
+/** Ends a contrast phrase: punctuation, or a word that starts another clause. */
+const CONTRAST_END = /[,;:.!?()]|\b(?:and|but|because|since|so|which|while|whereas)\b/i
+const MAX_CONTRAST_WORDS = 6
+
+/**
+ * One spelling for hyphenated and one-letter names, so "top-k", "top‑k",
+ * "top k" and a transcript's "topk" compare equal. Applied to both sides.
+ */
+function joinNames(text: string): string {
+  return text.toLowerCase().replace(/([a-z0-9])[‐-―-]+(?=[a-z0-9])/g, '$1').replace(/\b([a-z]{2,})\s+([b-hj-z])\b/g, '$1$2')
+}
+
+const textRoots = (texts: readonly string[]) => new Set(texts.flatMap((text) => tokenize(joinNames(text)).map(wordRoot)))
+
+/**
+ * Gate 2c (a lexical heuristic, never proof either way): the first contrast
+ * phrase of a claim ("rather than a fixed K") with a topic word that none of
+ * its cited texts holds, the question's own words excepted; else null. A
+ * comparison the cited passages do not make is an unsupported addition even
+ * when the rest of the claim is stated there.
+ */
+export function findUnsupportedContrast(claim: string, citedTexts: readonly string[], question: string): string | null {
+  const cited = textRoots(citedTexts)
+  const questionRoots = topicRoots(joinNames(question))
+  for (const match of claim.matchAll(CONTRAST_MARKER)) {
+    const rest = claim.slice(match.index + match[0].length)
+    const end = rest.search(CONTRAST_END)
+    const phrase = (end === -1 ? rest : rest.slice(0, end)).split(/\s+/).filter(Boolean).slice(0, MAX_CONTRAST_WORDS).join(' ')
+    const missing = topicRoots(joinNames(phrase)).filter((word) => !questionRoots.some((root) => sameRoot(root, word)) && !holds(cited, word))
+    if (missing.length > 0) return phrase
+  }
+  return null
+}
+
+/** Words a transition may use without stating anything, as exact word roots. */
+const DISCOURSE_ROOTS = new Set(
+  [
+    'also', 'another', 'answer', 'back', 'both', 'brief', 'briefly', 'closer', 'detail', 'details', 'each', 'example',
+    'examples', 'first', 'finally', 'further', 'good', 'great', 'idea', 'ideas', 'key', 'let', 'look', 'main', 'more',
+    'next', 'one', 'other', 'overall', 'point', 'points', 'put', 'question', 'recap', 'say', 'says', 'second', 'short',
+    'simply', 'step', 'steps', 'sum', 'summary', 'third', 'together', 'turn', 'two', 'way',
+  ].map(wordRoot),
+)
+
+/**
+ * Gate 2d (a lexical heuristic): a connective only links the answer's claims.
+ * The first topic word it adds that neither the kept claims nor their cited
+ * text holds (the question's words and plain discourse words excepted), else
+ * null. Such a connective states something of its own and is dropped.
+ */
+export function findConnectiveAddition(connective: string, claims: readonly string[], citedTexts: readonly string[], question: string): string | null {
+  const known = textRoots([...claims, ...citedTexts])
+  const questionRoots = topicRoots(joinNames(question))
+  return (
+    topicRoots(joinNames(connective)).find(
+      (word) => !DISCOURSE_ROOTS.has(word) && !questionRoots.some((root) => sameRoot(root, word)) && !holds(known, word),
+    ) ?? null
+  )
+}
+
 const SHARED_RULES = [
   'You are the tutor for Vertex, a video-course learning platform. You help a learner with a question about the lesson they are watching, using only the course sources in the input.',
   'Rules:',
@@ -306,8 +381,8 @@ export function buildTutorSystemPrompt(level: Exclude<HelpLevel, 0>): string {
   return [
     ...SHARED_RULES,
     '- A factual statement has kind "claim" and lists in passages the passageId of one or two passages that state it. A sentence can run across the chunks of a passage, and occasionally into the next passage: cite every passage whose wording the claim relies on.',
-    '- Each claim must be stated in the passages it cites. Do not add inferences, general knowledge, examples, or advice the sources do not state: leave it out, and return status "partial" if that leaves part of the question unanswered.',
-    '- Use kind "connective" for a short transition that asserts no fact, and kind "analogy" for a comparison you add to aid understanding. Neither cites anything, and a connective that states a fact is removed.',
+    '- Each claim must be stated in the passages it cites. Do not add inferences, comparisons, contrasts, reasons, general knowledge, examples, or advice that the cited passages do not themselves state: leave it out, and return status "partial" if that leaves part of the question unanswered.',
+    '- Use kind "connective" only for a short transition that links your claims using their words, and kind "analogy" for a comparison you add to aid understanding. Neither cites anything. A sentence that states a fact is a claim and cites the passage that states it; a connective that states a fact or adds a new idea is removed.',
     '- If the sources do not support an answer, return status "insufficient_evidence" with no statements.',
     '- Write at most 6 statements, each one or two sentences and under 400 characters. followUp is a short suggestion of what to ask or re-watch next, or null.',
     EXPLANATION_RULES[level],
@@ -459,9 +534,25 @@ export function prevalidateExplanation(output: ExplanationOutput, chunks: readon
       partial = true
       continue
     }
+    const contrast = findUnsupportedContrast(statement.text, refs.passages.map(passageText), question)
+    if (contrast) {
+      dropped.push({kind: 'claim', text: statement.text, reason: 'unsupported_contrast', detail: contrast})
+      partial = true
+      continue
+    }
     drafts.push({kind: 'claim', text: statement.text, citations: refs.citations, sources: refs.passages.flatMap((passage) => passage.chunks)})
   }
-  return {drafts, guidingQuestion: null, followUp: output.followUp, dropped, partial}
+  // Gate 2d, once the claims are known. A dropped connective answered nothing: the status stays.
+  const claims = drafts.filter((draft) => draft.kind === 'claim')
+  const claimTexts = claims.map((draft) => draft.text)
+  const citedTexts = [...new Set(claims.flatMap((draft) => draft.sources.map((source) => source.text)))]
+  const kept = drafts.filter((draft) => {
+    if (draft.kind !== 'connective') return true
+    const added = findConnectiveAddition(draft.text, claimTexts, citedTexts, question)
+    if (added) dropped.push({kind: 'connective', text: draft.text, reason: 'connective_adds_content', detail: added})
+    return !added
+  })
+  return {drafts: kept, guidingQuestion: null, followUp: output.followUp, dropped, partial}
 }
 
 /** Gates 1 and 2 for level 1: each pointer against the question's terms; pointer text is the server's. */

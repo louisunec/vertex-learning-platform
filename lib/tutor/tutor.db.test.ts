@@ -144,7 +144,7 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
       'taskInstanceId',
       'tutorRequestId',
     ])
-    assert.deepEqual([outbox[1].payload.supportCheck, outbox[1].payload.promptVersion], ['tutor-support-v2', 'tutor-v4'])
+    assert.deepEqual([outbox[1].payload.supportCheck, outbox[1].payload.promptVersion], ['tutor-support-v3', 'tutor-v5'])
   })
 
   it('rejects a replayed key without a second model call or escalation', async () => {
