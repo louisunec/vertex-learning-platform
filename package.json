@@ -13,6 +13,7 @@
     "generate:assessments": "node --env-file-if-exists=.env.local scripts/generate-assessments.mts",
     "generate:concepts": "node --env-file-if-exists=.env.local scripts/generate-concepts.mts",
     "validate:concepts": "node --env-file-if-exists=.env.local scripts/validate-concepts.mts",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mts",
     "studio": "npm --prefix studio run dev",
     "typegen": "npm --prefix studio run typegen"
   },
@@ -24,6 +25,7 @@
     "ai": "^7.0.94",
     "next": "16.3.3",
     "next-sanity": "^13.3.3",
+    "postgres": "^3.4.9",
     "posthog-js": "^1.422.5",
     "posthog-node": "^5.51.4",
     "react": "19.2.8",

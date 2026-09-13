@@ -11,6 +11,8 @@ import {getPostHogClient} from '@/lib/posthog-server'
 export const FLAGS = {
   /** PR-0: route search query interpretation through `lib/ai/gateway`. */
   aiGatewaySearch: 'ai-gateway-search',
+  /** PR-4: task instances, server grading, and learner evidence (`/api/task-instances`, `/api/attempts`). */
+  learnerEvidence: 'learner-evidence',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]
