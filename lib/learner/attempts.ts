@@ -2,7 +2,6 @@ import {createHash} from 'node:crypto'
 
 import type postgres from 'postgres'
 
-import type {GradingItem} from '../assessments/grading.ts'
 import {resolveConcept, type ConceptResolution} from '../concepts/resolve.ts'
 import {asLearner, type LearnerTx} from '../db/learner-scope.ts'
 import {attemptResultSchema, type AttemptResult, type SubmitAttemptRequest} from './contracts.ts'
@@ -17,8 +16,8 @@ import {
   type EvidenceReason,
   type MasteryCounts,
 } from './evidence.ts'
-import {getFamilyHelpState} from './help-events.ts'
-import {findOwnedTaskInstance, type TaskInstanceRow} from './task-instances.ts'
+import {getFamilyHelpState, lockLearnerFamily} from './help-events.ts'
+import {findOwnedTaskInstance, matchesDelivery, type TaskInstanceRow} from './task-instances.ts'
 
 /**
  * Server-side grading of one submission (development plan §5 PR-4).
@@ -87,17 +86,6 @@ async function replayByKey(tx: LearnerTx, learnerId: string, key: string, reques
   `
   if (!row) return null
   return row.requestHash === requestHash ? {status: 'graded', body: toResult(row), replayed: true} : rejected('idempotency_key_reused')
-}
-
-/** The item still matches what the instance delivered: same family, version, and option ids. */
-function matchesDelivery(item: GradingItem, instance: TaskInstanceRow): boolean {
-  const sorted = (ids: readonly string[]) => [...ids].sort().join('\0')
-  return (
-    item._id === instance.assessmentId &&
-    item.familyId === instance.familyId &&
-    item.version === instance.assessmentVersion &&
-    sorted(item.optionIds) === sorted(instance.deliveredOptionIds)
-  )
 }
 
 type MasteryRow = MasteryCounts
@@ -175,7 +163,7 @@ export async function submitAttempt({
   const correct = request.optionId === item.correctOptionId
 
   const body = await asLearner(db, learnerId, async (tx): Promise<AttemptResult | null> => {
-    await tx`select pg_advisory_xact_lock(hashtextextended(${`${learnerId}:${instance.familyId}`}, 0))`
+    await lockLearnerFamily(tx, learnerId, instance.familyId)
 
     const [prior] = await tx<{count: number}[]>`
       select count(*)::int as count from learner.attempt_log

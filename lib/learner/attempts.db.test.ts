@@ -2,72 +2,22 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {after, before, beforeEach, describe, it} from 'node:test'
 
-import type {GradingItem} from '../assessments/grading.ts'
-import type {LearnerAssessment} from '../assessments/learner.ts'
-import type {ConceptNode} from '../concepts/resolve.ts'
 import {createTestDatabase, SKIP_WITHOUT_DATABASE, type TestDatabase} from '../db/test-db.ts'
 import {pauseAfterQuery} from '../db/test-interleave.ts'
 import {submitAttempt, type SubmitAttemptOutcome} from './attempts.ts'
-import type {LearnerContentSource} from './content-source.ts'
 import {recordHelpEvent} from './help-events.ts'
 import {issueTask, TASK_INSTANCE_TTL_MS} from './task-instances.ts'
+import {FixtureContent} from './test-content.ts'
 
 /**
  * Attempts, evidence projection, and help events against a real Postgres
  * (development plan §5 PR-4 acceptance). Content comes from fixtures shaped
- * like the parsed Sanity rows.
+ * like the parsed Sanity rows (`test-content.ts`).
  */
 
 const ALICE = 'user_alice'
 const BOB = 'user_bob'
 const NOW = new Date('2026-09-13T10:00:00.000Z')
-
-class FixtureContent implements LearnerContentSource {
-  servable = new Map<string, LearnerAssessment>()
-  grading = new Map<string, GradingItem>()
-  concepts = new Map<string, ConceptNode>()
-
-  async loadServableItem(id: string) {
-    return this.servable.get(id) ?? null
-  }
-  async loadGradingItem(id: string) {
-    return this.grading.get(id) ?? null
-  }
-  async loadConceptIndex() {
-    return this.concepts
-  }
-
-  /** Adds an approved, current item; `opt-a` is correct. */
-  addItem(familyId: string, {version = 1, concept = 'concept-cpt-state' as string | null} = {}) {
-    const id = `assessment-${familyId}-v${version}`
-    const options = [
-      {id: 'opt-a', text: 'useState'},
-      {id: 'opt-b', text: 'useEffect'},
-      {id: 'opt-c', text: 'useMemo'},
-    ]
-    this.servable.set(id, {
-      _id: id,
-      _rev: 'rev-1',
-      familyId,
-      version,
-      lessonId: 'lesson-hooks',
-      type: 'apply',
-      responseFormat: 'single_choice',
-      question: 'Which hook keeps a value between renders?',
-      options,
-    })
-    this.grading.set(id, {
-      _id: id,
-      familyId,
-      version,
-      lessonId: 'lesson-hooks',
-      optionIds: options.map((option) => option.id),
-      correctOptionId: 'opt-a',
-      primaryConceptRef: concept,
-    })
-    return id
-  }
-}
 
 const key = () => `key-${randomUUID().replaceAll('-', '')}`
 

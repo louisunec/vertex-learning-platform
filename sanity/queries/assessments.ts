@@ -106,6 +106,34 @@ export const GRADING_ASSESSMENT_QUERY = defineQuery(/* groq */ `
 `)
 
 /**
+ * SERVER-ONLY hint ladder for one delivered version (development plan §5
+ * PR-5). Selects every hint and the correct option id, so its result must
+ * never reach a response: parse with `toHintLadder`
+ * (`lib/assessments/hints.ts`) and return only the rung the help policy
+ * decided. Servable under the same rules as grading.
+ */
+export const HINT_LADDER_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "assessment" &&
+    _id == $assessmentId &&
+    reviewStatus == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**")) &&
+    lesson->_type == "lesson"
+  ][0] {
+    _id,
+    familyId,
+    version,
+    "optionIds": options[]._key,
+    "correctOptionId": answerKey.correctOptionId,
+    "direction": hints.direction,
+    "keyConcept": hints.keyConcept,
+    "solution": hints.solution
+  }
+`)
+
+/**
  * Published concept nodes for resolving an item's primary concept through
  * merges and splits (`lib/concepts/resolve.ts`). Ids and statuses only.
  * Bounded; a concept beyond the bound resolves as missing, which skips the

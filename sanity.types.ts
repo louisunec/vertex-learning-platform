@@ -757,6 +757,20 @@ export type GRADING_ASSESSMENT_QUERY_RESULT = {
 } | null;
 
 // Source: ../sanity/queries/assessments.ts
+// Variable: HINT_LADDER_QUERY
+// Query: *[    _type == "assessment" &&    _id == $assessmentId &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    lesson->_type == "lesson"  ][0] {    _id,    familyId,    version,    "optionIds": options[]._key,    "correctOptionId": answerKey.correctOptionId,    "direction": hints.direction,    "keyConcept": hints.keyConcept,    "solution": hints.solution  }
+export type HINT_LADDER_QUERY_RESULT = {
+  _id: string;
+  familyId: string;
+  version: number;
+  optionIds: Array<string>;
+  correctOptionId: string;
+  direction: string;
+  keyConcept: string;
+  solution: string;
+} | null;
+
+// Source: ../sanity/queries/assessments.ts
 // Variable: CONCEPT_NODES_QUERY
 // Query: *[    _type == "concept" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**"))  ] | order(_id asc)[0...2000] {    "id": _id,    conceptId,    reviewStatus,    "mergedInto": mergedInto._ref,    "splitInto": splitInto[]._ref  }
 export type CONCEPT_NODES_QUERY_RESULT = Array<{
@@ -1311,6 +1325,7 @@ declare module "@sanity/client" {
     '\n  *[\n    _type == "assessment" &&\n    lesson._ref == $lessonId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(*[\n      _type == "assessment" &&\n      familyId == ^.familyId &&\n      version > ^.version &&\n      reviewStatus == "approved" &&\n      sourceStatus == "current" &&\n      !(_id in path("drafts.**")) &&\n      !(_id in path("versions.**"))\n    ]) == 0\n  ] | order(familyId asc, version desc)[0...50] {\n    _id,\n    _rev,\n    familyId,\n    version,\n    "lessonId": lesson._ref,\n    type,\n    responseFormat,\n    question,\n    "options": options[] { "id": _key, text }\n  }\n': LESSON_PRACTICE_ITEMS_QUERY_RESULT;
     '\n  *[\n    _type == "assessment" &&\n    _id == $assessmentId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    lesson->_type == "lesson" &&\n    count(*[\n      _type == "assessment" &&\n      familyId == ^.familyId &&\n      version > ^.version &&\n      reviewStatus == "approved" &&\n      sourceStatus == "current" &&\n      !(_id in path("drafts.**")) &&\n      !(_id in path("versions.**"))\n    ]) == 0\n  ][0] {\n    _id,\n    _rev,\n    familyId,\n    version,\n    "lessonId": lesson._ref,\n    type,\n    responseFormat,\n    question,\n    "options": options[] { "id": _key, text }\n  }\n': SERVABLE_ASSESSMENT_QUERY_RESULT;
     '\n  *[\n    _type == "assessment" &&\n    _id == $assessmentId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    lesson->_type == "lesson"\n  ][0] {\n    _id,\n    familyId,\n    version,\n    "lessonId": lesson._ref,\n    "optionIds": options[]._key,\n    "correctOptionId": answerKey.correctOptionId,\n    "primaryConceptRef": primaryConcept._ref\n  }\n': GRADING_ASSESSMENT_QUERY_RESULT;
+    '\n  *[\n    _type == "assessment" &&\n    _id == $assessmentId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    lesson->_type == "lesson"\n  ][0] {\n    _id,\n    familyId,\n    version,\n    "optionIds": options[]._key,\n    "correctOptionId": answerKey.correctOptionId,\n    "direction": hints.direction,\n    "keyConcept": hints.keyConcept,\n    "solution": hints.solution\n  }\n': HINT_LADDER_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ] | order(_id asc)[0...2000] {\n    "id": _id,\n    conceptId,\n    reviewStatus,\n    "mergedInto": mergedInto._ref,\n    "splitInto": splitInto[]._ref\n  }\n': CONCEPT_NODES_QUERY_RESULT;
     '\n  *[_type == "category" && defined(slug.current)] | order(title asc) {\n    \n  _id,\n  title,\n  "slug": slug.current\n,\n    description,\n    "courseCount": count(*[_type == "course" && category._ref == ^._id])\n  }\n': CATEGORIES_QUERY_RESULT;
     '\n  *[_type == "category" && slug.current == $slug][0] {\n    \n  _id,\n  title,\n  "slug": slug.current\n,\n    description,\n    "courses": *[_type == "course" && category._ref == ^._id && defined(slug.current)]\n      | order(popular desc, title asc) { \n  _id,\n  title,\n  "slug": slug.current,\n  summary,\n  level,\n  priceDisplay,\n  popular,\n  studentCountDisplay,\n  coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n  instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n  category->{ \n  _id,\n  title,\n  "slug": slug.current\n },\n  "moduleCount": count(modules),\n  "lessonCount": count(modules[].lessons[]),\n  "durationSeconds": math::sum(modules[].lessons[]->durationSeconds)\n }\n  }\n': CATEGORY_BY_SLUG_QUERY_RESULT;

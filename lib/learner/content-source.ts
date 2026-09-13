@@ -1,4 +1,5 @@
 import type {GradingItem} from '../assessments/grading.ts'
+import type {HintLadder} from '../assessments/hints.ts'
 import type {LearnerAssessment} from '../assessments/learner.ts'
 import type {ConceptNode} from '../concepts/resolve.ts'
 
@@ -12,6 +13,8 @@ export type LearnerContentSource = {
   loadServableItem(assessmentId: string): Promise<LearnerAssessment | null>
   /** The private grading row while the delivered version is still approved and current. */
   loadGradingItem(assessmentId: string): Promise<GradingItem | null>
+  /** The private hint ladder while the delivered version is still approved and current. */
+  loadHintLadder(assessmentId: string): Promise<HintLadder | null>
   /** Published concept nodes by document id. */
   loadConceptIndex(): Promise<ReadonlyMap<string, ConceptNode>>
 }
