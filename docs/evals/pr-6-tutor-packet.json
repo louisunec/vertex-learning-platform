@@ -1,0 +1,28 @@
+{
+ "out": "docs/evals/pr-6-tutor-review-packet.md",
+ "fullOut": "docs/evals/local/pr-6-tutor-review-packet-full.md",
+ "heading": [
+  "Built with `node --env-file-if-exists=.env.local scripts/tutor-packet.mts docs/evals/pr-6-tutor-packet.json` from stored results; no model call was made to build it.",
+  "",
+  "- **Part 1: run 4** (`4a48f3e`, prompts `tutor-v3` / `tutor-support-v1`): all nine cases, the last full run. Its two connectives were checked afterwards with `tutor-support-v2` (the connective rule added since); those verdicts are shown next to them.",
+  "- **Part 2: targeted checks after the passage change** (`201ccba`, `tutor-v4` / `tutor-support-v2`): three cases, one run each. Claims now cite passages of adjacent chunks, so a claim lists every chunk of the passages it cites.",
+  "- Full live evaluations are paused; the other six cases were not re-run on `tutor-v4`."
+ ],
+ "sections": [
+  {
+   "title": "Part 1: run 4 (tutor-v3)",
+   "note": "The last full nine-case run. Answers are as recorded; only the connective verdicts were added afterwards.",
+   "results": [
+    "docs/evals/pr-6-tutor-run-4.json"
+   ]
+  },
+  {
+   "title": "Part 2: targeted checks (tutor-v4, sentence-complete passages)",
+   "note": "Three cases re-run after the passage and connective change.",
+   "results": [
+    "docs/evals/pr-6-tutor-targeted-1.json"
+   ]
+  }
+ ],
+ "connectiveVerdicts": "docs/evals/pr-6-tutor-connectives-run-4.json"
+}
