@@ -67,23 +67,32 @@ describe('knowledge map evidence', {skip: SKIP_WITHOUT_DATABASE}, () => {
   })
   after(() => db?.drop())
 
+  const ALL = ['cpt-bob', 'cpt-grad', 'cpt-loss', 'cpt-many']
+
   it("reads the learner's own mastery counts only", async () => {
-    const {mastery} = await readMapEvidence(db.sql, ALICE)
+    const {mastery} = await readMapEvidence(db.sql, ALICE, ALL)
     assert.deepEqual(mastery, [
       {conceptId: 'cpt-grad', independentCorrect: 0, independentIncorrect: 0, assistedCorrect: 1, assistedIncorrect: 0},
       {conceptId: 'cpt-loss', independentCorrect: 1, independentIncorrect: 1, assistedCorrect: 1, assistedIncorrect: 0},
     ])
-    assert.deepEqual((await readMapEvidence(db.sql, BOB)).mastery.map((row) => row.conceptId), ['cpt-bob'])
+    assert.deepEqual((await readMapEvidence(db.sql, BOB, ALL)).mastery.map((row) => row.conceptId), ['cpt-bob'])
   })
 
   it('keeps only the newest independent response per concept, ignoring assisted, repeat, and unlinked ones', async () => {
-    const {latestIndependent} = await readMapEvidence(db.sql, ALICE)
+    const {latestIndependent} = await readMapEvidence(db.sql, ALICE, ALL)
     assert.deepEqual(
       latestIndependent.map((row) => [row.conceptId, row.correct, row.createdAt.toISOString()]),
       [['cpt-loss', false, '2026-09-11T00:00:00.000Z']],
     )
-    const bob = await readMapEvidence(db.sql, BOB)
+    const bob = await readMapEvidence(db.sql, BOB, ALL)
     assert.deepEqual(bob.latestIndependent.map((row) => [row.conceptId, row.correct]), [['cpt-loss', true]])
+  })
+
+  it("reads only the map's concepts", async () => {
+    const grad = await readMapEvidence(db.sql, ALICE, ['cpt-grad'])
+    assert.deepEqual(grad.mastery.map((row) => row.conceptId), ['cpt-grad'])
+    assert.deepEqual(grad.latestIndependent, [])
+    assert.deepEqual(await readMapEvidence(db.sql, ALICE, []), {mastery: [], latestIndependent: []})
   })
 
   it("lists a concept's attempts newest first, bounded, and never another learner's", async () => {

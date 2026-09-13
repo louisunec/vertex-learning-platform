@@ -120,11 +120,13 @@ Build the **Knowledge map** tab under My Learning from `design/vertex-knowledgem
 2. **Evidence read** (`lib/learner/knowledge-map.ts`, `asLearner`, bounded, ids and enums only):
    - the learner's `concept_mastery` rows (≤500);
    - the latest independent attempt per `resolved_concept_id` (`distinct on`, ≤500);
+   - both scoped, before the bound, to the map's concepts and those merged into them (`evidenceIdsFor`), so another course's evidence can't use up the limit;
    - for the selected concept, the 5 newest attempts (joined to `task_instance` for `lesson_id`).
    Everything is resolved through merges with `loadConceptIndex()`.
 3. **Map card**:
    - Each node has a letter tile (the first letter of its name), the name, and a state label with the colour for its state. The selected node gets a ring and `aria-current`.
    - Each link's accessible name includes the state.
+   - The arrow SVG is `aria-hidden`; each node with prerequisites is described (`aria-describedby`) by a visually hidden "Prerequisites: A, B." line.
    - The legend matches the design (4 states and their descriptions, plus "Arrows show prerequisites").
 4. **Evidence panel**:
    - The tile, name, and state chip; the summary.

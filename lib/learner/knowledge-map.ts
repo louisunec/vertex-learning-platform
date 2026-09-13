@@ -18,15 +18,20 @@ export const CONCEPT_ATTEMPT_LIMIT = 5
 
 export type MapEvidence = {mastery: MasteryRow[]; latestIndependent: LatestIndependentRow[]}
 
-/** The learner's mastery counts and, per concept, their latest independent response. */
-export async function readMapEvidence(db: postgres.Sql, learnerId: string): Promise<MapEvidence> {
+/**
+ * The learner's mastery counts and, per concept, their latest independent
+ * response, for the map's concepts only (`conceptIds`: stable ids, including
+ * those merged into them), so evidence from other courses can't use up the bound.
+ */
+export async function readMapEvidence(db: postgres.Sql, learnerId: string, conceptIds: string[]): Promise<MapEvidence> {
+  if (conceptIds.length === 0) return {mastery: [], latestIndependent: []}
   return asLearner(db, learnerId, async (tx) => {
     const mastery = await tx<MasteryRow[]>`
       select concept_id as "conceptId",
              independent_correct as "independentCorrect", independent_incorrect as "independentIncorrect",
              assisted_correct as "assistedCorrect", assisted_incorrect as "assistedIncorrect"
       from learner.concept_mastery
-      where learner_id = ${learnerId}
+      where learner_id = ${learnerId} and concept_id = any(${tx.array(conceptIds)})
       order by concept_id
       limit ${MAP_EVIDENCE_LIMIT}
     `
@@ -34,7 +39,8 @@ export async function readMapEvidence(db: postgres.Sql, learnerId: string): Prom
       select distinct on (resolved_concept_id)
              resolved_concept_id as "conceptId", correct, created_at as "createdAt"
       from learner.attempt_log
-      where learner_id = ${learnerId} and evidence_kind = 'independent' and resolved_concept_id is not null
+      where learner_id = ${learnerId} and evidence_kind = 'independent'
+        and resolved_concept_id = any(${tx.array(conceptIds)})
       order by resolved_concept_id, created_at desc, id desc
       limit ${MAP_EVIDENCE_LIMIT}
     `

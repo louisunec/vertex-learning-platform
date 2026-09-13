@@ -131,13 +131,11 @@ async function KnowledgeMap({ userId, course: requestedCourse, concept: requeste
   const selector = <CourseSelect courses={courses.value.map(({ slug, title }) => ({ slug, title }))} value={course.slug} />;
   const lessons = numberedLessons(course);
 
-  const db = getDb();
-  const [concepts, index, evidence] = await Promise.all([
+  const [concepts, index] = await Promise.all([
     lessons.size > 0 ? attempt("concepts", getKnowledgeMapConcepts([...lessons.keys()])) : Promise.resolve({ ok: true as const, value: [] }),
     attempt("concept index", sanityLearnerContent.loadConceptIndex()),
-    attempt("learner evidence", readMapEvidence(db, userId)),
   ]);
-  if (!concepts.ok || !index.ok || !evidence.ok) return <Failure selector={selector} />;
+  if (!concepts.ok || !index.ok) return <Failure selector={selector} />;
   if (concepts.value.length === 0) {
     return (
       <>
@@ -157,8 +155,13 @@ async function KnowledgeMap({ userId, course: requestedCourse, concept: requeste
       (source): source is ConceptSource => typeof source.lessonId === "string" && typeof source.startSeconds === "number",
     ),
   }));
-  const edgeRows = await attempt("prerequisites", getKnowledgeMapEdges(mapConcepts.map((concept) => concept.id)));
-  if (!edgeRows.ok) return <Failure selector={selector} />;
+  // Evidence is read for this map's concepts only, including concepts merged into them.
+  const evidenceIds = [...new Set(mapConcepts.flatMap((concept) => evidenceIdsFor(concept, index.value)))];
+  const [edgeRows, evidence] = await Promise.all([
+    attempt("prerequisites", getKnowledgeMapEdges(mapConcepts.map((concept) => concept.id))),
+    attempt("learner evidence", readMapEvidence(getDb(), userId, evidenceIds)),
+  ]);
+  if (!edgeRows.ok || !evidence.ok) return <Failure selector={selector} />;
   const { edges, dropped } = drawableEdges(mapConcepts, edgeRows.value);
   if (dropped.length > 0) console.warn("[knowledge-map] prerequisite edges failed validation and are not drawn:", dropped.join(", "));
 
@@ -203,7 +206,7 @@ async function KnowledgeMap({ userId, course: requestedCourse, concept: requeste
             nodeWidth={MAP_LAYOUT.nodeWidth}
             nodeHeight={MAP_LAYOUT.nodeHeight}
             nodes={nodes}
-            edges={layout.edges.map(({ id, path }) => ({ id, path }))}
+            edges={layout.edges}
           />
           <MapLegend />
         </Card>
