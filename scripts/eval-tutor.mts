@@ -1,13 +1,14 @@
 /**
  * Live evaluation of the tutor (development plan §5 PR-6 acceptance):
  *
- *   npm run eval:tutor [-- --case <id>] [--runs <n>] [--packet <file.md>] [--json <file.json>]
+ *   npm run eval:tutor [-- --case <id>] [--runs <n>] [--packet <file.md>] [--json <file.json>] [--excerpts]
  *
  * Runs retrieval, the model calls, and server validation for each case in
  * `scripts/tutor-eval-cases.json` against the published Sanity dataset and
  * OpenAI. Read-only: no database, no writes. Prints each answer with its
- * citations and the cited source text, so a reviewer can check support,
- * not merely clickable links; checks the case's structural expectations
+ * cited timestamps and links. Transcripts are third-party and not cleared
+ * for redistribution, so source text is printed only with `--excerpts`
+ * (for local review; do not commit that output); checks the case's structural expectations
  * (`lib/tutor/eval-check.ts`) and exits 1 when any fails. Statements shown
  * passed the deterministic gates and the model support check, neither of
  * which is proof of support.
@@ -47,6 +48,7 @@ const runs = Number(arg('--runs') ?? 1)
 if (!Number.isInteger(runs) || runs < 1 || runs > 5) throw new Error('--runs must be 1–5')
 const packetFile = arg('--packet')
 const jsonFile = arg('--json')
+const showExcerpts = process.argv.includes('--excerpts')
 
 requireEnv('OPENAI_API_KEY')
 const http = createSanityHttp()
@@ -141,7 +143,7 @@ function print(evalCase: EvalCase, result: Result) {
         console.log(`   [${statement.kind}]${statement.citations.length > 0 ? ' (gates + support check passed)' : ''} ${statement.text}`)
         for (const citation of statement.citations) {
           const text = result.evidence.find((chunk) => chunk.chunkId === citation.chunkId)?.text
-          console.log(`       ↳ ${citation.label} ${citation.href}: ${JSON.stringify(text?.slice(0, 160))}`)
+          console.log(`       ↳ ${citation.label} ${citation.href}${showExcerpts ? `: ${JSON.stringify(text?.slice(0, 160))}` : ''}`)
         }
       }
       for (const dropped of answer.dropped) {

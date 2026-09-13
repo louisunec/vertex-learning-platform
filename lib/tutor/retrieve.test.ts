@@ -132,7 +132,7 @@ describe('retrieveEvidence', () => {
 
   describe('on the published "Temperature and sampling" layout', () => {
     const DOWNSIDES = 'What are the downsides of a high temperature?'
-    const LESS_COHERENT = 359
+    const DOWNSIDE = 359
     const sampling = async (chapters?: Parameters<typeof withSamplingLesson>[1]) => {
       const source = withSamplingLesson(new FixtureTutorSource(), chapters)
       const scope = (await resolveLessonScope(source, SAMPLING_LESSON.id)) as TutorLessonScope
@@ -141,21 +141,21 @@ describe('retrieveEvidence', () => {
       return {source, scope}
     }
 
-    it('reaches "less coherent outputs" (5:59) for the downsides question with no model terms', async () => {
+    it('reaches the downside at 5:59 for the downsides question with no model terms', async () => {
       const {source, scope} = await sampling()
       const retrieval = await retrieveEvidence(source, scope, {currentSeconds: 250, ...deterministicTerms(DOWNSIDES)})
-      assert.ok(starts(retrieval.chunks).includes(LESS_COHERENT))
+      assert.ok(starts(retrieval.chunks).includes(DOWNSIDE))
       // Through the "Pros and Cons" chapter (310–449), which the list word "cons" matches.
       assert.ok(source.windows.some((range) => range.fromSeconds === 341 && range.toSeconds === 449))
     })
 
-    it('adds the chunk that finishes a hit\'s sentence: "the excessive temperature" (5:41) → "can lead to less coherent outputs" (5:59)', async () => {
+    it('adds the chunk that finishes a hit\'s sentence: 5:41 ("an excessive temperature") → 5:59', async () => {
       // No chapters: only the keyword tier and its neighbours. 5:59 shares no word with the question.
       const {source, scope} = await sampling([])
       const retrieval = await retrieve(source, scope, 250, 'What does an excessive temperature cause?')
       const found = starts(retrieval.chunks)
-      assert.ok(found.includes(341) && found.includes(LESS_COHERENT))
-      assert.equal(found.indexOf(LESS_COHERENT), found.indexOf(341) + 1, 'the neighbour follows its hit')
+      assert.ok(found.includes(341) && found.includes(DOWNSIDE))
+      assert.equal(found.indexOf(DOWNSIDE), found.indexOf(341) + 1, 'the neighbour follows its hit')
     })
 
     it('does not give a chapter slot to a chapter wholly inside the window', async () => {

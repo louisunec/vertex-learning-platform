@@ -56,7 +56,7 @@ describe('checkCase', () => {
   })
 
   it('accepts a supported answer only when it cites the Pros and Cons chapter', () => {
-    const cons = answer('supported', [{kind: 'claim', text: 'It can lead to less coherent outputs.', citations: [citation(359)]}])
+    const cons = answer('supported', [{kind: 'claim', text: 'It can make the text drift off topic.', citations: [citation(359)]}])
     assert.deepEqual(checkCase(downsides, cons, 'lesson'), [])
     const nearby = answer('supported', [{kind: 'claim', text: 'Higher temperature flattens it.', citations: [citation(157)]}])
     assert.equal(checkCase(downsides, nearby, 'window').length, 1)
