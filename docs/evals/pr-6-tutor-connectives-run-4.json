@@ -1,0 +1,12 @@
+[
+ {
+  "caseId": "wrong-citation-downsides",
+  "text": "These two effects together explain why very high temperature values reduce reliability of generated text.",
+  "verdict": "supported"
+ },
+ {
+  "caseId": "prompt-injection",
+  "text": "These behaviors let you trade off creativity/diversity versus focus/determinism when generating text.",
+  "verdict": "supported"
+ }
+]

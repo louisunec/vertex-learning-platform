@@ -1,0 +1,118 @@
+# npm run eval:tutor -- --case <id> (elsewhere-nucleus, local-temperature, wrong-citation-downsides), 2026-09-13, feat/pr-6-tutor-endpoint b5a5b3b (tutor-v4, tutor-support-v2), live Sanity production (read-only) + OpenAI gpt-5-mini
+# Redacted: quoted transcript excerpts replaced by [excerpt removed] (third-party captions, redistribution not confirmed). Statements, statuses, citations, and timings are as recorded.
+
+━━ elsewhere-nucleus [deterministic terms, run 1] (elsewhere_in_lesson, level 3) [UNREVIEWED]
+   lesson.building-ai-apps-with-llms-temperature-and-sampling @ 40s: "What is nucleus sampling?"
+   terms: nucleu, sampling
+   → supported, scope lesson, 17 sources, 3 cited, 0 dropped
+   [claim] (gates + support check passed) Nucleus sampling (also called top‑p sampling) selects from the smallest set of words whose cumulative probability exceeds a predefined threshold p.
+       ↳ Temperature and sampling · 4:26 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=266: [excerpt removed]
+       ↳ Temperature and sampling · 4:47 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=287: [excerpt removed]
+       ↳ Temperature and sampling · 5:04 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=304: [excerpt removed]
+   [claim] (gates + support check passed) Because the set size is determined by cumulative probability rather than a fixed K, nucleus sampling dynamically adjusts how many words are considered based on the sharpness of the model's probability distribution.
+       ↳ Temperature and sampling · 4:26 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=266: [excerpt removed]
+       ↳ Temperature and sampling · 4:47 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=287: [excerpt removed]
+       ↳ Temperature and sampling · 5:04 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=304: [excerpt removed]
+   [claim] (gates + support check passed) This dynamic selection lets nucleus sampling balance exploration and exploitation, allowing more or fewer candidate words depending on the distribution.
+       ↳ Temperature and sampling · 4:26 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=266: [excerpt removed]
+       ↳ Temperature and sampling · 4:47 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=287: [excerpt removed]
+       ↳ Temperature and sampling · 5:04 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=304: [excerpt removed]
+   [claim] (gates + support check passed) Compared to top‑k sampling, nucleus (top‑p) sampling tends to maintain higher coherence while still providing diversity, since the set is probability‑based rather than a fixed size.
+       ↳ Temperature and sampling · 4:26 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=266: [excerpt removed]
+       ↳ Temperature and sampling · 4:47 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=287: [excerpt removed]
+       ↳ Temperature and sampling · 5:04 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=304: [excerpt removed]
+   followUp: Would you like an example comparing top‑k and top‑p choices for a sample probability distribution, or to re‑watch the passage that explains top‑p? (Say 'example' or 're-watch p5')
+   key passage: retrieved yes, cited yes
+   stages (ms): lesson 874, terms 1, retrieval 1255, answer 6527, support 4572, total 13252
+   ✓ expectations met
+
+# tutor-v4, tutor-support-v2, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
+
+[deterministic terms] 1/1 met their structural expectations
+  key passage retrieved 1/1, cited 1/1
+  claims kept 4; dropped 0; model failures 0
+  abstained (insufficient_evidence): none
+  lesson    p50    874 ms   max    874 ms   (n=1)
+  terms     p50      1 ms   max      1 ms   (n=1)
+  retrieval p50   1255 ms   max   1255 ms   (n=1)
+  answer    p50   6527 ms   max   6527 ms   (n=1)
+  support   p50   4572 ms   max   4572 ms   (n=1)
+  total     p50  13252 ms   max  13252 ms   (n=1)
+
+
+━━ local-temperature [deterministic terms, run 1] (local, level 3) [UNREVIEWED]
+   lesson.building-ai-apps-with-llms-temperature-and-sampling @ 150s: "How does the temperature change the probability distribution?"
+   terms: temperature, change, probability, distribution
+   → supported, scope lesson, 21 sources, 9 cited, 0 dropped
+   [claim] (gates + support check passed) Temperature scales the model's logits (dividing the scores by a parameter θ) before applying softmax, so it directly changes the shape of the probability distribution.
+       ↳ Temperature and sampling · 1:45 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=105: [excerpt removed]
+       ↳ Temperature and sampling · 2:01 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=121: [excerpt removed]
+       ↳ Temperature and sampling · 2:19 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=139: [excerpt removed]
+   [claim] (gates + support check passed) A higher temperature (larger θ) flattens the distribution and increases randomness, making lower-probability words more likely to be sampled.
+       ↳ Temperature and sampling · 1:45 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=105: [excerpt removed]
+       ↳ Temperature and sampling · 2:01 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=121: [excerpt removed]
+       ↳ Temperature and sampling · 2:19 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=139: [excerpt removed]
+       ↳ Temperature and sampling · 2:37 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=157: [excerpt removed]
+       ↳ Temperature and sampling · 2:56 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=176: [excerpt removed]
+       ↳ Temperature and sampling · 3:13 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=193: [excerpt removed]
+   [claim] (gates + support check passed) A lower temperature (smaller θ) sharpens the distribution, amplifying differences so the most probable words become much more likely (e.g., θ=0.5 favors the top token, θ=2 makes rarer tokens like “rainy” more likely).
+       ↳ Temperature and sampling · 2:37 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=157: [excerpt removed]
+       ↳ Temperature and sampling · 2:56 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=176: [excerpt removed]
+       ↳ Temperature and sampling · 3:13 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=193: [excerpt removed]
+       ↳ Temperature and sampling · 3:29 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=209: [excerpt removed]
+       ↳ Temperature and sampling · 3:48 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=228: [excerpt removed]
+       ↳ Temperature and sampling · 4:06 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=246: [excerpt removed]
+   followUp: Would you like a numeric example of logits → softmax at different temperatures, or to re-watch the video segment explaining θ?
+   key passage: retrieved yes, cited yes
+   stages (ms): lesson 882, terms 1, retrieval 1298, answer 7114, support 5417, total 14733
+   ✓ expectations met
+
+# tutor-v4, tutor-support-v2, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
+
+[deterministic terms] 1/1 met their structural expectations
+  key passage retrieved 1/1, cited 1/1
+  claims kept 3; dropped 0; model failures 0
+  abstained (insufficient_evidence): none
+  lesson    p50    882 ms   max    882 ms   (n=1)
+  terms     p50      1 ms   max      1 ms   (n=1)
+  retrieval p50   1298 ms   max   1298 ms   (n=1)
+  answer    p50   7114 ms   max   7114 ms   (n=1)
+  support   p50   5417 ms   max   5417 ms   (n=1)
+  total     p50  14733 ms   max  14733 ms   (n=1)
+
+
+━━ wrong-citation-downsides [deterministic terms, run 1] (wrong_citation, level 3) [UNREVIEWED]
+   lesson.building-ai-apps-with-llms-temperature-and-sampling @ 250s: "What are the downsides of a high temperature?"
+   terms: downside, high, temperature, cons, drawback, disadvantage, limitation
+   → partial, scope lesson, 23 sources, 6 cited, 1 dropped
+   [claim] (gates + support check passed) A higher temperature flattens the probability distribution, increasing randomness in sampling.
+       ↳ Temperature and sampling · 2:37 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=157: [excerpt removed]
+       ↳ Temperature and sampling · 2:56 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=176: [excerpt removed]
+       ↳ Temperature and sampling · 3:13 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=193: [excerpt removed]
+   [claim] (gates + support check passed) Excessive temperature can lead to less coherent outputs as the model is more likely to pick lower-probability words.
+       ↳ Temperature and sampling · 5:22 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=322: [excerpt removed]
+       ↳ Temperature and sampling · 5:41 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=341: [excerpt removed]
+       ↳ Temperature and sampling · 5:59 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=359: [excerpt removed]
+   [claim] (gates + support check passed) Increased randomness from a high temperature may produce text that lacks context or clear meaning.
+       ↳ Temperature and sampling · 5:22 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=322: [excerpt removed]
+       ↳ Temperature and sampling · 5:41 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=341: [excerpt removed]
+       ↳ Temperature and sampling · 5:59 /lessons/building-ai-apps-with-llms-temperature-and-sampling?t=359: [excerpt removed]
+   ✂ dropped claim (uncited_source) [wording at Temperature and sampling · 2:37]: Because the distribution is flatter, the model becomes more likely to select less probable words (e.g., choosing "rainy" instead of the most probable token).
+   followUp: Ask how to choose a good temperature value or re-watch the section around p4–p7 that explains trade-offs between creativity and coherence.
+   key passage: retrieved yes, cited yes
+   stages (ms): lesson 869, terms 1, retrieval 1819, answer 5494, support 8028, total 16235
+   ✓ expectations met
+
+# tutor-v4, tutor-support-v2, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
+
+[deterministic terms] 1/1 met their structural expectations
+  key passage retrieved 1/1, cited 1/1
+  claims kept 3; dropped 1 (uncited_source 1); model failures 0
+  abstained (insufficient_evidence): none
+  lesson    p50    869 ms   max    869 ms   (n=1)
+  terms     p50      1 ms   max      1 ms   (n=1)
+  retrieval p50   1819 ms   max   1819 ms   (n=1)
+  answer    p50   5494 ms   max   5494 ms   (n=1)
+  support   p50   8028 ms   max   8028 ms   (n=1)
+  total     p50  16235 ms   max  16235 ms   (n=1)
+

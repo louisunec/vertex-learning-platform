@@ -55,3 +55,6 @@ next-env.d.ts
 /studio/.sanity/
 /studio/schema.json
 /studio/node_modules/
+
+# Local-only review copies quoting third-party transcripts in full (never commit)
+docs/evals/local/

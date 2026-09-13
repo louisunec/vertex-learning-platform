@@ -32,7 +32,7 @@ describe('help policy service', {skip: SKIP_WITHOUT_DATABASE}, () => {
   after(() => db?.drop())
 
   beforeEach(async () => {
-    await db.sql`truncate learner.event_outbox, learner.concept_mastery, learner.help_event, learner.attempt_log, learner.task_instance, learner.explanation_log`
+    await db.sql`truncate learner.tutor_request, learner.event_outbox, learner.concept_mastery, learner.help_event, learner.attempt_log, learner.task_instance, learner.explanation_log`
     content = new FixtureContent()
     content.concepts.set('concept-cpt-state', {id: 'concept-cpt-state', conceptId: 'cpt-state', reviewStatus: 'approved'})
   })

@@ -1,6 +1,8 @@
 import {z} from 'zod'
 
+import {MAX_FOLLOW_UP_LENGTH, MAX_STATEMENT_LENGTH, MAX_STATEMENTS, resolvedCitationSchema} from '../ai/contracts.ts'
 import {HELP_MODES, HELP_REASON_CODES, HELP_REQUESTS} from '../ai/help-policy.ts'
+import {CITED_STATEMENT_KINDS, MAX_TUTOR_CITATIONS, RETRIEVAL_SCOPES, TUTOR_STATEMENT_KINDS, TUTOR_STATUSES} from '../ai/tutor.ts'
 import {MAX_HINT_LENGTH} from '../assessments/hints.ts'
 import {learnerAssessmentSchema} from '../assessments/learner.ts'
 import {EVIDENCE_KINDS, EVIDENCE_REASONS} from './evidence.ts'
@@ -88,6 +90,90 @@ export const helpResponseSchema = z
 
 export type HelpResponse = z.infer<typeof helpResponseSchema>
 
+export const MAX_TUTOR_QUESTION_LENGTH = 500
+/** A day: longer than any lesson video, so the stored duration is the real bound. */
+export const MAX_PLAYHEAD_SECONDS = 86_400
+const SESSION_ID = /^[A-Za-z0-9_-]{8,64}$/
+
+/**
+ * One tutor question (development plan §5 PR-6). As with help, `mode` and
+ * `helpRequest` only ask for more help; the level is decided and stored by
+ * the server. `requestKey` makes a retry unable to escalate or double-record.
+ */
+export const tutorRequestSchema = z.strictObject({
+  lessonId: z.string().regex(SANITY_ID),
+  currentSeconds: z.number().int().min(0).max(MAX_PLAYHEAD_SECONDS),
+  question: z.string().trim().min(3).max(MAX_TUTOR_QUESTION_LENGTH),
+  mode: z.enum(HELP_MODES),
+  helpRequest: z.enum(HELP_REQUESTS).optional(),
+  sessionId: z.string().regex(SESSION_ID).optional(),
+  taskInstanceId: z.uuid().optional(),
+  requestKey: z.string().regex(IDEMPOTENCY_KEY),
+})
+
+export type TutorRequest = z.infer<typeof tutorRequestSchema>
+
+/**
+ * One tutor statement. A claim cites up to two passages of up to three
+ * time-adjacent chunks, and each chunk is its own citation, so a statement
+ * carries 1–`MAX_TUTOR_CITATIONS` (6) citations; a level-1 pointer carries
+ * one. (Before follow-up 3 the cap was 4; the shared evidence-envelope cap
+ * `MAX_EVIDENCE_PER_STATEMENT`, 4, is unchanged and does not apply here.)
+ *
+ * For clients (PR-7 `TutorPanel` citation buttons, PR-10 feedback): keep
+ * every citation's `chunkId` and `sourceRevision`, in order. Citations of
+ * one statement that share a `lessonId` and are contiguous (each starts at
+ * or before the previous one's `endSeconds`, the rule `assemblePassages`
+ * uses) may be shown as one time range that seeks to the first
+ * `startSeconds`; the ids stay separate.
+ */
+const tutorStatementSchema = z.strictObject({
+  kind: z.enum(TUTOR_STATEMENT_KINDS),
+  text: z.string().min(1).max(MAX_STATEMENT_LENGTH),
+  citations: z.array(resolvedCitationSchema).max(MAX_TUTOR_CITATIONS),
+})
+
+/**
+ * A tutor answer: server-validated statements whose citations were built
+ * from stored records and whose support was model-checked (not proven).
+ * No hint, answer-key, or raw source field exists.
+ * `help` is null exactly when no help was delivered (insufficient evidence).
+ */
+export const tutorResponseSchema = z
+  .strictObject({
+    tutorRequestId: z.uuid(),
+    status: z.enum(TUTOR_STATUSES),
+    scope: z.enum(RETRIEVAL_SCOPES),
+    statements: z.array(tutorStatementSchema).max(MAX_STATEMENTS),
+    followUp: z.string().min(1).max(MAX_FOLLOW_UP_LENGTH).optional(),
+    message: z.string().min(1).max(200).optional(),
+    help: z
+      .strictObject({
+        helpEventId: z.uuid(),
+        level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+        reasonCode: z.enum(HELP_REASON_CODES),
+        policyVersion: z.string().min(1).max(64),
+      })
+      .nullable(),
+  })
+  .refine(
+    (body) =>
+      body.status === 'insufficient_evidence'
+        ? body.help === null && body.statements.length === 0 && body.message !== undefined
+        : body.help !== null && body.message === undefined,
+    'Insufficient evidence delivers no help and only the fixed message',
+  )
+  .refine(
+    (body) => (body.status === 'clarification_needed') === (body.help?.level === 0) && (body.status !== 'clarification_needed' || body.statements.length === 0),
+    'A clarifying question is level 0 and makes no statements',
+  )
+  .refine(
+    (body) => body.statements.every((statement) => CITED_STATEMENT_KINDS.has(statement.kind) === statement.citations.length > 0),
+    'Only claims and pointers carry citations, and each has one',
+  )
+
+export type TutorResponse = z.infer<typeof tutorResponseSchema>
+
 /** Error codes a client can act on; `retryable` failures carry no grade. */
 export const LEARNER_ERROR_CODES = [
   'invalid_request',
@@ -100,6 +186,8 @@ export const LEARNER_ERROR_CODES = [
   'already_submitted',
   'idempotency_key_reused',
   'hint_unavailable',
+  'already_answered',
+  'rate_limited',
   'unavailable',
   'internal_error',
 ] as const

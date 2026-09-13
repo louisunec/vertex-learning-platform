@@ -8,7 +8,17 @@ import {pathToFileURL} from 'node:url'
 import {applyMigrations, MigrationError} from './migrate.ts'
 import {createTestDatabase, MIGRATIONS_DIR, SKIP_WITHOUT_DATABASE, type TestDatabase} from './test-db.ts'
 
-const TABLES = ['task_instance', 'attempt_log', 'help_event', 'concept_mastery', 'explanation_log', 'event_outbox', 'schema_migrations']
+const TABLES = [
+  'task_instance',
+  'attempt_log',
+  'help_event',
+  'concept_mastery',
+  'explanation_log',
+  'event_outbox',
+  'tutor_request',
+  'schema_migrations',
+]
+const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql']
 
 describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
@@ -20,7 +30,7 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   after(() => db?.drop())
 
   it('applies every migration once, then nothing', async () => {
-    assert.deepEqual(await applyMigrations(db.sql, MIGRATIONS_DIR), ['0001_learner_evidence.sql'])
+    assert.deepEqual(await applyMigrations(db.sql, MIGRATIONS_DIR), MIGRATIONS)
     assert.deepEqual(await applyMigrations(db.sql, MIGRATIONS_DIR), [])
   })
 
@@ -60,6 +70,7 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
       help_event: ['select', 'insert'],
       concept_mastery: ['select', 'insert'],
       event_outbox: ['insert'],
+      tutor_request: ['select', 'insert'],
       explanation_log: [],
       schema_migrations: [],
     }
@@ -102,6 +113,6 @@ describe('concurrent migrators', {skip: SKIP_WITHOUT_DATABASE}, () => {
 
   it('apply each migration exactly once', async () => {
     const results = await Promise.all([applyMigrations(db.sql, MIGRATIONS_DIR), applyMigrations(db.sql, MIGRATIONS_DIR)])
-    assert.deepEqual(results.flat(), ['0001_learner_evidence.sql'])
+    assert.deepEqual(results.flat().toSorted(), MIGRATIONS)
   })
 })

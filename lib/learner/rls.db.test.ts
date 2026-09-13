@@ -19,7 +19,7 @@ import {createTestDatabase, SKIP_WITHOUT_DATABASE, type TestDatabase} from '../d
 
 const ALICE = 'user_alice'
 const BOB = 'user_bob'
-const LEARNER_TABLES = ['task_instance', 'attempt_log', 'help_event', 'concept_mastery'] as const
+const LEARNER_TABLES = ['task_instance', 'attempt_log', 'help_event', 'concept_mastery', 'tutor_request'] as const
 
 /** Postgres `insufficient_privilege`, also raised for a row-level-security violation. */
 const denied = (error: unknown) => (error as {code?: string}).code === '42501'
@@ -46,9 +46,15 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
               0, false, 'independent', 'first_independent_response', 'active', 'evidence-v1',
               ${`key-${learnerId}-0000000000`}, 'hash')
     `
-    await db.sql`
+    const [help] = await db.sql<{id: string}[]>`
       insert into learner.help_event (learner_id, task_instance_id, family_id, level, policy_version, reason_code, request_key)
       values (${learnerId}, ${instance.id}, 'fam1', 1, 'p', 'r', ${`help-${learnerId}-000000000`})
+      returning id
+    `
+    await db.sql`
+      insert into learner.tutor_request
+        (learner_id, request_key, lesson_id, help_event_id, status, scope, evidence_count, cited_count, prompt_version)
+      values (${learnerId}, ${`help-${learnerId}-000000000`}, 'lesson-hooks', ${help.id}, 'supported', 'window', 3, 1, 'tutor-v1')
     `
     await db.sql`
       insert into learner.concept_mastery (learner_id, concept_id, independent_correct, estimate, evidence_status, policy_version)
@@ -126,6 +132,10 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
           values (${BOB}, 'cpt-other', 'unknown', 'evidence-v1')
         `,
         event_outbox: (tx) => tx`insert into learner.event_outbox (event_type, payload) values ('x', ${tx.json({learnerId: BOB})})`,
+        tutor_request: (tx) => tx`
+          insert into learner.tutor_request (learner_id, request_key, lesson_id, status, scope, evidence_count, cited_count, prompt_version)
+          values (${BOB}, 'tutor-forged-000000000', 'lesson-hooks', 'insufficient_evidence', 'course', 0, 0, 'tutor-v1')
+        `,
       }
       for (const [table, write] of Object.entries(attempts)) {
         await assert.rejects(asLearner(db.sql, ALICE, write), denied, table)
