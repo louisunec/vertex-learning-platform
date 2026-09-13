@@ -101,7 +101,7 @@ export const SAMPLING_CHUNKS: StoredChunk[] = [
   {_key: 'tc-418', startSeconds: 418, text: "set size means the list adapts to each step and it gives measured randomness while keeping the choices varied on the minus side picking a good p value can"},
   {_key: 'tc-436', startSeconds: 436, text: "take trial and error and a list that shifts too much may cost a little coherence in closing each method trades randomness against predictability"},
   {_key: 'tc-454', startSeconds: 454, text: "and the right choice depends on the task at hand and on how creative or how precise you need the generated text to be"},
-  {_key: 'tc-473', startSeconds: 473, text: "that wraps up this session thanks for watching and see you in the next one"},
+  {_key: 'tc-473', startSeconds: 473, text: "that is the end of this session and the next one covers how to choose between these settings"},
 ]
 
 /** Adds the sampling lesson, alone in its course, to `source`. */

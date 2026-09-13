@@ -7,7 +7,7 @@
 - **Command:** `npm run eval:tutor -- --terms both --runs 2`, on 2026-09-13 at `236129a`.
   - Nine cases × 2 arms × 2 runs, interleaved by case.
   - Live published Sanity data, read-only; OpenAI `gpt-5-mini`.
-  - The raw log is in `pr-6-tutor-comparison-raw.txt`.
+  - The raw log (the tutor's answers for all 36 case-runs) is kept locally in the gitignored `docs/evals/local/`; it was removed from the tree at follow-up 4. The tables below are the summary.
 - **Model arm:** the learner's words, plus the fixed pros/cons word list, plus the `tutor-terms-v1` model call (at most 8 keywords).
 - **Deterministic arm:** the learner's words plus the fixed pros/cons word list, with no model call.
 - **Shared by both arms:**

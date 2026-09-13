@@ -4,23 +4,38 @@
  "heading": [
   "Built with `node --env-file-if-exists=.env.local scripts/tutor-packet.mts docs/evals/pr-6-tutor-packet.json` from stored results; no model call was made to build it.",
   "",
-  "- **Part 1: run 4** (`4a48f3e`, prompts `tutor-v3` / `tutor-support-v1`): all nine cases, the last full run. Its two connectives were checked afterwards with `tutor-support-v2` (the connective rule added since); those verdicts are shown next to them.",
-  "- **Part 2: targeted checks after the passage change** (`201ccba`, `tutor-v4` / `tutor-support-v2`): three cases, one run each. Claims now cite passages of adjacent chunks, so a claim lists every chunk of the passages it cites.",
-  "- Full live evaluations are paused; the other six cases were not re-run on `tutor-v4`."
+  "- **Part 1: the current answer for each of the nine cases.** Each entry names the code commit and prompt versions that produced it, and whether it is a fresh run or a stored older result. Stored results were not re-run; the current deterministic gates 2c/2d were replayed on them offline, and the entry says what those would remove.",
+  "- **Part 2: superseded answers**, for reference only (no verdicts needed).",
+  "- Full live evaluations are paused; only the cases named as fresh were re-run."
  ],
  "sections": [
   {
-   "title": "Part 1: run 4 (tutor-v3)",
-   "note": "The last full nine-case run. Answers are as recorded; only the connective verdicts were added afterwards.",
-   "results": [
-    "docs/evals/pr-6-tutor-run-4.json"
+   "title": "Part 1: current answer per case",
+   "note": "Review these.",
+   "review": true,
+   "sources": [
+    {
+     "results": "docs/evals/pr-6-tutor-targeted-1.json",
+     "cases": ["local-temperature", "elsewhere-nucleus", "wrong-citation-downsides"],
+     "provenance": {"kind": "stored", "run": "the targeted check", "commit": "201ccba", "date": "2026-09-13", "promptVersion": "tutor-v4", "supportPromptVersion": "tutor-support-v2"}
+    },
+    {
+     "results": "docs/evals/pr-6-tutor-run-4.json",
+     "cases": ["local-deictic", "local-level1-direction", "elsewhere-context-window", "out-of-scope-sourdough", "prompt-injection", "inaccessible-draft"],
+     "provenance": {"kind": "stored", "run": "run 4", "commit": "4a48f3e", "date": "2026-09-13", "promptVersion": "tutor-v3", "supportPromptVersion": "tutor-support-v1"}
+    }
    ]
   },
   {
-   "title": "Part 2: targeted checks (tutor-v4, sentence-complete passages)",
-   "note": "Three cases re-run after the passage and connective change.",
-   "results": [
-    "docs/evals/pr-6-tutor-targeted-1.json"
+   "title": "Part 2: superseded answers (reference only)",
+   "note": "Older answers to cases that have a newer result in Part 1.",
+   "review": false,
+   "sources": [
+    {
+     "results": "docs/evals/pr-6-tutor-run-4.json",
+     "cases": ["local-temperature", "elsewhere-nucleus", "wrong-citation-downsides"],
+     "provenance": {"kind": "stored", "run": "run 4", "commit": "4a48f3e", "date": "2026-09-13", "promptVersion": "tutor-v3", "supportPromptVersion": "tutor-support-v1"}
+    }
    ]
   }
  ],
