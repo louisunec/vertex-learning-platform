@@ -1,4 +1,4 @@
-# npm run eval:tutor -- --packet docs/evals/pr-6-tutor-review-packet.md — 2026-09-13T06:06Z, feat/pr-6-tutor-endpoint 4a48f3e (run 3 had one answer-call timeout; rerun for a complete packet), live Sanity production (read-only) + OpenAI gpt-5-mini
+# npm run eval:tutor -- --packet docs/evals/pr-6-tutor-review-packet.md — 2026-09-13T06:06Z, feat/pr-6-tutor-endpoint 9bf8d3b (run 3 had one answer-call timeout; rerun for a complete packet), live Sanity production (read-only) + OpenAI gpt-5-mini
 # Redacted 2026-09-13: quoted transcript excerpts were replaced by [excerpt removed] (third-party captions, redistribution not confirmed). Statements, statuses, citations, and timings are as recorded.
 (node:14424) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/louisunec/Downloads/vertex-pr-6/lib/ai/gateway.ts is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.

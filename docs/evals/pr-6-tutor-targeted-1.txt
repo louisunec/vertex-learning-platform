@@ -1,4 +1,4 @@
-# npm run eval:tutor -- --case <id> (elsewhere-nucleus, local-temperature, wrong-citation-downsides), 2026-09-13, feat/pr-6-tutor-endpoint 201ccba (tutor-v4, tutor-support-v2), live Sanity production (read-only) + OpenAI gpt-5-mini
+# npm run eval:tutor -- --case <id> (elsewhere-nucleus, local-temperature, wrong-citation-downsides), 2026-09-13, feat/pr-6-tutor-endpoint b5a5b3b (tutor-v4, tutor-support-v2), live Sanity production (read-only) + OpenAI gpt-5-mini
 # Redacted: quoted transcript excerpts replaced by [excerpt removed] (third-party captions, redistribution not confirmed). Statements, statuses, citations, and timings are as recorded.
 
 ━━ elsewhere-nucleus [deterministic terms, run 1] (elsewhere_in_lesson, level 3) [UNREVIEWED]

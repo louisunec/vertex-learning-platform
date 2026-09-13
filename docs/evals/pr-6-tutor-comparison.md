@@ -4,7 +4,7 @@
 
 ## Setup
 
-- **Command:** `npm run eval:tutor -- --terms both --runs 2`, on 2026-09-13 at `236129a`.
+- **Command:** `npm run eval:tutor -- --terms both --runs 2`, on 2026-09-13 at `6c2d098`.
   - Nine cases × 2 arms × 2 runs, interleaved by case.
   - Live published Sanity data, read-only; OpenAI `gpt-5-mini`.
   - The raw log (the tutor's answers for all 36 case-runs) is kept locally in the gitignored `docs/evals/local/`; it was removed from the tree at follow-up 4. The tables below are the summary.
@@ -97,7 +97,7 @@ The model stages are the `generateText` latencies. Sanity stages are wall time f
 
 ## Final runs after the switch
 
-Both runs are on `4a48f3e`, the deterministic-only service.
+Both runs are on `9bf8d3b`, the deterministic-only service.
 
 - **Run 3** (`pr-6-tutor-eval-run-3.txt`): 8/9 cases met their checks, exit 1.
   - The `local-temperature` answer call hit the 20 s `TUTOR_TIMEOUT_MS`; the route would have returned a retryable 503.

@@ -1,4 +1,4 @@
-# npm run eval:tutor — 2026-09-13T04:18Z, feat/pr-6-tutor-endpoint 3a60177 + evaluation fixes (tutor-v2, tutor-terms-v1, tutor-support-v1), live Sanity production (read-only) + OpenAI gpt-5-mini
+# npm run eval:tutor — 2026-09-13T04:18Z, feat/pr-6-tutor-endpoint 4ece6dd + evaluation fixes (tutor-v2, tutor-terms-v1, tutor-support-v1), live Sanity production (read-only) + OpenAI gpt-5-mini
 # Redacted 2026-09-13: quoted transcript excerpts were replaced by [excerpt removed] (third-party captions, redistribution not confirmed). Statements, statuses, citations, and timings are as recorded.
 # All cases reviewed: false. Statements shown passed a model support check, which is not proof of support; a met structural expectation is not proof either.
 ━━ local-temperature (local, level 3) [UNREVIEWED]

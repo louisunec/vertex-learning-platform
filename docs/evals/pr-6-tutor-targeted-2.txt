@@ -1,4 +1,4 @@
-# npm run eval:tutor -- --case <id> --json … (elsewhere-nucleus, prompt-injection), 2026-09-13, feat/pr-6-tutor-endpoint 609ac45 (clean tree; tutor-v5, tutor-support-v3), live Sanity production (read-only) + OpenAI gpt-5-mini. No source text is printed (no --excerpts).
+# npm run eval:tutor -- --case <id> --json … (elsewhere-nucleus, prompt-injection), 2026-09-13, feat/pr-6-tutor-endpoint 9fd4ba9 (clean tree; tutor-v5, tutor-support-v3), live Sanity production (read-only) + OpenAI gpt-5-mini. No source text is printed (no --excerpts).
 
 ━━ elsewhere-nucleus [deterministic terms, run 1] (elsewhere_in_lesson, level 3) [UNREVIEWED]
    lesson.building-ai-apps-with-llms-temperature-and-sampling @ 40s: "What is nucleus sampling?"
@@ -17,7 +17,7 @@
    stages (ms): lesson 944, terms 0, retrieval 1354, answer 5394, support 3899, total 11613
    ✓ expectations met
 
-# 609ac45, tutor-v5, tutor-support-v3, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
+# 9fd4ba9, tutor-v5, tutor-support-v3, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
 
 [deterministic terms] 1/1 met their structural expectations
   key passage retrieved 1/1, cited 1/1
@@ -62,7 +62,7 @@
    stages (ms): lesson 921, terms 0, retrieval 1429, answer 8630, support 4793, total 15801
    ✓ expectations met
 
-# 609ac45, tutor-v5, tutor-support-v3, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
+# 9fd4ba9, tutor-v5, tutor-support-v3, gpt-5-mini; 1 cases × 1 run(s); 1 unreviewed
 
 [deterministic terms] 1/1 met their structural expectations
   key passage retrieved 1/1, cited 1/1

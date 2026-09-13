@@ -6,7 +6,8 @@
   "",
   "- **Part 1: the current answer for each of the nine cases.** Each entry names the code commit and prompt versions that produced it, and whether it is a fresh run or a stored older result. Stored results were not re-run; the current deterministic gates 2c/2d were replayed on them offline, and the entry says what those would remove.",
   "- **Part 2: superseded answers**, for reference only (no verdicts needed).",
-  "- Full live evaluations are paused. Fresh in this packet: `elsewhere-nucleus` and `prompt-injection` (one run each at `609ac45`), the only cases whose current answer the new gates 2c/2d change. The other seven are stored results."
+  "- Full live evaluations are paused. Fresh in this packet: `elsewhere-nucleus` and `prompt-injection` (one run each at `9fd4ba9`), the only cases whose current answer the new gates 2c/2d change. The other seven are stored results.",
+  "- Commits are named by their SHAs after the branch's history cleanup (2026-09-13). Each rewritten commit has the same application code as the one the run used."
  ],
  "sections": [
   {
@@ -23,7 +24,7 @@
      "provenance": {
       "kind": "fresh",
       "run": "targeted check 2",
-      "commit": "609ac45",
+      "commit": "9fd4ba9",
       "date": "2026-09-13",
       "promptVersion": "tutor-v5",
       "supportPromptVersion": "tutor-support-v3"
@@ -38,7 +39,7 @@
      "provenance": {
       "kind": "stored",
       "run": "the targeted check",
-      "commit": "201ccba",
+      "commit": "b5a5b3b",
       "date": "2026-09-13",
       "promptVersion": "tutor-v4",
       "supportPromptVersion": "tutor-support-v2"
@@ -56,7 +57,7 @@
      "provenance": {
       "kind": "stored",
       "run": "run 4",
-      "commit": "4a48f3e",
+      "commit": "9bf8d3b",
       "date": "2026-09-13",
       "promptVersion": "tutor-v3",
       "supportPromptVersion": "tutor-support-v1"
@@ -77,7 +78,7 @@
      "provenance": {
       "kind": "stored",
       "run": "the targeted check",
-      "commit": "201ccba",
+      "commit": "b5a5b3b",
       "date": "2026-09-13",
       "promptVersion": "tutor-v4",
       "supportPromptVersion": "tutor-support-v2"
@@ -94,7 +95,7 @@
      "provenance": {
       "kind": "stored",
       "run": "run 4",
-      "commit": "4a48f3e",
+      "commit": "9bf8d3b",
       "date": "2026-09-13",
       "promptVersion": "tutor-v3",
       "supportPromptVersion": "tutor-support-v1"
