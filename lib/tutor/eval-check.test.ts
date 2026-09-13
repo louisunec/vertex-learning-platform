@@ -5,7 +5,7 @@ import {describe, it} from 'node:test'
 import {z} from 'zod'
 
 import type {TutorAnswer, TutorStatement} from '../ai/tutor.ts'
-import {checkCase, evalCaseSchema, type EvalCase} from './eval-check.ts'
+import {checkCase, evalCaseSchema, inKeyPassage, type EvalCase} from './eval-check.ts'
 
 const CASES = z.array(evalCaseSchema).parse(JSON.parse(readFileSync(new URL('../../scripts/tutor-eval-cases.json', import.meta.url), 'utf8')))
 const byId = (id: string): EvalCase => CASES.find((evalCase) => evalCase.id === id) ?? assert.fail(id)
@@ -32,6 +32,18 @@ describe('evaluation cases', () => {
   it('parse, each with an explicit human-review flag', () => {
     assert.ok(CASES.length > 0)
     assert.ok(CASES.every((evalCase) => typeof evalCase.reviewed === 'boolean'))
+  })
+})
+
+describe('inKeyPassage', () => {
+  it('matches the key range in the case lesson, or in the lesson the key names', () => {
+    const downsides = byId('wrong-citation-downsides')
+    assert.equal(inKeyPassage(downsides, {lessonId: downsides.lessonId, startSeconds: 359}), true)
+    assert.equal(inKeyPassage(downsides, {lessonId: downsides.lessonId, startSeconds: 322}), false)
+    const course = byId('elsewhere-context-window')
+    assert.equal(inKeyPassage(course, {lessonId: 'lesson.building-ai-apps-with-llms-tokens-and-context-windows', startSeconds: 103}), true)
+    assert.equal(inKeyPassage(course, {lessonId: course.lessonId, startSeconds: 103}), false)
+    assert.equal(inKeyPassage(byId('out-of-scope-sourdough'), {lessonId: 'x', startSeconds: 0}), false)
   })
 })
 

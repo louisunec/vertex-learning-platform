@@ -38,11 +38,24 @@ export const evalCaseSchema = z.strictObject({
     /** Every listed expectation above must hold, and at least one of these groups too. */
     anyOf: z.array(expectationSchema).min(1).optional(),
   }),
+  /**
+   * The passage a good answer draws on, for comparisons only (was it
+   * retrieved, was it cited); not an expectation. `lessonId` defaults to
+   * the case's lesson.
+   */
+  key: z.strictObject({lessonId: z.string().min(1).optional(), seconds: z.tuple([z.number(), z.number()])}).optional(),
   notes: z.string(),
   reviewed: z.boolean(),
 })
 
 export type EvalCase = z.infer<typeof evalCaseSchema>
+
+/** Whether a chunk or citation lies in the case's key passage; false without one. */
+export function inKeyPassage(evalCase: EvalCase, item: {lessonId: string; startSeconds: number}): boolean {
+  if (!evalCase.key) return false
+  const [from, to] = evalCase.key.seconds
+  return item.lessonId === (evalCase.key.lessonId ?? evalCase.lessonId) && item.startSeconds >= from && item.startSeconds <= to
+}
 
 /** Failures of one group of expectations; empty when it holds. */
 export function checkExpectation(expect: Expectation, answer: TutorAnswer, scope: string): string[] {

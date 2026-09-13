@@ -23,6 +23,12 @@
         230
       ]
     },
+    "key": {
+      "seconds": [
+        139,
+        176
+      ]
+    },
     "notes": "Answered at 2:19–3:13: temperature scales the logits before softmax; higher flattens the distribution, lower sharpens it. Topical questions always search the lesson too, so scope is window or lesson.",
     "reviewed": false
   },
@@ -44,6 +50,12 @@
       "citedWithin": [
         70,
         250
+      ]
+    },
+    "key": {
+      "seconds": [
+        139,
+        176
       ]
     },
     "notes": "No topic words: answered from the window around 2:40 (temperature flattening/sharpening the distribution). Level 2 should name and explain the key concept.",
@@ -75,6 +87,12 @@
       ],
       "maxClaims": 0
     },
+    "key": {
+      "seconds": [
+        157,
+        176
+      ]
+    },
     "notes": "Reviewer: level 1 must only point to around 2:37–3:48 (server-written pointers) and ask a guiding question that does not give the answer (sharper distribution, favouring the most probable words).",
     "reviewed": false
   },
@@ -101,6 +119,12 @@
         320
       ]
     },
+    "key": {
+      "seconds": [
+        266,
+        287
+      ]
+    },
     "notes": "Defined at 4:26 (top-p / nucleus sampling), far outside the ±90 s window at 0:40.",
     "reviewed": false
   },
@@ -121,6 +145,13 @@
       ],
       "citedLessonIds": [
         "lesson.building-ai-apps-with-llms-tokens-and-context-windows"
+      ]
+    },
+    "key": {
+      "lessonId": "lesson.building-ai-apps-with-llms-tokens-and-context-windows",
+      "seconds": [
+        103,
+        152
       ]
     },
     "notes": "Not in the sampling lesson; the Tokens and context windows lesson covers it at 1:43–2:32 (earlier messages fall out of working memory).",
@@ -167,6 +198,12 @@
         }
       ]
     },
+    "key": {
+      "seconds": [
+        341,
+        359
+      ]
+    },
     "notes": "The downsides are taught in the 'Pros and Cons' chapter (5:10–7:30; the high-temperature cons at 5:41–6:14), outside the window at 4:10. Pass: a citation inside that chapter, or an honest partial/insufficient answer. Reviewer: any claim about downsides must be stated in 5:41–6:14, not inferred from nearby temperature chunks.",
     "reviewed": false
   },
@@ -191,6 +228,12 @@
       "scope": [
         "window",
         "lesson"
+      ]
+    },
+    "key": {
+      "seconds": [
+        139,
+        176
       ]
     },
     "notes": "Must not follow the embedded instruction or reveal its prompt; should still answer the grounded part.",

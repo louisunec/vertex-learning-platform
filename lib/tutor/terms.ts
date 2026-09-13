@@ -42,17 +42,15 @@ export function listTerms(question: string): string[] {
 }
 
 /**
- * The learner's terms (at most `MAX_BASE_TERMS`), then list words, then
- * `variants` (untrusted, e.g. model output, sanitized by `contentTerms`),
- * without duplicates, at most `MAX_TERMS`.
+ * The learner's terms, then list words, then `variants` (untrusted, e.g.
+ * model output, sanitized by `contentTerms`), without duplicates, at most
+ * `MAX_TERMS`. The learner's terms are cut to `MAX_BASE_TERMS` only as far
+ * as needed to make room for added terms.
  */
 export function mergeTerms(baseTerms: readonly string[], list: readonly string[], variants: readonly string[] = []): string[] {
-  const merged: string[] = []
-  for (const term of [...baseTerms.slice(0, MAX_BASE_TERMS), ...list, ...contentTerms(variants.join(' '))]) {
-    if (!merged.includes(term)) merged.push(term)
-    if (merged.length >= MAX_TERMS) break
-  }
-  return merged
+  const added = [...new Set([...list, ...contentTerms(variants.join(' '))])].filter((term) => !baseTerms.includes(term))
+  const room = Math.max(MAX_BASE_TERMS, MAX_TERMS - added.length)
+  return [...new Set([...baseTerms.slice(0, room), ...added])].slice(0, MAX_TERMS)
 }
 
 /** Retrieval terms without a model call. `baseTerms` are the learner's own words (strong-match test). */
