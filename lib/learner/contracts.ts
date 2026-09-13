@@ -193,3 +193,100 @@ export const LEARNER_ERROR_CODES = [
 ] as const
 
 export type LearnerErrorCode = (typeof LEARNER_ERROR_CODES)[number]
+
+/* ---------- Focused review (prompts/focused-review.md) ---------- */
+
+/**
+ * Why a concept is in a review: its latest counted answer in the window was
+ * not an independent correct one. In order of urgency.
+ */
+export const REVIEW_REASONS = ['independent_incorrect', 'assisted_incorrect', 'assisted_correct'] as const
+export type ReviewReason = (typeof REVIEW_REASONS)[number]
+
+/** Why no review was started; neither is evidence about the learner. */
+export const REVIEW_NONE_REASONS = ['no_recent_mistakes', 'no_unseen_questions'] as const
+
+export const MAX_REVIEW_CONCEPTS = 3
+export const MAX_REVIEW_ITEMS = 5
+
+/** Starting or resuming a review names nothing: the server chooses every item. */
+export const reviewSessionRequestSchema = z.strictObject({})
+
+const REVIEW_POSITION = z.number().int().min(1).max(MAX_REVIEW_ITEMS)
+const REVIEW_CONCEPT_ID = z.string().min(1).max(128)
+
+/**
+ * One question of a review. Only an open item carries its learner-safe task;
+ * `refresher` names the cited lesson moment, whose link is issued only by
+ * `POST /api/review-session/refresher`, which records it as help.
+ */
+const reviewItemSchema = z.discriminatedUnion('state', [
+  z.strictObject({
+    position: REVIEW_POSITION,
+    conceptId: REVIEW_CONCEPT_ID,
+    state: z.literal('open'),
+    task: issueTaskResponseSchema,
+    refresher: z
+      .strictObject({
+        lessonTitle: z.string().min(1).max(200),
+        startSeconds: z.number().int().min(0).max(MAX_PLAYHEAD_SECONDS),
+      })
+      .nullable(),
+  }),
+  z.strictObject({
+    position: REVIEW_POSITION,
+    conceptId: REVIEW_CONCEPT_ID,
+    /** `unavailable`: withdrawn or changed since it was issued, so it can't be answered. */
+    state: z.enum(['answered', 'unavailable']),
+  }),
+])
+
+export type ReviewItem = z.infer<typeof reviewItemSchema>
+
+export const reviewSessionResponseSchema = z.discriminatedUnion('status', [
+  z
+    .strictObject({
+      status: z.literal('active'),
+      sessionId: z.uuid(),
+      expiresAt: z.iso.datetime(),
+      /** An unfinished session was handed back instead of a new one. */
+      resumed: z.boolean(),
+      concepts: z
+        .array(
+          z.strictObject({
+            conceptId: REVIEW_CONCEPT_ID,
+            /** Null when the concept is no longer servable under that id. */
+            name: z.string().min(1).max(200).nullable(),
+            reason: z.enum(REVIEW_REASONS),
+          }),
+        )
+        .min(1)
+        .max(MAX_REVIEW_CONCEPTS),
+      items: z.array(reviewItemSchema).min(1).max(MAX_REVIEW_ITEMS),
+    })
+    .refine(
+      (body) =>
+        body.items.every((item, i) => item.position === i + 1) &&
+        body.items.every((item) => body.concepts.some((concept) => concept.conceptId === item.conceptId)),
+      'Items are numbered from 1 and belong to a listed concept',
+    ),
+  z.strictObject({status: z.literal('none'), reason: z.enum(REVIEW_NONE_REASONS)}),
+])
+
+export type ReviewSessionResponse = z.infer<typeof reviewSessionResponseSchema>
+
+export const reviewRefresherRequestSchema = z.strictObject({
+  taskInstanceId: z.uuid(),
+  requestKey: z.string().regex(IDEMPOTENCY_KEY),
+})
+
+export type ReviewRefresherRequest = z.infer<typeof reviewRefresherRequestSchema>
+
+/** The lesson moment the item cites, as a lesson-page deep link (`?t=` seconds). */
+export const reviewRefresherResponseSchema = z.strictObject({
+  helpEventId: z.uuid(),
+  href: z.string().regex(/^\/lessons\/[^/?#\s]+\?t=\d{1,5}$/),
+  replayed: z.boolean(),
+})
+
+export type ReviewRefresherResponse = z.infer<typeof reviewRefresherResponseSchema>

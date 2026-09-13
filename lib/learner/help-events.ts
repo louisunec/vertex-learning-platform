@@ -92,12 +92,24 @@ export async function findHelpEventByKey(tx: LearnerTx, learnerId: string, reque
   return row ?? null
 }
 
-/** The highest help level `learnerId` has received on one task instance (0 when none). */
+/**
+ * Reason code of a focused review's source refresher: the learner opened the
+ * lesson moment an item cites. It is recorded at level 1 so grading counts
+ * the answer as assisted, but it is not a rung of the hint ladder.
+ */
+export const SOURCE_REFRESHER_REASON = 'source_refresher'
+
+/**
+ * The highest hint-ladder level `learnerId` has received on one task instance
+ * (0 when none). Source refreshers are left out, so the first hint after one
+ * is still the first rung; grading still counts them (`getFamilyHelpState`).
+ */
 export async function getInstanceHelpLevel(tx: LearnerTx, learnerId: string, taskInstanceId: string): Promise<number> {
   const [row] = await tx<{maxLevel: number}[]>`
     select coalesce(max(level), 0)::int as "maxLevel"
     from learner.help_event
     where learner_id = ${learnerId} and task_instance_id = ${taskInstanceId}
+      and reason_code <> ${SOURCE_REFRESHER_REASON}
   `
   return row?.maxLevel ?? 0
 }

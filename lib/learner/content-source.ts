@@ -1,6 +1,6 @@
 import type {GradingItem} from '../assessments/grading.ts'
 import type {HintLadder} from '../assessments/hints.ts'
-import type {LearnerAssessment} from '../assessments/learner.ts'
+import type {CheckCandidate, LearnerAssessment} from '../assessments/learner.ts'
 import type {ConceptNode} from '../concepts/resolve.ts'
 
 /**
@@ -17,7 +17,15 @@ export type LearnerContentSource = {
   loadHintLadder(assessmentId: string): Promise<HintLadder | null>
   /** Published concept nodes by document id. */
   loadConceptIndex(): Promise<ReadonlyMap<string, ConceptNode>>
+  /** Items a focused review may issue now, whose primary concept is one of `conceptRefs` (document ids), at most 100. */
+  loadReviewCandidates(conceptRefs: string[]): Promise<CheckCandidate[]>
+  /** Names of servable concepts by document id. */
+  loadConceptNames(conceptIds: string[]): Promise<ReadonlyMap<string, string>>
+  /** Titles and slugs of published lessons by id. */
+  loadLessons(lessonIds: string[]): Promise<ReadonlyMap<string, LessonRef>>
 }
+
+export type LessonRef = {title: string; slug: string}
 
 /** Published content could not be read; the request may be retried. */
 export class ContentUnavailableError extends Error {

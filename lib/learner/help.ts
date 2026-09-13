@@ -1,6 +1,6 @@
 import type postgres from 'postgres'
 
-import {decideHelpLevel, type HelpLevel} from '../ai/help-policy.ts'
+import {decideHelpLevel, HELP_REASON_CODES, type HelpLevel} from '../ai/help-policy.ts'
 import {hintText, type HintLadder, type HintRungLevel} from '../assessments/hints.ts'
 import {asLearner} from '../db/learner-scope.ts'
 import {helpResponseSchema, type HelpRequest, type HelpResponse} from './contracts.ts'
@@ -45,8 +45,10 @@ type Recorded = {event: StoredHelpEvent; replayed: boolean}
 
 /** The response for a recorded event: the rung for its stored level, re-read from the reviewed ladder. */
 function helped(instance: TaskInstanceRow, ladder: HintLadder, {event, replayed}: Recorded): RequestHelpOutcome {
-  // A key first used for another task instance never returns that task's help.
+  // A key first used for another task instance never returns that task's help, and a key first
+  // used for something other than a policy decision (a review's source refresher) returns no hint.
   if (event.taskInstanceId !== instance.id) return rejected('idempotency_key_reused')
+  if (!(HELP_REASON_CODES as readonly string[]).includes(event.reasonCode)) return rejected('idempotency_key_reused')
   const level = event.level as HintRungLevel
   const body = helpResponseSchema.parse({
     helpEventId: event.id,

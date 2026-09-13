@@ -1,5 +1,6 @@
 import type postgres from 'postgres'
 
+import type {LearnerAssessment} from '../assessments/learner.ts'
 import {asLearner, type LearnerTx} from '../db/learner-scope.ts'
 import {issueTaskResponseSchema, type IssueTaskResponse} from './contracts.ts'
 import type {LearnerContentSource} from './content-source.ts'
@@ -41,24 +42,21 @@ export async function issueTask({
 }): Promise<IssueTaskOutcome> {
   const item = await content.loadServableItem(assessmentId)
   if (!item) return {status: 'not_found'}
+  return {status: 'issued', body: await asLearner(db, learnerId, (tx) => insertTaskInstance(tx, learnerId, item, now))}
+}
 
+/** Issues `item` to `learnerId` inside `tx`; the item must be one just read as servable. */
+export async function insertTaskInstance(tx: LearnerTx, learnerId: string, item: LearnerAssessment, now: Date): Promise<IssueTaskResponse> {
   const expiresAt = new Date(now.getTime() + TASK_INSTANCE_TTL_MS)
-  const [row] = await asLearner(
-    db,
-    learnerId,
-    (tx) => tx<{id: string}[]>`
-      insert into learner.task_instance
-        (learner_id, assessment_id, family_id, assessment_version, lesson_id, delivered_option_ids, issued_at, expires_at)
-      values
-        (${learnerId}, ${item._id}, ${item.familyId}, ${item.version}, ${item.lessonId},
-         ${tx.array(item.options.map((option) => option.id))}, ${now}, ${expiresAt})
-      returning id
-    `,
-  )
-  return {
-    status: 'issued',
-    body: issueTaskResponseSchema.parse({taskInstanceId: row.id, expiresAt: expiresAt.toISOString(), item}),
-  }
+  const [row] = await tx<{id: string}[]>`
+    insert into learner.task_instance
+      (learner_id, assessment_id, family_id, assessment_version, lesson_id, delivered_option_ids, issued_at, expires_at)
+    values
+      (${learnerId}, ${item._id}, ${item.familyId}, ${item.version}, ${item.lessonId},
+       ${tx.array(item.options.map((option) => option.id))}, ${now}, ${expiresAt})
+    returning id
+  `
+  return issueTaskResponseSchema.parse({taskInstanceId: row.id, expiresAt: expiresAt.toISOString(), item})
 }
 
 /** The content fields a delivery is pinned to, shared by the grading and hint projections. */

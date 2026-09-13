@@ -19,6 +19,8 @@ export const FLAGS = {
   tutor: 'tutor',
   /** The My Learning knowledge map (`/my-learning/knowledge-map`). Requires `learner-evidence` too. */
   knowledgeMap: 'knowledge-map',
+  /** My Learning focused review (`/my-learning/reviews`, `/api/review-session`). Requires `learner-evidence` too. */
+  review: 'review-session',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]
@@ -42,4 +44,13 @@ export async function isKnowledgeMapEnabled(distinctId: string): Promise<boolean
     isFlagEnabled(FLAGS.learnerEvidence, distinctId),
   ])
   return map && evidence
+}
+
+/** The focused review issues and grades tasks, so it needs `learner-evidence` as well as its own flag. */
+export async function isReviewEnabled(distinctId: string): Promise<boolean> {
+  const [review, evidence] = await Promise.all([
+    isFlagEnabled(FLAGS.review, distinctId),
+    isFlagEnabled(FLAGS.learnerEvidence, distinctId),
+  ])
+  return review && evidence
 }

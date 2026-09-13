@@ -175,3 +175,61 @@ export const ATTEMPT_FEEDBACK_QUERY = defineQuery(/* groq */ `
     "distractorReasons": answerKey.distractorReasons[] { optionId, reason }
   }
 `)
+
+/**
+ * Items a focused review may issue (prompts/focused-review.md): the lesson
+ * check's projection and servable rules, for items whose primary concept is
+ * one of `$conceptRefs` (concept document ids, including concepts merged into
+ * the reviewed one), in any published lesson. The concept and seconds never
+ * reach a response; parse with `toCheckCandidates`
+ * (`lib/assessments/learner.ts`).
+ */
+export const REVIEW_CANDIDATES_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "assessment" &&
+    primaryConcept._ref in $conceptRefs &&
+    reviewStatus == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**")) &&
+    lesson->_type == "lesson" &&
+    count(*[
+      _type == "assessment" &&
+      familyId == ^.familyId &&
+      version > ^.version &&
+      reviewStatus == "approved" &&
+      sourceStatus == "current" &&
+      !(_id in path("drafts.**")) &&
+      !(_id in path("versions.**"))
+    ]) == 0
+  ] | order(familyId asc, version desc)[0...100] {
+    "item": {
+      _id,
+      _rev,
+      familyId,
+      version,
+      "lessonId": lesson._ref,
+      type,
+      responseFormat,
+      question,
+      "options": options[] { "id": _key, text }
+    },
+    "primaryConceptRef": primaryConcept._ref,
+    "firstSeconds": math::min(sourceChunkRefs[].startSeconds)
+  }
+`)
+
+/** Names of servable concepts by document id (learner-read rules: published, approved, current). */
+export const CONCEPT_NAMES_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "concept" &&
+    _id in $conceptIds &&
+    reviewStatus == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**"))
+  ] | order(_id asc)[0...20] {
+    "id": _id,
+    name
+  }
+`)
