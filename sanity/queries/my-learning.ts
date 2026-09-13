@@ -45,3 +45,50 @@ export const CONCEPT_IDS_FOR_LESSONS_QUERY = defineQuery(/* groq */ `
     count(lessons[@._ref in $lessonIds]) > 0
   ] | order(_id asc)[0...500].conceptId
 `)
+
+/**
+ * Knowledge map nodes: the servable concepts taught in the course's lessons
+ * (the same learner-read rules as above), with each concept's cited moments
+ * in those lessons. `$lessonIds` is the course's own lesson list.
+ */
+export const KNOWLEDGE_MAP_CONCEPTS_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "concept" &&
+    reviewStatus == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**")) &&
+    count(lessons[@._ref in $lessonIds]) > 0
+  ] | order(_id asc)[0...100] {
+    "id": _id,
+    conceptId,
+    name,
+    summary,
+    "sources": sourceRefs[lesson._ref in $lessonIds][0...20] {
+      "lessonId": lesson._ref,
+      startSeconds
+    }
+  }
+`)
+
+/**
+ * Knowledge map edges: published, approved, current prerequisite edges
+ * between concepts on the map (`$conceptIds` are concept document ids). The
+ * caller still validates them before drawing (`lib/concepts/graph.ts`).
+ */
+export const KNOWLEDGE_MAP_EDGES_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "conceptPrerequisite" &&
+    status == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**")) &&
+    prerequisite._ref in $conceptIds &&
+    dependent._ref in $conceptIds
+  ] | order(_id asc)[0...300] {
+    "id": _id,
+    "prerequisite": prerequisite._ref,
+    "dependent": dependent._ref,
+    status
+  }
+`)

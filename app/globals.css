@@ -35,6 +35,12 @@
   --color-lesson: #c4b5fd;
   --color-lesson-bg: rgb(196 181 253 / 0.14);
   --color-success: #4ade80;
+  --color-danger: #ef4444;
+  /* Knowledge map learner states */
+  --color-practice: #f2c94c;
+  --color-practice-bg: rgb(242 201 76 / 0.12);
+  --color-developing: #6b9cff;
+  --color-developing-bg: rgb(107 156 255 / 0.14);
 
   /* 05 · Radius */
   --radius-xs: 4px;

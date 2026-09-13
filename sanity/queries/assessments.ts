@@ -152,3 +152,26 @@ export const CONCEPT_NODES_QUERY = defineQuery(/* groq */ `
     "splitInto": splitInto[]._ref
   }
 `)
+
+/**
+ * SERVER-ONLY answer-key reasons for assessments the learner has already
+ * answered (the knowledge map's attempt rows). Selects the reviewed reasons,
+ * so its result must never reach the browser: the caller keeps only the one
+ * reason for the option the learner chose (`lib/knowledge-map.ts`
+ * `attemptReason`). Withdrawn or stale versions return nothing.
+ */
+export const ATTEMPT_FEEDBACK_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "assessment" &&
+    _id in $assessmentIds &&
+    reviewStatus == "approved" &&
+    sourceStatus == "current" &&
+    !(_id in path("drafts.**")) &&
+    !(_id in path("versions.**"))
+  ] | order(_id asc)[0...5] {
+    "id": _id,
+    version,
+    "correctReason": answerKey.correctReason,
+    "distractorReasons": answerKey.distractorReasons[] { optionId, reason }
+  }
+`)

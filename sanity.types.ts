@@ -782,6 +782,19 @@ export type CONCEPT_NODES_QUERY_RESULT = Array<{
   splitInto: Array<string> | null;
 }>;
 
+// Source: ../sanity/queries/assessments.ts
+// Variable: ATTEMPT_FEEDBACK_QUERY
+// Query: *[    _type == "assessment" &&    _id in $assessmentIds &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**"))  ] | order(_id asc)[0...5] {    "id": _id,    version,    "correctReason": answerKey.correctReason,    "distractorReasons": answerKey.distractorReasons[] { optionId, reason }  }
+export type ATTEMPT_FEEDBACK_QUERY_RESULT = Array<{
+  id: string;
+  version: number;
+  correctReason: string;
+  distractorReasons: Array<{
+    optionId: string;
+    reason: string;
+  }>;
+}>;
+
 // Source: ../sanity/queries/categories.ts
 // Variable: CATEGORIES_QUERY
 // Query: *[_type == "category" && defined(slug.current)] | order(title asc) {      _id,  title,  "slug": slug.current,    description,    "courseCount": count(*[_type == "course" && category._ref == ^._id])  }
@@ -1324,6 +1337,30 @@ export type LESSONS_BY_IDS_QUERY_RESULT = Array<{
 // Query: *[    _type == "concept" &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    count(lessons[@._ref in $lessonIds]) > 0  ] | order(_id asc)[0...500].conceptId
 export type CONCEPT_IDS_FOR_LESSONS_QUERY_RESULT = Array<string>;
 
+// Source: ../sanity/queries/my-learning.ts
+// Variable: KNOWLEDGE_MAP_CONCEPTS_QUERY
+// Query: *[    _type == "concept" &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    count(lessons[@._ref in $lessonIds]) > 0  ] | order(_id asc)[0...100] {    "id": _id,    conceptId,    name,    summary,    "sources": sourceRefs[lesson._ref in $lessonIds][0...20] {      "lessonId": lesson._ref,      startSeconds    }  }
+export type KNOWLEDGE_MAP_CONCEPTS_QUERY_RESULT = Array<{
+  id: string;
+  conceptId: string;
+  name: string;
+  summary: string;
+  sources: Array<{
+    lessonId: string | null;
+    startSeconds: number | null;
+  }>;
+}>;
+
+// Source: ../sanity/queries/my-learning.ts
+// Variable: KNOWLEDGE_MAP_EDGES_QUERY
+// Query: *[    _type == "conceptPrerequisite" &&    status == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    prerequisite._ref in $conceptIds &&    dependent._ref in $conceptIds  ] | order(_id asc)[0...300] {    "id": _id,    "prerequisite": prerequisite._ref,    "dependent": dependent._ref,    status  }
+export type KNOWLEDGE_MAP_EDGES_QUERY_RESULT = Array<{
+  id: string;
+  prerequisite: string;
+  dependent: string;
+  status: "approved" | "proposed" | "rejected" | "retired";
+}>;
+
 // Source: ../sanity/queries/progress.ts
 // Variable: PROGRESS_FOR_USER_QUERY
 // Query: *[_type == "progress" && userId == $userId] | order(updatedAt desc) {    _id,    "lessonId": lesson._ref,    completed,    completedAt,    resumeSeconds,    updatedAt  }
@@ -1385,6 +1422,7 @@ declare module "@sanity/client" {
     '\n  *[\n    _type == "assessment" &&\n    _id == $assessmentId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    lesson->_type == "lesson"\n  ][0] {\n    _id,\n    familyId,\n    version,\n    "lessonId": lesson._ref,\n    "optionIds": options[]._key,\n    "correctOptionId": answerKey.correctOptionId,\n    "primaryConceptRef": primaryConcept._ref\n  }\n': GRADING_ASSESSMENT_QUERY_RESULT;
     '\n  *[\n    _type == "assessment" &&\n    _id == $assessmentId &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    lesson->_type == "lesson"\n  ][0] {\n    _id,\n    familyId,\n    version,\n    "optionIds": options[]._key,\n    "correctOptionId": answerKey.correctOptionId,\n    "direction": hints.direction,\n    "keyConcept": hints.keyConcept,\n    "solution": hints.solution\n  }\n': HINT_LADDER_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ] | order(_id asc)[0...2000] {\n    "id": _id,\n    conceptId,\n    reviewStatus,\n    "mergedInto": mergedInto._ref,\n    "splitInto": splitInto[]._ref\n  }\n': CONCEPT_NODES_QUERY_RESULT;
+    '\n  *[\n    _type == "assessment" &&\n    _id in $assessmentIds &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ] | order(_id asc)[0...5] {\n    "id": _id,\n    version,\n    "correctReason": answerKey.correctReason,\n    "distractorReasons": answerKey.distractorReasons[] { optionId, reason }\n  }\n': ATTEMPT_FEEDBACK_QUERY_RESULT;
     '\n  *[_type == "category" && defined(slug.current)] | order(title asc) {\n    \n  _id,\n  title,\n  "slug": slug.current\n,\n    description,\n    "courseCount": count(*[_type == "course" && category._ref == ^._id])\n  }\n': CATEGORIES_QUERY_RESULT;
     '\n  *[_type == "category" && slug.current == $slug][0] {\n    \n  _id,\n  title,\n  "slug": slug.current\n,\n    description,\n    "courses": *[_type == "course" && category._ref == ^._id && defined(slug.current)]\n      | order(popular desc, title asc) { \n  _id,\n  title,\n  "slug": slug.current,\n  summary,\n  level,\n  priceDisplay,\n  popular,\n  studentCountDisplay,\n  coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n  instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n  category->{ \n  _id,\n  title,\n  "slug": slug.current\n },\n  "moduleCount": count(modules),\n  "lessonCount": count(modules[].lessons[]),\n  "durationSeconds": math::sum(modules[].lessons[]->durationSeconds)\n }\n  }\n': CATEGORY_BY_SLUG_QUERY_RESULT;
     '\n  *[_type == "course" && defined(slug.current)]\n    | order(popular desc, title asc) {\n    \n  _id,\n  title,\n  "slug": slug.current,\n  summary,\n  level,\n  priceDisplay,\n  popular,\n  studentCountDisplay,\n  coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n  instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n  category->{ \n  _id,\n  title,\n  "slug": slug.current\n },\n  "moduleCount": count(modules),\n  "lessonCount": count(modules[].lessons[]),\n  "durationSeconds": math::sum(modules[].lessons[]->durationSeconds)\n\n  }\n': COURSES_QUERY_RESULT;
@@ -1397,6 +1435,8 @@ declare module "@sanity/client" {
     '\n  *[_type == "course" && defined(slug.current) && references($lessonIds)] | order(title asc) {\n    _id,\n    title,\n    "slug": slug.current,\n    summary,\n    coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n    modules[] {\n      _key,\n      lessons[]->{ _id, title, "slug": slug.current }\n    }\n  }\n': MY_LEARNING_COURSES_QUERY_RESULT;
     '\n  *[_type == "lesson" && _id in $lessonIds && defined(slug.current)] {\n    _id,\n    title,\n    "slug": slug.current\n  }\n': LESSONS_BY_IDS_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...500].conceptId\n': CONCEPT_IDS_FOR_LESSONS_QUERY_RESULT;
+    '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...100] {\n    "id": _id,\n    conceptId,\n    name,\n    summary,\n    "sources": sourceRefs[lesson._ref in $lessonIds][0...20] {\n      "lessonId": lesson._ref,\n      startSeconds\n    }\n  }\n': KNOWLEDGE_MAP_CONCEPTS_QUERY_RESULT;
+    '\n  *[\n    _type == "conceptPrerequisite" &&\n    status == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    prerequisite._ref in $conceptIds &&\n    dependent._ref in $conceptIds\n  ] | order(_id asc)[0...300] {\n    "id": _id,\n    "prerequisite": prerequisite._ref,\n    "dependent": dependent._ref,\n    status\n  }\n': KNOWLEDGE_MAP_EDGES_QUERY_RESULT;
     '\n  *[_type == "progress" && userId == $userId] | order(updatedAt desc) {\n    _id,\n    "lessonId": lesson._ref,\n    completed,\n    completedAt,\n    resumeSeconds,\n    updatedAt\n  }\n': PROGRESS_FOR_USER_QUERY_RESULT;
     '\n  *[_type == "lesson" && _id == $lessonId && !(_id in path("drafts.**")) && !(_id in path("versions.**"))][0] {\n    _id,\n    durationSeconds\n  }\n': PROGRESS_TARGET_LESSON_QUERY_RESULT;
     '\n  *[_type == "progress" && userId == $userId && lesson._ref == $lessonId][0] {\n    _id,\n    "lessonId": lesson._ref,\n    completed,\n    completedAt,\n    resumeSeconds,\n    updatedAt\n  }\n': PROGRESS_FOR_LESSON_QUERY_RESULT;

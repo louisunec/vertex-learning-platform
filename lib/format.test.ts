@@ -29,6 +29,11 @@ describe('formatClock', () => {
     assert.equal(formatClock(3723), '1:02:03')
     assert.equal(formatClock(0), '0:00')
   })
+  it('pads minutes on request', () => {
+    assert.equal(formatClock(341, {pad: true}), '05:41')
+    assert.equal(formatClock(765, {pad: true}), '12:45')
+    assert.equal(formatClock(3723, {pad: true}), '1:02:03')
+  })
 })
 
 describe('formatLevel / pluralize', () => {
