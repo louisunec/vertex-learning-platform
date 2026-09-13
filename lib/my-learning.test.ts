@@ -136,6 +136,19 @@ describe('recent learning', () => {
   it('is empty without any activity', () => {
     assert.deepEqual(buildRecentLearning([], [], lessons), [])
   })
+
+  it('skips attempts with an invalid timestamp instead of failing the feed', () => {
+    const attempts: RecentAttemptRow[] = [
+      {lessonId: 'a', evidenceReason: 'hint_used', createdAt: new Date(Infinity)},
+      {lessonId: 'a', evidenceReason: 'repeat_task', createdAt: 'not a date'},
+      {lessonId: 'b', evidenceReason: 'first_independent_response', createdAt: '2026-09-13T02:00:00Z'},
+    ]
+    const items = buildRecentLearning([], attempts, lessons)
+    assert.deepEqual(
+      items.map((item) => [item.kind, item.at]),
+      [['independent_practice', '2026-09-13T02:00:00.000Z']],
+    )
+  })
 })
 
 describe('buildOverviewState', () => {
@@ -186,6 +199,26 @@ describe('buildOverviewState', () => {
     const done = ['a', 'b', 'c'].map((id) => row(id, '2026-09-12T10:00:00Z', {completed: true}))
     const state = buildOverviewState({progress: ok(done), courses: ok([course]), feedLessons: allLessons, evidence: off})
     assert.deepEqual(state.nextStep, {kind: 'course_complete', course})
+  })
+
+  it('continues unfinished work in another course when the newest course is complete', () => {
+    const webCourse = {...web, title: 'Web Basics'}
+    const cssCourse = {_id: 'course-css', title: 'CSS', modules: [{_key: 'm1', lessons: [lesson('z')]}]}
+    const rows = [
+      row('z', '2026-09-09T10:00:00Z', {resumeSeconds: 40}),
+      row('b', '2026-09-10T10:00:00Z', {resumeSeconds: 120}),
+      row('x', '2026-09-12T10:00:00Z', {completed: true}),
+      row('y', '2026-09-12T11:00:00Z', {completed: true}),
+    ]
+    const state = buildOverviewState({
+      progress: ok(rows),
+      courses: ok([course, webCourse, cssCourse]),
+      feedLessons: ok([lesson('b'), lesson('x'), lesson('y'), lesson('z')]),
+      evidence: off,
+    })
+    // My Courses still shows the most recently active course; the next step goes to the newest unfinished lesson.
+    assert.deepEqual(state.myCourses, {status: 'ready', course: webCourse, completedLessons: 2, totalLessons: 2})
+    assert.deepEqual(state.nextStep, {kind: 'continue', course, lesson: lesson('b'), resumeSeconds: 120})
   })
 
   it('keeps loaded activity but flags an evidence failure; without activity it is an error', () => {
