@@ -8,7 +8,14 @@ import {buildSpans, MAX_SPAN_CHUNKS} from './spans.ts'
 function chunks(count: number, from = 0): SourceChunk[] {
   return Array.from({length: count}, (_, i) => {
     const start = from + i * 20
-    return {chunkId: `v:tc-${start}`, chunkRevision: `r${start}`, startSeconds: start, endSeconds: start + 20, text: `t${start}`}
+    return {
+      chunkId: `v:tc-${start}`,
+      chunkRevision: `r${start}`,
+      source: 'transcript' as const,
+      startSeconds: start,
+      endSeconds: start + 20,
+      text: `t${start}`,
+    }
   })
 }
 

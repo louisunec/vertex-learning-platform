@@ -8,7 +8,11 @@
  * strings can never break out of the GROQ literal.
  *
  * The queries run through the Context MCP `groq_query` tool, so the Context
- * document's `groqFilter` scope applies on top of these filters. Projections
+ * document's `groqFilter` scope applies on top of these filters. Security
+ * does not rest on that scope alone: every query filters `_type` explicitly,
+ * keeps each OR chain in parentheses so it composes safely with conditions
+ * combined around it (guarded by `queries.test.ts`), and `retrieve.ts`
+ * re-validates every row. Projections
  * stay minimal: only fields needed for matching, ranking, and result
  * construction. Transcript chunks are filtered by match and hard-bounded —
  * whole transcripts never enter the request path.
@@ -21,6 +25,9 @@ export const MAX_VIDEO_CANDIDATES = 20
 export const MAX_COURSE_CANDIDATES = 8
 export const MAX_MOMENTS_PER_VIDEO = 6
 export const MAX_LESSON_VIDEO_INDEX = 200
+export const MAX_VISUAL_CANDIDATES = 20
+/** Matching lines kept per visual chunk: the snippet, never the chunk's whole text. */
+export const MAX_VISUAL_LINES = 2
 
 function assertSafeTerms(terms: ReadonlyArray<string>): void {
   if (terms.length === 0) throw new Error('search terms must not be empty')
@@ -96,6 +103,31 @@ export function buildVideoCandidatesQuery(terms: ReadonlyArray<string>): string 
 }
 
 /**
+ * Visual indexes (`videoVisualIndex`, PR-2) with OCR/VLM chunks matching the
+ * terms. Only matching chunks are returned, sliced, and each carries only its
+ * matching lines — never a chunk's whole text or the whole chunks array.
+ * Resolved to a lesson through the referenced video's `videoId`, like
+ * transcript moments. Visual text is untrusted data.
+ */
+export function buildVisualCandidatesQuery(terms: ReadonlyArray<string>): string {
+  assertSafeTerms(terms)
+  return /* groq */ `
+    *[_type == "videoVisualIndex" && (
+      ${orMatch('chunks[].text', terms)}
+    )][0...${MAX_VISUAL_CANDIDATES}]{
+      _id,
+      _type,
+      "video": video->{ _id, _type, videoId },
+      "visualMatches": chunks[${orMatch('text', terms)}][0...${MAX_MOMENTS_PER_VIDEO}]{
+        startSeconds,
+        source,
+        "lines": string::split(text, "\\n")[(${orMatch('@', terms)})][0...${MAX_VISUAL_LINES}]
+      }
+    }
+  `
+}
+
+/**
  * Courses matching by title/summary contribute their lessons as broad-tier
  * candidates ("search over courses and lessons"); the course itself is never
  * a result type.
@@ -139,6 +171,7 @@ export function buildCourseCandidatesQuery(terms: ReadonlyArray<string>): string
 export const LESSON_VIDEO_INDEX_QUERY = /* groq */ `
   *[_type == "lesson" && defined(videoUrl)][0...${MAX_LESSON_VIDEO_INDEX}]{
     _id,
+    _type,
     title,
     "slug": slug.current,
     durationSeconds,

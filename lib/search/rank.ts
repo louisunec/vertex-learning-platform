@@ -8,7 +8,8 @@ import {countTermHits} from './terms.ts'
  *
  * Tier relationship the weights encode:
  *   strong title/topic match > clean chapter match > structured lesson
- *   content > transcript fallback > broad course-level hit.
+ *   content > transcript fallback > on-screen (OCR) fallback > VLM
+ *   interpretation, with broad course-level hits last.
  *
  * Terms come in two classes: `primaryTerms` are the learner's own words
  * (deterministic tokenization of the query); the rest of `terms` are LLM
@@ -26,6 +27,10 @@ const WEIGHTS = {
   chapterHit: 20,
   transcriptBase: 4,
   transcriptHit: 6,
+  ocrBase: 3,
+  ocrHit: 5,
+  vlmBase: 2,
+  vlmHit: 4,
   broadCourseHit: 5,
 } as const
 
@@ -81,9 +86,16 @@ function scoreLessonCandidate(
 function scoreVideoMomentCandidate(candidate: VideoMomentCandidate, classes: TermClasses): number {
   const hits = weightedHits(candidate.momentText, classes)
   if (hits === 0) return 0
-  return candidate.matchKind === 'chapter'
-    ? WEIGHTS.chapterBase + hits * WEIGHTS.chapterHit
-    : WEIGHTS.transcriptBase + hits * WEIGHTS.transcriptHit
+  switch (candidate.matchKind) {
+    case 'chapter':
+      return WEIGHTS.chapterBase + hits * WEIGHTS.chapterHit
+    case 'transcript':
+      return WEIGHTS.transcriptBase + hits * WEIGHTS.transcriptHit
+    case 'ocr':
+      return WEIGHTS.ocrBase + hits * WEIGHTS.ocrHit
+    case 'vlm':
+      return WEIGHTS.vlmBase + hits * WEIGHTS.vlmHit
+  }
 }
 
 type Scored<T> = {score: number; result: T}

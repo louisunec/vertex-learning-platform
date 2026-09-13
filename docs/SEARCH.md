@@ -121,9 +121,12 @@ Portable Text blocks are structured data; do not assume direct text-match behavi
 Use a two-stage strategy:
 
 1. search chapter labels first,
-2. if no useful chapter match exists for the relevant video, search bounded transcript chunks as fallback.
+2. if no useful chapter match exists for the relevant video, search bounded transcript chunks as fallback,
+3. behind the `search-visual-evidence` flag (off by default), also search `videoVisualIndex` chunks. These are on-screen text (`ocr`) and labelled model interpretations (`vlm`) from owned or licensed media, and also count as a fallback.
 
 Chapter labels are cleaner semantic anchors. Transcript text is noisier and should be the backstop.
+
+Visual retrieval returns only matching chunks, at most 6 per video and 20 videos, and only the matching lines of each chunk (at most 2), never a chunk's whole text or the whole chunks array. A visual match becomes a `video` result only through the lesson that uses the referenced video, like a transcript match. Its `matchKind` is `ocr` or `vlm`. Visual text is untrusted data, and `vlm` text is an interpretation, not ground truth.
 
 ---
 
@@ -155,6 +158,10 @@ clean chapter match
 strong structured lesson-content match
     >
 transcript fallback match
+    >
+on-screen (OCR) fallback match
+    >
+VLM interpretation match
     >
 broad/noisy keyword hit
 ```
@@ -234,6 +241,14 @@ It contains:
 - concise search/query guidance.
 
 Keep it focused on deltas the schema and runtime code do not already make obvious.
+
+Search does not rely on the Context allowlist as its only boundary:
+
+- every query filters `_type` explicitly;
+- every OR chain stays in parentheses, enforced by `lib/search/queries.test.ts`;
+- `retrieve.ts` re-validates every row: the expected document type, published ids (including referenced videos and grounding lessons), and allowed sources. A malformed row is dropped whole, never partially trusted.
+
+The scope's `groqFilter` is an explicit type list. The repo copy (`studio/scripts/context/search-context.ndjson`) includes `videoVisualIndex`. The live document keeps its own id, so change its `groqFilter` by patching that document rather than by importing the ndjson, which has a different id and would create a second document with the same slug.
 
 Do not duplicate the entire architecture into the Context document.
 

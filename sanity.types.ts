@@ -401,6 +401,65 @@ export type Progress = {
   updatedAt?: string;
 };
 
+export type VideoReference = {
+  _ref: string;
+  _type: "reference";
+  _weak?: boolean;
+  [internalGroqTypeReferenceTo]?: "video";
+};
+
+export type VideoVisualIndex = {
+  _id: string;
+  _type: "videoVisualIndex";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  video: VideoReference;
+  extractionVersion: string;
+  sourceRevision: string;
+  durationSeconds?: number;
+  indexedAt?: string;
+  chunks?: Array<{
+    source: "ocr" | "vlm";
+    startSeconds: number;
+    endSeconds: number;
+    text: string;
+    vlmLabel?: string;
+    frameRef?: {
+      timestampSeconds?: number;
+      frameHash?: string;
+    };
+    quality?: {
+      ocrConfidence?: number;
+      textDensity?: number;
+    };
+    _type: "visualChunk";
+    _key: string;
+  }>;
+  coverage?: {
+    framesSampled?: number;
+    framesOcrd?: number;
+    vlmCalls?: number;
+    skippedSpans?: Array<{
+      startSeconds?: number;
+      endSeconds?: number;
+      reason?:
+        | "frame_cap"
+        | "ocr_cap"
+        | "vlm_cap"
+        | "spend_cap"
+        | "wall_time"
+        | "ocr_error"
+        | "vlm_error";
+      _type: "skippedSpan";
+      _key: string;
+    }>;
+    partial?: boolean;
+    estimatedCostUsd?: number;
+    durationMs?: number;
+  };
+};
+
 export type Video = {
   _id: string;
   _type: "video";
@@ -687,6 +746,8 @@ export type AllSanitySchemaTypes =
   | Assessment
   | Concept
   | Progress
+  | VideoReference
+  | VideoVisualIndex
   | Video
   | Lesson
   | SanityImageCrop

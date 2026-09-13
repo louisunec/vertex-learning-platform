@@ -12,6 +12,7 @@ import {instructor} from './documents/instructor'
 import {lesson} from './documents/lesson'
 import {progress} from './documents/progress'
 import {video} from './documents/video'
+import {videoVisualIndex} from './documents/video-visual-index'
 import {blockContent} from './objects/block-content'
 import {chapter} from './objects/chapter'
 import {conceptSourceRef} from './objects/concept-source-ref'
@@ -27,6 +28,7 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   instructor,
   category,
   video,
+  videoVisualIndex,
   progress,
   assessment,
   assessmentGenerationRecord,

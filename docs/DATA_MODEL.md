@@ -164,6 +164,19 @@ Features that cite transcript evidence derive chunk identity with `lib/evidence/
 
 These values are computed from stored records, not stored on the video. Changed caption text changes the revision, and anything citing the old revision becomes stale.
 
+Every `SourceChunk` also carries `source: transcript | ocr | vlm`. Transcript identity is unchanged by this field.
+
+### Visual index
+
+A `videoVisualIndex` document holds on-screen text for one video. Its id is `visual-<video document id>`. Only the offline indexer (`npm run index:visuals`) writes it, from a local media file the team owns or is licensed to process.
+
+- Fields: `video` (reference), `extractionVersion`, `sourceRevision` (a content hash of the media file), `durationSeconds`, and `indexedAt`.
+- `chunks[]`: `{source: ocr | vlm, startSeconds, endSeconds, text, frameRef {timestampSeconds, frameHash}, quality {ocrConfidence, textDensity}, vlmLabel?}`. Times are whole seconds.
+- `coverage`: frames sampled, frames OCR'd, VLM calls, `skippedSpans[] {startSeconds, endSeconds, reason}`, `partial`, `estimatedCostUsd`, and `durationMs`. Any skipped span marks the index partial.
+- Evidence identity: `chunkId` is `<visual index id>:<chunk _key>`. `chunkRevision` is a content hash of source, start, end, text, and `extractionVersion` (`toVisualSourceChunks` in `lib/evidence/chunks.ts`), so re-extracting with a new version reads as new evidence.
+- OCR and VLM text is untrusted data. A `vlm` chunk is a labelled interpretation, never ground truth, and never authoritative code for grading.
+- It is read-only in the Studio and absent from the create menu. Search reads it only behind the `search-visual-evidence` flag, and only once the live search Context `groqFilter` (an explicit type list) includes `videoVisualIndex`. Matching chunks and lines are filtered and sliced, never the whole array (`SEARCH.md` §4). Progress, drafts, and release versions stay outside that scope.
+
 Video documents are not independently displayed in learner-facing search results.
 
 A video result is always resolved through the lesson that uses the video's URL.

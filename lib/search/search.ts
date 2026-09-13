@@ -1,11 +1,14 @@
 import 'server-only'
 
+import {FLAGS, isFlagEnabled} from '@/lib/flags'
+
 import {interpretQuery} from './interpret'
 import {connectContextMcp, runGroqQuery} from './mcp'
 import {
   buildCourseCandidatesQuery,
   buildLessonCandidatesQuery,
   buildVideoCandidatesQuery,
+  buildVisualCandidatesQuery,
   LESSON_VIDEO_INDEX_QUERY,
 } from './queries'
 import {rankCandidates} from './rank'
@@ -48,6 +51,8 @@ export async function searchVertex({
 
   const decoded = decodeSearchCursor(cursor)
   const offset = decoded?.offset ?? 0
+  // Evaluated alongside interpretation; off (and on any flag error) keeps visual evidence out.
+  const visualEnabled = isFlagEnabled(FLAGS.searchVisualEvidence, distinctId)
   const terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed, {distinctId}) : [])
   // The learner's own words rank at full weight; LLM expansion terms rank
   // reduced. Recomputed deterministically, so cursor pages need no LLM call.
@@ -66,17 +71,18 @@ export async function searchVertex({
   const mcp = await connectContextMcp()
   let ranked
   try {
-    const [lessonRows, videoRows, courseRows, lessonIndexRows] = await Promise.all([
+    const [lessonRows, videoRows, courseRows, lessonIndexRows, visualRows] = await Promise.all([
       runGroqQuery(mcp, buildLessonCandidatesQuery(terms)),
       runGroqQuery(mcp, buildVideoCandidatesQuery(terms)),
       runGroqQuery(mcp, buildCourseCandidatesQuery(terms)),
       runGroqQuery(mcp, LESSON_VIDEO_INDEX_QUERY),
+      visualEnabled.then((enabled) => (enabled ? runGroqQuery(mcp, buildVisualCandidatesQuery(terms)) : [])),
     ])
     ranked = rankCandidates(
       terms,
       primaryTerms,
       [...parseLessonCandidates(lessonRows), ...parseCourseCandidates(courseRows)],
-      parseVideoMomentCandidates(videoRows, lessonIndexRows),
+      parseVideoMomentCandidates(videoRows, lessonIndexRows, visualRows),
     )
   } finally {
     await mcp.close().catch(() => undefined)

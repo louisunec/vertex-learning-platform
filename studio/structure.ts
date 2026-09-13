@@ -4,6 +4,7 @@ import {
   BulbOutlineIcon,
   CheckmarkCircleIcon,
   ClipboardIcon,
+  ImagesIcon,
   PlayIcon,
   SearchIcon,
   TagIcon,
@@ -127,6 +128,17 @@ export const structure: StructureResolver = (S) =>
         ),
       S.divider(),
       S.documentTypeListItem('video').title('Video Intelligence').icon(VideoIcon),
+      // Written only by `npm run index:visuals`; no create action.
+      S.listItem()
+        .title('Visual index')
+        .icon(ImagesIcon)
+        .schemaType('videoVisualIndex')
+        .child(
+          S.documentTypeList('videoVisualIndex')
+            .title('Visual index')
+            .initialValueTemplates([])
+            .defaultOrdering([{field: 'indexedAt', direction: 'desc'}]),
+        ),
       S.documentTypeListItem('progress').title('Learner progress').icon(CheckmarkCircleIcon),
       S.divider(),
       S.documentTypeListItem(CONTEXT_SCHEMA_TYPE_NAME).title('Search context').icon(SearchIcon),

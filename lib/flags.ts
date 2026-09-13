@@ -24,6 +24,8 @@ export const FLAGS = {
    * requires `learner-evidence`, its hints `help-policy`, and the panel all three flags above.
    */
   lessonIntegration: 'lesson-integration',
+  /** PR-2: add on-screen (OCR/VLM) video moments from `videoVisualIndex` to search. */
+  searchVisualEvidence: 'search-visual-evidence',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

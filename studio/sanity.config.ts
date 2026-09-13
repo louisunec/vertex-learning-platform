@@ -15,6 +15,7 @@ const GENERATOR_ONLY_TYPES = new Set([
   'conceptPrerequisite',
   'conceptMergeProposal',
   'conceptGenerationRecord',
+  'videoVisualIndex',
 ])
 
 /** Types whose publish is gated on editorial review. */
@@ -58,7 +59,8 @@ export default defineConfig({
     // Assessments, concepts, prerequisite edges, and their generation records
     // are created only by the generators (`npm run generate:assessments`,
     // `npm run generate:concepts`): each needs server-resolved source chunks,
-    // so a hand-made one could never be published.
+    // so a hand-made one could never be published. Visual indexes come only
+    // from the visual indexer (`npm run index:visuals`).
     newDocumentOptions: (prev) => prev.filter((item) => !GENERATOR_ONLY_TYPES.has(item.templateId)),
     // Gated types publish only after review; approved content stays immutable.
     // Scheduling would publish later without the gate. Duplicating would copy

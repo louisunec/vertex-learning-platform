@@ -20,6 +20,7 @@ import type {Span} from './spans.ts'
 const chunk = (i: number): SourceChunk => ({
   chunkId: `video-x:tc-${i}`,
   chunkRevision: `rev${i}`,
+  source: 'transcript',
   startSeconds: i * 20,
   endSeconds: i * 20 + 20,
   text: `chunk ${i}`,

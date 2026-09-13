@@ -33,6 +33,7 @@ function chunk(start: number, text: string, lesson = HOOKS, endSeconds = start +
   return {
     chunkId: chunkIdFor('video-youtube-hooksvideo1', `tc-${start}`),
     chunkRevision: chunkRevisionOf({startSeconds: start, text}),
+    source: 'transcript',
     startSeconds: start,
     endSeconds,
     text,

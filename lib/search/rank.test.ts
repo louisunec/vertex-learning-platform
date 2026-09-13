@@ -163,3 +163,25 @@ describe('rankCandidates', () => {
     )
   })
 })
+
+describe('visual moment tiers', () => {
+  it('ranks transcript above OCR above VLM for the same hits, and keeps the source', () => {
+    const results = rankCandidates(terms, terms, [], [
+      moment({lessonId: 'vlm', startSeconds: 3, momentText: 'css grid diagram', matchKind: 'vlm'}),
+      moment({lessonId: 'ocr', startSeconds: 2, momentText: 'display: grid; /* css */', matchKind: 'ocr'}),
+      moment({lessonId: 'transcript', startSeconds: 1, momentText: 'css grid explained', matchKind: 'transcript'}),
+    ])
+    assert.deepEqual(
+      results.map((result) => [result.lessonId, result.type === 'video' ? result.matchKind : null]),
+      [
+        ['transcript', 'transcript'],
+        ['ocr', 'ocr'],
+        ['vlm', 'vlm'],
+      ],
+    )
+  })
+
+  it('drops visual moments whose snippet does not confirm a term', () => {
+    assert.deepEqual(rankCandidates(terms, terms, [], [moment({lessonId: 'x', startSeconds: 1, momentText: 'flexbox', matchKind: 'ocr'})]), [])
+  })
+})
