@@ -215,9 +215,13 @@ The work is on branch `feat/pr-6-tutor-endpoint`, in worktree `../vertex-pr-6`, 
 12. **Response** (a strict Zod schema that is also parsed on the server):
 
     ```
-    {tutorRequestId, status, scope, statements: [{text, kind, citations: ResolvedCitation[] ≤4}] ≤8,
+    {tutorRequestId, status, scope, statements: [{text, kind, citations: ResolvedCitation[] ≤6}] ≤8,
      followUp?, message?, help: {helpEventId, level, reasonCode, policyVersion} | null}
     ```
+
+    - **Amended 2026-09-13 (follow-up 3, `201ccba`; documented at follow-up 4):** the citation cap per statement is 6 (`MAX_TUTOR_CITATIONS`), up from 4. A claim cites up to 2 passages of up to 3 time-adjacent chunks, and the server returns one citation per chunk. The canonical contract is `tutorStatementSchema` in `lib/learner/contracts.ts`.
+    - **Client rule (PR-7 `TutorPanel`, PR-10):** keep every citation's `chunkId` and `sourceRevision`. Contiguous same-lesson citations of one statement (each starting at or before the previous one's `endSeconds`) may be shown as one time range seeking to its first `startSeconds`.
+    - No consumer exists yet: nothing outside PR-6 reads `tutorResponseSchema`.
 
     - `help` is null for `insufficient_evidence`, because no help was delivered.
     - The response is sent with `Cache-Control: no-store`.

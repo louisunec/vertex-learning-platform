@@ -113,10 +113,23 @@ export const tutorRequestSchema = z.strictObject({
 
 export type TutorRequest = z.infer<typeof tutorRequestSchema>
 
+/**
+ * One tutor statement. A claim cites up to two passages of up to three
+ * time-adjacent chunks, and each chunk is its own citation, so a statement
+ * carries 1–`MAX_TUTOR_CITATIONS` (6) citations; a level-1 pointer carries
+ * one. (Before follow-up 3 the cap was 4; the shared evidence-envelope cap
+ * `MAX_EVIDENCE_PER_STATEMENT`, 4, is unchanged and does not apply here.)
+ *
+ * For clients (PR-7 `TutorPanel` citation buttons, PR-10 feedback): keep
+ * every citation's `chunkId` and `sourceRevision`, in order. Citations of
+ * one statement that share a `lessonId` and are contiguous (each starts at
+ * or before the previous one's `endSeconds`, the rule `assemblePassages`
+ * uses) may be shown as one time range that seeks to the first
+ * `startSeconds`; the ids stay separate.
+ */
 const tutorStatementSchema = z.strictObject({
   kind: z.enum(TUTOR_STATEMENT_KINDS),
   text: z.string().min(1).max(MAX_STATEMENT_LENGTH),
-  // A claim cites up to two passages of up to three chunks, each chunk its own citation.
   citations: z.array(resolvedCitationSchema).max(MAX_TUTOR_CITATIONS),
 })
 
