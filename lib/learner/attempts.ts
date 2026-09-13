@@ -143,7 +143,9 @@ export async function submitAttempt({
     const instance = await findOwnedTaskInstance(tx, learnerId, request.taskInstanceId)
     if (!instance) return rejected('not_found')
     const [submitted] = await tx`select 1 from learner.attempt_log where task_instance_id = ${instance.id}`
-    if (submitted) return rejected('already_submitted')
+    // Under READ COMMITTED each statement sees a fresh snapshot: a duplicate of this request can
+    // commit after the key lookup above missed it. Look again before calling the task answered.
+    if (submitted) return (await replayByKey(tx, learnerId, request.idempotencyKey, requestHash)) ?? rejected('already_submitted')
     if (instance.expiresAt.getTime() <= now.getTime()) return rejected('expired')
     if (!instance.deliveredOptionIds.includes(request.optionId)) return rejected('invalid_option')
     return instance
