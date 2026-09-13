@@ -206,5 +206,5 @@ The `tutor` flag stays off, PR #12 stays a draft, and all nine cases stay `"revi
   Totals were 11.6 s and 15.8 s.
 - **Contract docs** (`e137e42`).
 - **PR-5 worktree.** The suite passes with the author's edits present (399/399). Their files' checksums are unchanged. The three edits merge onto the PR-6 tip with 0 conflicts, and there the suite passes (494/494) and typecheck passes.
-- **Tip scan.** No transcript quotes remain. The words inside 8-word runs are the tutor's own statements: 24–62 per eval file. `lib/assessments/generate.test.ts` has 9 (PR-1, out of scope).
+- **Tip scan** (at `560396b`). No transcript quotes remain. The words inside 8-word runs are the tutor's own statements, which reuse lesson phrases of at most 13 words: 24–93 per eval file (93 in the packet, which repeats statements across Parts 1 and 2). `lib/assessments/generate.test.ts` has 9 (PR-1, out of scope).
 - **Item 7** (the history-cleanup candidate) is prepared outside the tree after this commit. Its SHA table and the refs are in the PR #12 description.
