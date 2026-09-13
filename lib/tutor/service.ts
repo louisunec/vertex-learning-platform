@@ -105,8 +105,11 @@ export async function askTutor({
   if (scope.durationSeconds !== null && request.currentSeconds > scope.durationSeconds) return rejected('invalid_request')
 
   const checked = await asLearner(db, learnerId, async (tx): Promise<Checked | TutorRejection> => {
+    // Help event first, tutor request last: tx2 commits both together, so a concurrent duplicate
+    // that commits between these statements is still seen as this request (READ COMMITTED).
+    const helpEvent = await findHelpEventByKey(tx, learnerId, request.requestKey)
     if (await tutorRequestExists(tx, learnerId, request.requestKey)) return 'already_answered'
-    if (await findHelpEventByKey(tx, learnerId, request.requestKey)) return 'idempotency_key_reused'
+    if (helpEvent) return 'idempotency_key_reused'
 
     let instance: TaskInstanceRow | null = null
     if (request.taskInstanceId) {

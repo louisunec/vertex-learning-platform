@@ -7,6 +7,7 @@ import type {HelpMode, HelpRequestKind} from '../ai/help-policy.ts'
 import {CLARIFYING_QUESTION, INSUFFICIENT_EVIDENCE_MESSAGE} from '../ai/tutor.ts'
 import {asLearner} from '../db/learner-scope.ts'
 import {createTestDatabase, SKIP_WITHOUT_DATABASE, type TestDatabase} from '../db/test-db.ts'
+import {pauseAfterQuery} from '../db/test-interleave.ts'
 import {submitAttempt} from '../learner/attempts.ts'
 import type {TutorResponse} from '../learner/contracts.ts'
 import {requestHelp} from '../learner/help.ts'
@@ -151,6 +152,22 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
     answered(await ask({requestKey, helpRequest: 'escalate', sessionId: 'session-bbbbbbbb'}))
     assert.deepEqual(await ask({requestKey, helpRequest: 'escalate', sessionId: 'session-bbbbbbbb'}), {status: 'rejected', code: 'already_answered'})
     assert.equal(model.calls, 1)
+    assert.deepEqual(await counts(), {requests: 1, events: 1, outbox: 2})
+  })
+
+  it('reports already_answered when the same request commits between the replay checks', async () => {
+    // The first replay check misses the key; the duplicate then commits its tutor request and help
+    // event together. The retry is a replay of this tutor request, not a key reused for other help.
+    const requestKey = key()
+    const request = {lessonId: 'lesson-hooks', currentSeconds: 110, question: 'What does useState return?', mode: 'study' as const, sessionId: 'session-cccccccc', requestKey}
+    let first: AskTutorOutcome | undefined
+    const interleaved = pauseAfterQuery(db.sql, 'and request_key =', async () => {
+      first = await askTutor({db: db.sql, source, model, learnerId: ALICE, request})
+    })
+    const retry = await askTutor({db: interleaved, source, model, learnerId: ALICE, request})
+    assert.equal(interleaved.paused(), true)
+    assert.equal(first?.status, 'answered')
+    assert.deepEqual(retry, {status: 'rejected', code: 'already_answered'})
     assert.deepEqual(await counts(), {requests: 1, events: 1, outbox: 2})
   })
 
