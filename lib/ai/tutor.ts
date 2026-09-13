@@ -25,11 +25,13 @@ import {checkSupport, type SupportItem} from './tutor-support.ts'
  * Tutor answers (development plan §5 PR-6): the first generation consumer of
  * the PR-0 evidence envelope. The model sees only the retrieved transcript
  * chunks and returns `EvidenceRef`s; the server builds every citation's
- * times, label, and link from stored records. A statement survives three
+ * times, label, and link from stored records. A statement survives these
  * gates, and a valid citation id alone is never taken as support:
  *
  * 1. its refs name retrieved chunks at the retrieved revision;
  * 2. a cited chunk shares a content term with it (a cheap floor);
+ *    2b. no uncited retrieved chunk holds its wording that the cited chunks
+ *    lack (deterministic: the detail came from a source it does not cite);
  * 3. the support check (`tutor-support.ts`) confirms the cited text states it.
  *
  * Level 1 has its own output format with no free-text claims: the model can
@@ -43,7 +45,7 @@ import {checkSupport, type SupportItem} from './tutor-support.ts'
 
 export const TUTOR_TASK = 'tutor-answer'
 /** Bump whenever the system prompt, input shape, or output schema changes. */
-export const TUTOR_PROMPT_VERSION = 'tutor-v2'
+export const TUTOR_PROMPT_VERSION = 'tutor-v3'
 export const TUTOR_MODEL_ID = 'gpt-5-mini'
 /** Explanations need some deliberation; `low` keeps reasoning tokens bounded. */
 export const TUTOR_PROVIDER_OPTIONS = {
@@ -108,10 +110,16 @@ export type EvidenceChunk = SourceChunk & {lessonId: string; lessonTitle: string
 
 export type TutorStatement = {kind: TutorStatementKind; text: string; citations: ResolvedCitation[]}
 
-export type DropReason = 'unknown_or_stale_ref' | 'no_shared_term' | 'not_supported' | 'reveals_answer'
+export type DropReason = 'unknown_or_stale_ref' | 'no_shared_term' | 'uncited_source' | 'not_supported' | 'reveals_answer'
 
 /** Model output the server removed, for the evaluation report; never part of a response. */
-export type DroppedStatement = {kind: 'claim' | 'pointer' | 'guiding_question'; text: string; reason: DropReason}
+export type DroppedStatement = {
+  kind: 'claim' | 'pointer' | 'guiding_question'
+  text: string
+  reason: DropReason
+  /** For `uncited_source`: the retrieved chunk holding the claim's uncited wording. */
+  uncitedChunkId?: string
+}
 
 export type TutorAnswer = {
   status: 'supported' | 'partial' | 'insufficient_evidence'
@@ -145,6 +153,69 @@ export function contentTerms(text: string): string[] {
   return terms
 }
 
+/**
+ * Gate 2b: how many of a claim's words, absent from every chunk it cites,
+ * one uncited retrieved chunk must hold for the claim to be dropped.
+ * Calibrated on the 43 cited claims of evaluation runs 1 and 2 (2026-09-13).
+ */
+export const UNCITED_SOURCE_TERMS = 3
+
+/** Word endings ignored when comparing a claim's words with a transcript's. */
+const WORD_ENDINGS = ['ies', 'ing', 'es', 'ed', 's', 'ly']
+
+function wordRoot(word: string): string {
+  for (const ending of WORD_ENDINGS) {
+    if (word.endsWith(ending) && word.length - ending.length >= 4) return word.slice(0, -ending.length)
+  }
+  return word
+}
+
+/** Distinct roots of the topic words of `text`, uncapped (claims, not GROQ). */
+function topicRoots(text: string): string[] {
+  const roots = tokenize(text)
+    .filter((token) => !STOPWORDS.has(token) && !TUTOR_FILLER.has(token))
+    .map(wordRoot)
+  return [...new Set(roots)]
+}
+
+/** One root extends the other ("sharp", "sharpness"); roots under 4 letters must be equal. */
+function sameRoot(a: string, b: string): boolean {
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a]
+  return short.length >= 4 ? long.startsWith(short) : a === b
+}
+
+const holds = (roots: ReadonlySet<string>, word: string) => roots.has(word) || [...roots].some((root) => sameRoot(root, word))
+
+/**
+ * Gate 2b. The claim's topic words that none of its cited chunks hold (the
+ * question's own words excepted); when one uncited retrieved chunk holds
+ * `UNCITED_SOURCE_TERMS` of them, that chunk, else null. It flags wording
+ * taken from a source the claim does not cite; it cannot show that the cited
+ * sources support the claim, which stays with gate 3 and human review.
+ */
+export function findUncitedSource(
+  claim: string,
+  cited: readonly EvidenceChunk[],
+  evidence: readonly EvidenceChunk[],
+  question: string,
+): EvidenceChunk | null {
+  const questionRoots = topicRoots(question)
+  const citedRoots = cited.map((chunk) => new Set(tokenize(chunk.text).map(wordRoot)))
+  const missing = topicRoots(claim).filter(
+    (word) => !questionRoots.some((root) => sameRoot(root, word)) && !citedRoots.some((roots) => holds(roots, word)),
+  )
+  if (missing.length < UNCITED_SOURCE_TERMS) return null
+  const citedIds = new Set(cited.map((chunk) => chunk.chunkId))
+  let best: {chunk: EvidenceChunk; count: number} | null = null
+  for (const chunk of evidence) {
+    if (citedIds.has(chunk.chunkId)) continue
+    const roots = new Set(tokenize(chunk.text).map(wordRoot))
+    const count = missing.filter((word) => holds(roots, word)).length
+    if (count >= UNCITED_SOURCE_TERMS && (!best || count > best.count)) best = {chunk, count}
+  }
+  return best?.chunk ?? null
+}
+
 const SHARED_RULES = [
   'You are the tutor for Vertex, a video-course learning platform. You help a learner with a question about the lesson they are watching, using only the course sources in the input.',
   'Rules:',
@@ -171,6 +242,7 @@ export function buildTutorSystemPrompt(level: Exclude<HelpLevel, 0>): string {
   return [
     ...SHARED_RULES,
     '- A factual statement has kind "claim" and lists in evidence one to four sources that state it.',
+    '- Sources are consecutive transcript excerpts in time order, and a sentence often continues into the next source. A claim must cite every source whose wording it relies on, including the source where the sentence ends.',
     '- Each claim must be stated in the sources it cites. Do not add inferences, general knowledge, examples, or advice the sources do not state: leave it out, and return status "partial" if that leaves part of the question unanswered.',
     '- Use kind "connective" for a short transition that asserts no fact, and kind "analogy" for a comparison you add to aid understanding. Neither cites anything.',
     '- If the sources do not support an answer, return status "insufficient_evidence" with no statements.',
@@ -191,15 +263,21 @@ export function buildTutorPrompt({
   currentSeconds: number
   chunks: readonly EvidenceChunk[]
 }): string {
+  // Time order within each lesson (lessons in first-retrieved order), so consecutive excerpts sit together.
+  const lessonOrder = [...new Set(chunks.map((chunk) => chunk.lessonId))]
+  const ordered = chunks.toSorted(
+    (a, b) => lessonOrder.indexOf(a.lessonId) - lessonOrder.indexOf(b.lessonId) || a.startSeconds - b.startSeconds,
+  )
   const input = {
     question,
     lesson: lessonTitle,
     playheadSeconds: currentSeconds,
-    sources: chunks.map((chunk) => ({
+    sources: ordered.map((chunk) => ({
       chunkId: chunk.chunkId,
       chunkRevision: chunk.chunkRevision,
       lesson: chunk.lessonTitle,
       startSeconds: chunk.startSeconds,
+      endSeconds: chunk.endSeconds,
       text: chunk.text,
     })),
   }
@@ -263,8 +341,8 @@ type Prevalidated = {
   partial: boolean
 }
 
-/** Gates 1 and 2 for levels 2–3: each claim against its own content terms. */
-export function prevalidateExplanation(output: ExplanationOutput, chunks: readonly EvidenceChunk[]): Prevalidated {
+/** Gates 1, 2, and 2b for levels 2–3: each claim against its own content terms and the uncited evidence. */
+export function prevalidateExplanation(output: ExplanationOutput, chunks: readonly EvidenceChunk[], question: string): Prevalidated {
   const allowed = new Map(chunks.map((chunk) => [chunk.chunkId, chunk]))
   const drafts: Draft[] = []
   const dropped: DroppedStatement[] = []
@@ -278,6 +356,12 @@ export function prevalidateExplanation(output: ExplanationOutput, chunks: readon
     partial ||= refs.dropped
     if (refs.citations.length === 0) {
       dropped.push({kind: 'claim', text: statement.text, reason: statement.evidence.length === 0 ? 'no_shared_term' : refs.reason})
+      partial = true
+      continue
+    }
+    const uncited = findUncitedSource(statement.text, refs.sources, chunks, question)
+    if (uncited) {
+      dropped.push({kind: 'claim', text: statement.text, reason: 'uncited_source', uncitedChunkId: uncited.chunkId})
       partial = true
       continue
     }
@@ -403,7 +487,7 @@ export async function answerTutorQuestion({
   } else {
     const output = await generateBoundedObject({...call, schema: explanationOutputSchema})
     if (output.status === 'insufficient_evidence') return {status: 'insufficient_evidence', statements: [], followUp: null, citedCount: 0, dropped: []}
-    prevalidated = prevalidateExplanation(output, chunks)
+    prevalidated = prevalidateExplanation(output, chunks, question)
   }
   return finalize({model, question, prevalidated, timeoutMs, log})
 }

@@ -3,7 +3,7 @@ import {describe, it} from 'node:test'
 
 import {chunkIdFor, chunkRevisionOf} from '../evidence/chunks.ts'
 import {MAX_TERMS} from '../search/terms.ts'
-import {DEFAULT_GUIDING_QUESTION, failingModel, scriptedModel, tutorModel, type SupportInput} from '../tutor/test-source.ts'
+import {DEFAULT_GUIDING_QUESTION, failingModel, SAMPLING_CHUNKS, scriptedModel, tutorModel, type SupportInput} from '../tutor/test-source.ts'
 import {AiCallError} from './gateway.ts'
 import {
   answerTutorQuestion,
@@ -11,6 +11,7 @@ import {
   buildTutorSystemPrompt,
   contentTerms,
   directionOutputSchema,
+  findUncitedSource,
   pointerText,
   prevalidateDirection,
   prevalidateExplanation,
@@ -18,7 +19,6 @@ import {
   type EvidenceChunk,
   type ExplanationOutput,
 } from './tutor.ts'
-import {expandTutorTerms, mergeTerms} from './tutor-terms.ts'
 
 function chunk(start: number, text: string, lesson = {lessonId: 'lesson-hooks', lessonTitle: 'React hooks', lessonSlug: 'react-hooks'}): EvidenceChunk {
   return {
@@ -72,32 +72,6 @@ describe('contentTerms', () => {
   })
 })
 
-describe('tutor terms', () => {
-  it('keeps the learner terms first and sanitizes model variants', () => {
-    assert.deepEqual(mergeTerms(['downside', 'temperature'], ['Cons', 'drawbacks; DROP *', 'temperature', '"}]']), [
-      'downside',
-      'temperature',
-      'con',
-      'drawback',
-      'drop',
-    ])
-    const merged = mergeTerms(['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9'], Array.from({length: 10}, (_, i) => `variant${i}`))
-    assert.equal(merged.length, MAX_TERMS)
-    assert.deepEqual(merged.slice(0, 8), ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8'])
-  })
-
-  it('falls back to the learner terms on failure, and makes no call without topic words', async () => {
-    const failing = failingModel()
-    assert.deepEqual(await expandTutorTerms({model: failing, question: 'downsides?', baseTerms: ['downside'], log: () => {}}), ['downside'])
-    assert.equal(failing.callsByTask.terms, 1)
-
-    const model = tutorModel({terms: () => ({keywords: ['cons', 'drawbacks']})})
-    assert.deepEqual(await expandTutorTerms({model, question: 'What does this mean?', baseTerms: [], log: () => {}}), [])
-    assert.equal(model.callsByTask.terms, 0)
-    assert.deepEqual(await expandTutorTerms({model, question: 'downsides?', baseTerms: ['downside'], log: () => {}}), ['downside', 'con', 'drawback'])
-  })
-})
-
 describe('tutor prompts', () => {
   it('shapes the system prompt by help level and keeps the grounding rules in each', () => {
     const prompts = ([1, 2, 3] as const).map((level) => buildTutorSystemPrompt(level))
@@ -124,7 +98,18 @@ describe('tutor prompts', () => {
       CHUNKS.map((source) => source.chunkId),
     )
     assert.equal(input.sources[2].text, INJECTED.text)
-    assert.deepEqual(Object.keys(input.sources[0]).toSorted(), ['chunkId', 'chunkRevision', 'lesson', 'startSeconds', 'text'])
+    assert.deepEqual(Object.keys(input.sources[0]).toSorted(), ['chunkId', 'chunkRevision', 'endSeconds', 'lesson', 'startSeconds', 'text'])
+  })
+
+  it('lists sources in time order within each lesson, and asks for every source a claim relies on', () => {
+    const other = {lessonId: 'lesson-memo', lessonTitle: 'Memoization', lessonSlug: 'react-memo'}
+    const chunks = [SETTER, chunk(60, 'useMemo caches', other), STATE, chunk(10, 'welcome', other)]
+    const input = JSON.parse(buildTutorPrompt({question: 'q', lessonTitle: 'React hooks', currentSeconds: 110, chunks}).slice('Input:\n'.length))
+    assert.deepEqual(
+      input.sources.map((source: {lesson: string; startSeconds: number}) => `${source.lesson}@${source.startSeconds}`),
+      ['React hooks@100', 'React hooks@120', 'Memoization@10', 'Memoization@60'],
+    )
+    assert.match(buildTutorSystemPrompt(3), /cite every source whose wording it relies on/)
   })
 })
 
@@ -153,6 +138,7 @@ describe('prevalidation (refs and the shared-term floor)', () => {
         {kind: 'analogy', text: 'Think of it as a sticky note.', evidence: []},
       ]),
       CHUNKS,
+      QUESTION,
     )
     assert.equal(result.partial, false)
     assert.deepEqual(
@@ -169,6 +155,7 @@ describe('prevalidation (refs and the shared-term floor)', () => {
         {kind: 'claim', text: 'Memoization caches calculations.', evidence: [ref(STATE)]},
       ]),
       CHUNKS,
+      QUESTION,
     )
     assert.equal(result.partial, true)
     assert.deepEqual(result.drafts.map((draft) => draft.text), ['useState keeps a value between renders.'])
@@ -197,6 +184,75 @@ describe('prevalidation (refs and the shared-term floor)', () => {
     })
     assert.deepEqual(Object.keys(parsed).toSorted(), ['guidingQuestion', 'pointers', 'status'])
     assert.equal(directionOutputSchema.safeParse({status: 'supported', pointers: [], guidingQuestion: 'x'.repeat(301)}).success, false)
+  })
+})
+
+describe('uncited-source gate (2b)', () => {
+  const sampling = {lessonId: 'lesson-sampling', lessonTitle: 'Temperature and sampling', lessonSlug: 'temperature-and-sampling'}
+  // Synthetic chunks laid out like the evaluation lesson (`SAMPLING_CHUNKS`; no real transcript text).
+  const at = (start: number) => chunk(start, SAMPLING_CHUNKS.find((stored) => stored.startSeconds === start)!.text, sampling)
+  const [T139, T157, T176, T266, T287, T304, T396] = [139, 157, 176, 266, 287, 304, 396].map(at)
+  const NUCLEUS = 'What is nucleus sampling?'
+  /**
+   * The shape of evaluation run 2's mismatch: the claim's wording is at 4:47 (287), but it cites
+   * 5:04 (304) and 6:36 (396, about top-k), which share only "balance", "variety", "coherence".
+   */
+  const MISCITED =
+    'Nucleus sampling keeps a balance of variety and coherence by considering more words when the model is uncertain and fewer when one word clearly dominates.'
+
+  const answerWith = (statements: ExplanationOutput['statements'], chunks: EvidenceChunk[], question: string) => {
+    const model = tutorModel({answer: () => explanation(statements)})
+    const answer = answerTutorQuestion({
+      model,
+      level: 3,
+      question,
+      terms: contentTerms(question),
+      lessonTitle: 'Temperature and sampling',
+      currentSeconds: 40,
+      chunks,
+      log: () => {},
+    })
+    return {model, answer}
+  }
+
+  it('rejects a nucleus claim cited to 5:04 and 6:36 when its wording is at 4:47, even though the support check would accept it', async () => {
+    const evidence = [T266, T287, T304, T396]
+    assert.equal(findUncitedSource(MISCITED, [T304, T396], evidence, NUCLEUS)?.chunkId, T287.chunkId)
+    const {model, answer} = answerWith([{kind: 'claim', text: MISCITED, evidence: [ref(T304), ref(T396)]}], evidence, NUCLEUS)
+    const result = await answer
+    assert.equal(result.status, 'insufficient_evidence')
+    assert.deepEqual(result.dropped, [{kind: 'claim', text: MISCITED, reason: 'uncited_source', uncitedChunkId: T287.chunkId}])
+    // The default mock verdict is "supported": the drop is the server's, before any model check.
+    assert.equal(model.callsByTask.support, 0)
+  })
+
+  it('keeps the same claim when it cites the passage its wording comes from', async () => {
+    const evidence = [T157, T266, T287, T304, T396]
+    assert.equal(findUncitedSource(MISCITED, [T266, T287, T304], evidence, NUCLEUS), null)
+    const {model, answer} = answerWith([{kind: 'claim', text: MISCITED, evidence: [ref(T266), ref(T287), ref(T304)]}], evidence, NUCLEUS)
+    assert.equal((await answer).status, 'supported')
+    assert.deepEqual(model.supportInputs[0].items[0].sources, [T266.text, T287.text, T304.text])
+  })
+
+  it('drops a sentence split across two chunks unless both halves are cited', () => {
+    const claim = 'A smaller theta concentrates the chances on the leading words, so the text becomes steadier and more predictable.'
+    const question = 'How does the temperature change the probability distribution?'
+    assert.equal(findUncitedSource(claim, [T157], [T139, T157, T176], question)?.chunkId, T176.chunkId)
+    assert.equal(findUncitedSource(claim, [T157, T176], [T139, T157, T176], question), null)
+  })
+
+  it("ignores the question's own words and word endings", () => {
+    const cited = chunk(10, 'the probability values get flattened', sampling)
+    const uncited = chunk(30, 'nucleus sampling thresholds pick probabilities flatten', sampling)
+    assert.equal(findUncitedSource('Nucleus sampling thresholds pick words.', [cited], [cited, uncited], 'What do nucleus sampling thresholds pick?'), null)
+    assert.equal(findUncitedSource('Nucleus sampling thresholds pick words.', [cited], [cited, uncited], 'What is this?')?.chunkId, uncited.chunkId)
+    assert.equal(findUncitedSource('The probabilities flatten.', [cited], [cited, uncited], 'What is this?'), null)
+  })
+
+  it('keeps a claim whose uncited wording is spread over chunks, fewer than three words each', () => {
+    const cited = chunk(10, 'top-k keeps the likeliest words', sampling)
+    const spread = [chunk(30, 'alpha beta', sampling), chunk(50, 'gamma delta', sampling)]
+    assert.equal(findUncitedSource('Top-k keeps the likeliest words: alpha, beta, gamma, delta.', [cited], [cited, ...spread], 'What is top-k?'), null)
   })
 })
 
