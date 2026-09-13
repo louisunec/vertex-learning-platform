@@ -3,6 +3,7 @@ import {randomUUID} from 'node:crypto'
 import {after, before, beforeEach, describe, it} from 'node:test'
 
 import {createTestDatabase, SKIP_WITHOUT_DATABASE, type TestDatabase} from '../db/test-db.ts'
+import {pauseAfterQuery} from '../db/test-interleave.ts'
 import {submitAttempt, type SubmitAttemptOutcome} from './attempts.ts'
 import {recordHelpEvent} from './help-events.ts'
 import {issueTask, TASK_INSTANCE_TTL_MS} from './task-instances.ts'
@@ -213,6 +214,37 @@ describe('learner evidence', {skip: SKIP_WITHOUT_DATABASE}, () => {
         code: 'idempotency_key_reused',
       })
       assert.deepEqual(await submit(ALICE, instance), {status: 'rejected', code: 'already_submitted'})
+      assert.deepEqual(await counts(), {attempts: 1, outbox: 1, mastery: 1})
+    })
+
+    it('replays a duplicate that commits between the key lookup and the instance check', async () => {
+      // READ COMMITTED gives each statement a fresh snapshot: the first lookup misses the key, the
+      // instance check then sees the committed attempt. The retry must still get its replay.
+      const instance = await issue(ALICE, content.addItem('fam1'))
+      const idempotencyKey = key()
+      const request = {taskInstanceId: instance, optionId: 'opt-a', idempotencyKey}
+      let first: SubmitAttemptOutcome | undefined
+      const interleaved = pauseAfterQuery(db.sql, 'idempotency_key =', async () => {
+        first = await submitAttempt({db: db.sql, content, learnerId: ALICE, request, now: NOW})
+      })
+      const retry = graded(await submitAttempt({db: interleaved, content, learnerId: ALICE, request, now: NOW}))
+      assert.equal(interleaved.paused(), true)
+      assert.deepEqual([first && graded(first).replayed, retry.replayed], [false, true])
+      assert.deepEqual(retry.body, first && graded(first).body)
+      assert.deepEqual(await counts(), {attempts: 1, outbox: 1, mastery: 1})
+    })
+
+    it('still rejects a different key, or a changed body, for an instance answered in between', async () => {
+      const instance = await issue(ALICE, content.addItem('fam1'))
+      const idempotencyKey = key()
+      const between = () => submitAttempt({db: db.sql, content, learnerId: ALICE, request: {taskInstanceId: instance, optionId: 'opt-a', idempotencyKey}, now: NOW})
+      const otherKey = pauseAfterQuery(db.sql, 'idempotency_key =', between)
+      assert.deepEqual(await submitAttempt({db: otherKey, content, learnerId: ALICE, request: {taskInstanceId: instance, optionId: 'opt-a', idempotencyKey: key()}, now: NOW}), {
+        status: 'rejected',
+        code: 'already_submitted',
+      })
+      const changed = await submitAttempt({db: db.sql, content, learnerId: ALICE, request: {taskInstanceId: instance, optionId: 'opt-b', idempotencyKey}, now: NOW})
+      assert.deepEqual(changed, {status: 'rejected', code: 'idempotency_key_reused'})
       assert.deepEqual(await counts(), {attempts: 1, outbox: 1, mastery: 1})
     })
 
