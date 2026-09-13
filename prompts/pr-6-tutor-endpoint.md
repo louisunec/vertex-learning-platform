@@ -361,3 +361,9 @@ These differ from, or go beyond, the plan above:
   - One level-2 claim added "nonsensical tokens", which its cited chunk doesn't say. The lexical relevance floor cannot catch this.
   - The pilot gate (plan: no known unsupported critical claim) is **not met**.
 - **Test fixture.** `lib/tutor/test-source.ts` holds the shared fixture: content plus mock models that read the prompt's sources.
+
+## Follow-up (2026-09-13)
+
+- Draft PR #12 has a follow-up: `prompts/pr-6-eval-fixes.md` fixes the evaluation findings (term expansion with chapter-first retrieval, a model support check, and a pointer-only level 1). Run 2's evaluation is in `docs/evals/`.
+- **OCR/VLM evidence is not integrated.** PR-2 (`68c2f25`) is not in this stack, so the tutor is transcript-only.
+- **Learner evidence and mastery don't depend on the missing outbox dispatcher.** Each is written in the same transaction as its outbox row, and nothing reads the outbox. Only delivery of those events to analytics and PR-10 depends on a dispatcher.

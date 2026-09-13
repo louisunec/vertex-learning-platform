@@ -2,7 +2,7 @@ import {z} from 'zod'
 
 import {MAX_EVIDENCE_PER_STATEMENT, MAX_FOLLOW_UP_LENGTH, MAX_STATEMENT_LENGTH, MAX_STATEMENTS, resolvedCitationSchema} from '../ai/contracts.ts'
 import {HELP_MODES, HELP_REASON_CODES, HELP_REQUESTS} from '../ai/help-policy.ts'
-import {RETRIEVAL_SCOPES, TUTOR_STATEMENT_KINDS, TUTOR_STATUSES} from '../ai/tutor.ts'
+import {CITED_STATEMENT_KINDS, RETRIEVAL_SCOPES, TUTOR_STATEMENT_KINDS, TUTOR_STATUSES} from '../ai/tutor.ts'
 import {MAX_HINT_LENGTH} from '../assessments/hints.ts'
 import {learnerAssessmentSchema} from '../assessments/learner.ts'
 import {EVIDENCE_KINDS, EVIDENCE_REASONS} from './evidence.ts'
@@ -121,7 +121,8 @@ const tutorStatementSchema = z.strictObject({
 
 /**
  * A tutor answer: server-validated statements whose citations were built
- * from stored records. No hint, answer-key, or raw source field exists.
+ * from stored records and whose support was model-checked (not proven).
+ * No hint, answer-key, or raw source field exists.
  * `help` is null exactly when no help was delivered (insufficient evidence).
  */
 export const tutorResponseSchema = z
@@ -153,8 +154,8 @@ export const tutorResponseSchema = z
     'A clarifying question is level 0 and makes no statements',
   )
   .refine(
-    (body) => body.statements.every((statement) => (statement.kind === 'claim') === statement.citations.length > 0),
-    'Only claims carry citations, and every claim has one',
+    (body) => body.statements.every((statement) => CITED_STATEMENT_KINDS.has(statement.kind) === statement.citations.length > 0),
+    'Only claims and pointers carry citations, and each has one',
   )
 
 export type TutorResponse = z.infer<typeof tutorResponseSchema>

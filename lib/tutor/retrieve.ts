@@ -3,29 +3,35 @@ import {toSourceChunks, type StoredChunk} from '../evidence/chunks.ts'
 import {countTermHits} from '../search/terms.ts'
 import {MAX_CHUNK_SECONDS} from '../video/ingest.ts'
 import {parseVideoUrl} from '../video/provider.ts'
-import type {TutorLesson, TutorSource, TutorVideo} from './source.ts'
+import type {ChunkRange, TutorLesson, TutorSource, TutorVideo} from './source.ts'
 
 /**
  * Time-anchored retrieval for the tutor (development plan §5 PR-6). One
  * deterministic pass through three tiers, each hard-bounded:
  *
  * 1. `window`: chunks of the lesson video overlapping ±90 s of the playhead.
- * 2. `lesson`: when no window chunk strongly matches the question,
- *    same-video chunks outside the window that prefix-match a term.
- * 3. `course`: when no lesson chunk strongly matches either, matching
- *    chunks from the other lessons of the parent course.
+ *    A question with no topic words stays here.
+ * 2. `lesson`: always searched when the question has topic words. Chapters
+ *    first (AGENTS.md §9): chunks inside a chapter whose label matches a
+ *    term; then same-video chunks outside the window that prefix-match one.
+ * 3. `course`: when neither tier holds a strong match for the learner's own
+ *    words, matching chunks from the other lessons of the parent course.
  *
- * A chunk matches strongly when it contains two question terms, or the only
- * one: a single incidental word ("contextually") must not stop the search.
- *
- * `scope` reports the widest tier searched. A question with no topic terms
- * stays in the window. A course-tier chunk counts only when its video
- * resolves to a published lesson, which its citation then points at.
+ * `terms` are the learner's words plus model-suggested variants
+ * (`lib/ai/tutor-terms.ts`), used for recall and ranking. `baseTerms` are
+ * the learner's words alone: a chunk matches strongly when it contains two
+ * of them, or the only one, so a variant or a single incidental word
+ * ("contextually") never stops the search. `scope` reports the widest tier
+ * searched. A course-tier chunk counts only when its video resolves to a
+ * published lesson, which its citation then points at.
  */
 
 export const WINDOW_SECONDS = 90
 export const MAX_WINDOW_CHUNKS = 14
 export const MAX_LESSON_CHUNKS = 8
+/** Chapters whose label matches a term, and chunks taken from their spans (split evenly). */
+export const MAX_MATCHED_CHAPTERS = 2
+export const MAX_CHAPTER_CHUNKS = 8
 export const MAX_COURSE_LESSONS = 20
 export const MAX_CHUNKS_PER_COURSE_VIDEO = 3
 export const MAX_COURSE_CHUNKS = 12
@@ -106,6 +112,58 @@ async function windowChunks(source: TutorSource, scope: TutorLessonScope, curren
     .toSorted((a, b) => a.startSeconds - b.startSeconds)
 }
 
+/** `span` without the part `window` already covers: zero, one, or two ranges. */
+function outside(span: ChunkRange, window: ChunkRange): ChunkRange[] {
+  const ranges: ChunkRange[] = []
+  if (span.fromSeconds < window.fromSeconds) ranges.push({fromSeconds: span.fromSeconds, toSeconds: Math.min(span.toSeconds, window.fromSeconds - 1)})
+  if (span.toSeconds > window.toSeconds) ranges.push({fromSeconds: Math.max(span.fromSeconds, window.toSeconds + 1), toSeconds: span.toSeconds})
+  return ranges.filter((range) => range.toSeconds >= range.fromSeconds)
+}
+
+/**
+ * Chunks inside the spans of chapters whose label matches a term, outside
+ * the window (already searched). The budget is split evenly between the
+ * matched chapters, so the chapter around the playhead cannot crowd out a
+ * later one (a "Pros and Cons" chapter for a question about downsides).
+ */
+async function chapterChunks(
+  source: TutorSource,
+  scope: TutorLessonScope,
+  currentSeconds: number,
+  terms: readonly string[],
+): Promise<EvidenceChunk[]> {
+  const video = scope.video
+  if (!video || video.chapters.length === 0) return []
+  const spans = video.chapters
+    .map((chapter, i) => ({
+      hits: countTermHits(chapter.label, terms),
+      fromSeconds: chapter.startSeconds,
+      // A chapter ends where the next begins, else at the video end.
+      toSeconds: (video.chapters[i + 1]?.startSeconds ?? video.durationSeconds ?? chapter.startSeconds + 600) - 1,
+    }))
+    .filter((span) => span.hits > 0 && span.toSeconds >= span.fromSeconds)
+    .toSorted((a, b) => b.hits - a.hits || a.fromSeconds - b.fromSeconds)
+    .slice(0, MAX_MATCHED_CHAPTERS)
+  if (spans.length === 0) return []
+
+  const quota = Math.floor(MAX_CHAPTER_CHUNKS / spans.length)
+  const window = windowRange(currentSeconds).overlap
+  const perChapter = await Promise.all(
+    spans.map(async (span) => {
+      const chunks: EvidenceChunk[] = []
+      for (const range of outside(span, window)) {
+        if (chunks.length >= quota) break
+        const stored = await source.loadWindow(video.id, range, quota - chunks.length)
+        for (const chunk of toSourceChunks({_id: video.id, durationSeconds: video.durationSeconds, transcriptChunks: stored})) {
+          chunks.push({...chunk, lessonId: scope.lesson.id, lessonTitle: scope.lesson.title, lessonSlug: scope.lesson.slug})
+        }
+      }
+      return chunks.slice(0, quota)
+    }),
+  )
+  return perChapter.flat()
+}
+
 async function lessonChunks(
   source: TutorSource,
   scope: TutorLessonScope,
@@ -179,17 +237,23 @@ function capEvidence(tiers: ReadonlyArray<readonly EvidenceChunk[]>): EvidenceCh
 export async function retrieveEvidence(
   source: TutorSource,
   scope: TutorLessonScope,
-  {currentSeconds, terms}: {currentSeconds: number; terms: readonly string[]},
+  {currentSeconds, terms, baseTerms = terms}: {currentSeconds: number; terms: readonly string[]; baseTerms?: readonly string[]},
 ): Promise<TutorRetrieval> {
-  const strong = (chunk: EvidenceChunk) => countTermHits(chunk.text, terms) >= Math.min(STRONG_MATCH_TERMS, terms.length)
   const window = await windowChunks(source, scope, currentSeconds)
-  if (terms.length === 0 || window.some(strong)) return {scope: 'window', chunks: capEvidence([window])}
+  if (terms.length === 0) return {scope: 'window', chunks: capEvidence([window])}
 
-  const lesson = await lessonChunks(source, scope, currentSeconds, terms)
-  if (lesson.some(strong) || scope.courseLessons.length === 0) {
-    return {scope: 'lesson', chunks: capEvidence([window, lesson])}
+  const [chapters, lesson] = await Promise.all([
+    chapterChunks(source, scope, currentSeconds, terms),
+    lessonChunks(source, scope, currentSeconds, terms),
+  ])
+  const strong = (chunk: EvidenceChunk) =>
+    baseTerms.length > 0 && countTermHits(chunk.text, baseTerms) >= Math.min(STRONG_MATCH_TERMS, baseTerms.length)
+  // Chapter chunks go first after the window: a chapter title match is the most specific signal.
+  const lessonTiers = [window, chapters, lesson]
+  if (lessonTiers.some((tier) => tier.some(strong)) || scope.courseLessons.length === 0) {
+    return {scope: 'lesson', chunks: capEvidence(lessonTiers)}
   }
 
   const course = await courseChunks(source, scope, terms)
-  return {scope: 'course', chunks: capEvidence([window, lesson, course])}
+  return {scope: 'course', chunks: capEvidence([...lessonTiers, course])}
 }

@@ -39,6 +39,7 @@ function hooksChunks(): StoredChunk[] {
     120: 'calling useState returns the current state and a setter function',
     400: 'useEffect runs after render to synchronize with an external system',
     420: 'the effect cleanup runs before the next effect and on unmount',
+    520: 'the cons of putting everything in state are extra renders and stale values',
   }
   return Array.from({length: 30}, (_, i) => {
     const start = i * 20
@@ -56,8 +57,18 @@ export class FixtureTutorSource implements TutorSource {
   constructor() {
     const course = [HOOKS_LESSON, READING_LESSON, EFFECTS_LESSON]
     for (const lesson of course) this.lessons.set(lesson.id, {...lesson, courseLessons: course})
-    this.videos.set('youtube-hooksvideo1', {id: HOOKS_VIDEO_ID, videoId: 'youtube-hooksvideo1', durationSeconds: 600})
-    this.videos.set('youtube-memovideo01', {id: MEMO_VIDEO_ID, videoId: 'youtube-memovideo01', durationSeconds: 300})
+    this.videos.set('youtube-hooksvideo1', {
+      id: HOOKS_VIDEO_ID,
+      videoId: 'youtube-hooksvideo1',
+      durationSeconds: 600,
+      chapters: [
+        {startSeconds: 0, label: 'Intro'},
+        {startSeconds: 80, label: 'useState'},
+        {startSeconds: 380, label: 'Effects'},
+        {startSeconds: 500, label: 'Pros and Cons'},
+      ],
+    })
+    this.videos.set('youtube-memovideo01', {id: MEMO_VIDEO_ID, videoId: 'youtube-memovideo01', durationSeconds: 300, chapters: []})
     this.chunks.set(HOOKS_VIDEO_ID, hooksChunks())
     this.chunks.set(MEMO_VIDEO_ID, [
       {_key: 'tc-0', startSeconds: 0, text: 'welcome back to the course'},
@@ -101,40 +112,52 @@ const usage = {
 }
 
 type PromptSource = {chunkId: string; chunkRevision: string; text: string}
+type Message = {role: string; content: unknown}
 
-/** The sources the tutor put in the user message. */
-export function promptSources(options: {prompt: ReadonlyArray<{role: string; content: unknown}>}): PromptSource[] {
+function inputOf(options: {prompt: ReadonlyArray<Message>}): unknown {
   for (const message of options.prompt) {
     if (message.role !== 'user' || !Array.isArray(message.content)) continue
     for (const part of message.content as Array<{type: string; text?: string}>) {
-      if (part.type === 'text' && part.text?.startsWith('Input:\n')) {
-        return (JSON.parse(part.text.slice('Input:\n'.length)) as {sources: PromptSource[]}).sources
-      }
+      if (part.type === 'text' && part.text?.startsWith('Input:\n')) return JSON.parse(part.text.slice('Input:\n'.length))
+      if (part.type === 'text' && part.text?.startsWith('Learner question: ')) return JSON.parse(part.text.slice('Learner question: '.length))
     }
   }
-  return []
+  return null
 }
 
-/** A model returning `respond(sources)` as its JSON output; `calls` counts invocations. */
-export function scriptedModel(respond: (sources: PromptSource[]) => unknown) {
-  const model = new MockLanguageModelV4({
-    doGenerate: async (options) => {
-      model.calls++
-      return {
-        content: [{type: 'text', text: JSON.stringify(respond(promptSources(options)))}],
-        finishReason: {unified: 'stop', raw: undefined},
-        usage,
-        warnings: [],
-      }
-    },
-  }) as MockLanguageModelV4 & {calls: number}
-  model.calls = 0
-  return model
+/** The sources the tutor put in the user message. */
+export function promptSources(options: {prompt: ReadonlyArray<Message>}): PromptSource[] {
+  return (inputOf(options) as {sources?: PromptSource[]} | null)?.sources ?? []
 }
 
-/** Cites the first source with a claim that repeats its opening words (so it passes the relevance floor). */
-export const citingModel = () =>
-  scriptedModel((sources) => ({
+export type SupportInput = {question: string; items: Array<{id: number; kind: string; text: string; sources: string[]}>; guidingQuestion: string | null}
+
+type Task = 'terms' | 'answer' | 'direction' | 'support'
+
+function taskOf(options: {prompt: ReadonlyArray<Message>}): Task {
+  const system = options.prompt.find((message) => message.role === 'system')?.content
+  const text = typeof system === 'string' ? system : ''
+  if (text.startsWith('You turn a learner question')) return 'terms'
+  if (text.startsWith('You check a tutor answer')) return 'support'
+  return text.includes('Help level 1 (direction)') ? 'direction' : 'answer'
+}
+
+export type TutorModelHandlers = {
+  /** Keyword variants for the question (default: none). */
+  terms?: (question: string) => unknown
+  /** Levels 2–3 output (default: one claim repeating the first source's opening words). */
+  answer?: (sources: PromptSource[], question: string) => unknown
+  /** Level 1 output (default: point at the first source sharing a question word, one neutral guiding question). */
+  direction?: (sources: PromptSource[], question: string) => unknown
+  /** Support verdicts (default: every item supported, no leak). */
+  support?: (input: SupportInput) => unknown
+}
+
+export const DEFAULT_GUIDING_QUESTION = 'What does the instructor emphasise at that point?'
+
+const defaults: Required<TutorModelHandlers> = {
+  terms: () => ({keywords: []}),
+  answer: (sources) => ({
     status: 'supported',
     statements: [
       {kind: 'connective', text: 'Here is what the lesson says.', evidence: []},
@@ -145,16 +168,63 @@ export const citingModel = () =>
       },
     ],
     followUp: null,
-  }))
+  }),
+  direction: (sources, question) => {
+    const words = tokenize(question).filter((word) => word.length >= 4)
+    const source = sources.find((candidate) => tokenize(candidate.text).some((token) => words.includes(token))) ?? sources[0]
+    return {
+      status: 'supported',
+      pointers: [{chunkId: source.chunkId, chunkRevision: source.chunkRevision}],
+      guidingQuestion: DEFAULT_GUIDING_QUESTION,
+    }
+  },
+  support: (input) => ({verdicts: input.items.map((item) => ({id: item.id, verdict: 'supported'})), guidingQuestionRevealsAnswer: false}),
+}
 
-/** A model whose provider call fails. */
-export function failingModel() {
+/**
+ * A mock model that answers each tutor task from `handlers` (a handler may
+ * throw to simulate a provider failure). `calls` counts answer calls (levels
+ * 1–3); `callsByTask` counts every task; `supportInputs` records what the
+ * support check was shown.
+ */
+export function tutorModel(handlers: TutorModelHandlers = {}) {
   const model = new MockLanguageModelV4({
-    doGenerate: async () => {
-      model.calls++
-      throw new Error('provider exploded')
+    doGenerate: async (options) => {
+      const task = taskOf(options as {prompt: ReadonlyArray<Message>})
+      model.callsByTask[task]++
+      const input = inputOf(options as {prompt: ReadonlyArray<Message>})
+      let output: unknown
+      if (task === 'terms') output = (handlers.terms ?? defaults.terms)(input as string)
+      else if (task === 'support') {
+        model.supportInputs.push(input as SupportInput)
+        output = (handlers.support ?? defaults.support)(input as SupportInput)
+      } else {
+        model.calls++
+        const {sources, question} = input as {sources: PromptSource[]; question: string}
+        output =
+          task === 'direction'
+            ? (handlers.direction ?? defaults.direction)(sources, question)
+            : (handlers.answer ?? defaults.answer)(sources, question)
+      }
+      return {content: [{type: 'text', text: JSON.stringify(output)}], finishReason: {unified: 'stop', raw: undefined}, usage, warnings: []}
     },
-  }) as MockLanguageModelV4 & {calls: number}
+  }) as MockLanguageModelV4 & {calls: number; callsByTask: Record<Task, number>; supportInputs: SupportInput[]}
   model.calls = 0
+  model.callsByTask = {terms: 0, answer: 0, direction: 0, support: 0}
+  model.supportInputs = []
   return model
+}
+
+/** Levels 2–3 answer from `respond`, everything else by default. */
+export const scriptedModel = (respond: (sources: PromptSource[]) => unknown) => tutorModel({answer: respond})
+
+/** Cites the first source with a claim that repeats its opening words (so it passes the relevance floor). */
+export const citingModel = () => tutorModel()
+
+/** A model whose every provider call fails. */
+export function failingModel() {
+  const fail = () => {
+    throw new Error('provider exploded')
+  }
+  return tutorModel({terms: fail, answer: fail, direction: fail, support: fail})
 }

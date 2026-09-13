@@ -13,7 +13,7 @@ import {requestHelp} from '../learner/help.ts'
 import {issueTask} from '../learner/task-instances.ts'
 import {FixtureContent} from '../learner/test-content.ts'
 import {askTutor, type AskTutorOutcome} from './service.ts'
-import {citingModel, failingModel, FixtureTutorSource, scriptedModel} from './test-source.ts'
+import {citingModel, failingModel, FixtureTutorSource, scriptedModel, tutorModel} from './test-source.ts'
 
 /**
  * The tutor service against a real Postgres under the app role
@@ -94,13 +94,13 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
     return {...row}
   }
 
-  it('answers from the window with server-built citations and records ids and enums only', async () => {
+  it('answers with server-built citations and records ids and enums only', async () => {
     const body = answered(await ask({sessionId: 'session-aaaaaaaa'}))
     assert.equal(body.status, 'supported')
-    assert.equal(body.scope, 'window')
+    assert.equal(body.scope, 'lesson')
     assert.deepEqual(body.help && {level: body.help.level, reasonCode: body.help.reasonCode}, {level: 1, reasonCode: 'first_help'})
-    const [claim] = body.statements.filter((statement) => statement.kind === 'claim')
-    assert.match(claim.citations[0].href, /^\/lessons\/react-hooks\?t=\d+$/)
+    const [pointer] = body.statements.filter((statement) => statement.kind === 'pointer')
+    assert.match(pointer.citations[0].href, /^\/lessons\/react-hooks\?t=\d+$/)
     assert.equal(model.calls, 1)
 
     const [request] = await db.sql`select * from learner.tutor_request`
@@ -114,7 +114,7 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
         session: request.session_id,
         model: request.model_id,
       },
-      {lesson: 'lesson-hooks', status: 'supported', scope: 'window', cited: 1, help: body.help?.helpEventId, session: 'session-aaaaaaaa', model: 'mock-model-id'},
+      {lesson: 'lesson-hooks', status: 'supported', scope: 'lesson', cited: 1, help: body.help?.helpEventId, session: 'session-aaaaaaaa', model: 'mock-model-id'},
     )
     assert.ok(request.evidence_count > 0)
 
@@ -129,6 +129,7 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
     for (const text of ['useState', 'What does', 'instructor', 'renders']) assert.equal(serialized.includes(text), false, text)
     assert.deepEqual(Object.keys(outbox[1].payload).toSorted(), [
       'citedCount',
+      'droppedStatements',
       'evidenceCount',
       'helpEventId',
       'learnerId',
@@ -136,9 +137,11 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
       'promptVersion',
       'scope',
       'status',
+      'supportCheck',
       'taskInstanceId',
       'tutorRequestId',
     ])
+    assert.deepEqual([outbox[1].payload.supportCheck, outbox[1].payload.promptVersion], ['tutor-support-v1', 'tutor-v2'])
   })
 
   it('rejects a replayed key without a second model call or escalation', async () => {
@@ -206,11 +209,34 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(answered(await ask({taskInstanceId, helpRequest: 'escalate'})).help?.level, 2)
   })
 
-  it('records nothing when the model fails, and reports it as retryable', async () => {
+  it('records nothing when the model or the support check fails, and reports it as retryable', async () => {
     const failing = failingModel()
     await assert.rejects(ask({}, {model: failing}), (error) => error instanceof AiCallError && error.category === 'provider_error')
     await assert.rejects(ask({}, {model: null}), AiCallError)
+    const failingCheck = tutorModel({
+      support: () => {
+        throw new Error('checker down')
+      },
+    })
+    await assert.rejects(ask({}, {model: failingCheck}), (error) => error instanceof AiCallError && error.category === 'provider_error')
+    assert.equal(failingCheck.calls, 1)
     assert.deepEqual(await counts(), {requests: 0, events: 0, outbox: 0})
+  })
+
+  it('never delivers help from claims the support check rejects', async () => {
+    const taskInstanceId = await issue()
+    const rejecting = tutorModel({support: (input) => ({verdicts: input.items.map((item) => ({id: item.id, verdict: 'not_supported'})), guidingQuestionRevealsAnswer: false})})
+    const body = answered(await ask({taskInstanceId}, {model: rejecting}))
+    assert.deepEqual([body.status, body.help, body.statements], ['insufficient_evidence', null, []])
+    const [event] = await db.sql`select count(*)::int as n from learner.help_event`
+    assert.equal(event.n, 0, 'no help recorded, so the task is not marked assisted')
+  })
+
+  it('answers level 1 with pointers and a guiding question, never a claim', async () => {
+    const body = answered(await ask({sessionId: 'session-eeeeeeee'}))
+    assert.equal(body.help?.level, 1)
+    assert.deepEqual(body.statements.map((statement) => statement.kind), ['pointer', 'connective'])
+    assert.match(body.statements[0].text, /^This is covered in React hooks · \d+:\d{2}\.$/)
   })
 
   it('records a request but no help when the evidence is insufficient', async () => {
@@ -226,7 +252,7 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(model.calls, 0)
 
     const refused = scriptedModel(() => ({status: 'insufficient_evidence', statements: [], followUp: null}))
-    const said = answered(await ask({}, {model: refused}))
+    const said = answered(await ask({mode: 'reference'}, {model: refused}))
     assert.deepEqual([said.status, said.help, refused.calls], ['insufficient_evidence', null, 1])
 
     assert.deepEqual(await counts(), {requests: 2, events: 0, outbox: 2})

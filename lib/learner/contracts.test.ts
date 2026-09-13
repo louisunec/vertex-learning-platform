@@ -216,6 +216,12 @@ describe('tutorResponseSchema', () => {
     assert.equal(tutorResponseSchema.safeParse({...answer, statements: [statement]}).success, false)
   })
 
+  it('accepts a level-1 pointer only with a citation', () => {
+    const pointer = {kind: 'pointer', text: 'This is covered in React hooks · 1:40.', citations: [citation]}
+    assert.ok(tutorResponseSchema.safeParse({...answer, statements: [pointer]}).success)
+    assert.equal(tutorResponseSchema.safeParse({...answer, statements: [{...pointer, citations: []}]}).success, false)
+  })
+
   it('ties citations to claims and help to delivery', () => {
     const uncitedClaim = {...answer, statements: [{kind: 'claim', text: 'Unsupported.', citations: []}]}
     const citedAnalogy = {...answer, statements: [{kind: 'analogy', text: 'Like a note.', citations: [citation]}]}

@@ -26,8 +26,10 @@ export type TutorLesson = {
 /** A published lesson with the published lessons of its parent course, in curriculum order. */
 export type TutorLessonContext = TutorLesson & {courseLessons: TutorLesson[]}
 
-/** A video record: `id` is the document id chunk ids derive from. */
-export type TutorVideo = {id: string; videoId: string; durationSeconds: number | null}
+export type TutorChapter = {startSeconds: number; label: string}
+
+/** A video record: `id` is the document id chunk ids derive from. Chapters are in time order. */
+export type TutorVideo = {id: string; videoId: string; durationSeconds: number | null; chapters: TutorChapter[]}
 
 export type ChunkRange = {fromSeconds: number; toSeconds: number}
 
@@ -48,6 +50,7 @@ export type TutorSource = {
 
 export const MAX_COURSE_LESSON_ROWS = 60
 export const MAX_VIDEO_ROWS = 40
+export const MAX_CHAPTERS = 40
 const MAX_CHUNK_FETCH = 32
 
 /** Same token shape `sanitizeTerms` produces; nothing else reaches a GROQ `match`. */
@@ -69,7 +72,7 @@ export const LESSON_CONTEXT_QUERY = /* groq */ `
 
 export const VIDEOS_QUERY = /* groq */ `
   *[_type == "video" && videoId in $videoIds && ${PUBLISHED}] | order(_createdAt asc)[0...${MAX_VIDEO_ROWS}]{
-    _id, videoId, durationSeconds
+    _id, videoId, durationSeconds, "chapters": chapters[0...${MAX_CHAPTERS}]{ startSeconds, label }
   }
 `
 
@@ -132,7 +135,13 @@ const lessonRowSchema = z.object({
 })
 
 const chunkRowSchema = z.object({_key: z.string().min(1), startSeconds: seconds, text: z.string()})
-const videoRowSchema = z.object({_id: publishedId, videoId: z.string().min(1), durationSeconds: z.number().nonnegative().nullish()})
+const videoRowSchema = z.object({
+  _id: publishedId,
+  videoId: z.string().min(1),
+  durationSeconds: z.number().nonnegative().nullish(),
+  chapters: z.unknown().optional(),
+})
+const chapterRowSchema = z.object({startSeconds: seconds, label: z.string().trim().min(1).max(200)})
 
 const toLesson = (row: z.infer<typeof lessonRowSchema>): TutorLesson => ({
   id: row._id,
@@ -167,7 +176,12 @@ export function createGroqTutorSource(groq: (query: string, params: Record<strin
       const byVideoId = new Map<string, TutorVideo>()
       for (const row of rows) {
         if (byVideoId.has(row.videoId)) continue
-        byVideoId.set(row.videoId, {id: row._id, videoId: row.videoId, durationSeconds: row.durationSeconds ?? null})
+        byVideoId.set(row.videoId, {
+          id: row._id,
+          videoId: row.videoId,
+          durationSeconds: row.durationSeconds ?? null,
+          chapters: parseRows(row.chapters, chapterRowSchema).toSorted((a, b) => a.startSeconds - b.startSeconds),
+        })
       }
       return [...byVideoId.values()]
     },

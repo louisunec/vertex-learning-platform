@@ -55,13 +55,13 @@ describe('resolveLessonScope', () => {
 })
 
 describe('retrieveEvidence', () => {
-  it('answers from the ±90 s window when a window chunk strongly matches the question', async () => {
+  it('searches the window and the lesson for a topical question, and stops there on a strong match', async () => {
     const {source, scope} = await setup()
     const retrieval = await retrieve(source, scope, 110, 'What does useState return?')
-    assert.equal(retrieval.scope, 'window')
-    assert.deepEqual(starts(retrieval.chunks), [20, 40, 60, 80, 100, 120, 140, 160, 180, 200])
-    assert.deepEqual(source.calls, ['loadWindow'])
-    assert.deepEqual(source.windows, [{fromSeconds: 0, toSeconds: 200}])
+    assert.equal(retrieval.scope, 'lesson')
+    assert.deepEqual(starts(retrieval.chunks).slice(0, 10), [20, 40, 60, 80, 100, 120, 140, 160, 180, 200])
+    assert.deepEqual(source.windows[0], {fromSeconds: 0, toSeconds: 200})
+    assert.equal(source.calls.includes('loadVideos'), false, 'the course tier was not searched')
   })
 
   it('bounds the window at the start and at the end of the video', async () => {
@@ -78,9 +78,24 @@ describe('retrieveEvidence', () => {
       HOOKS_VIDEO_ID,
       Array.from({length: 120}, (_, i) => ({_key: `k${i}`, startSeconds: i * 5, text: `useState detail ${i}`})),
     )
-    const retrieval = await retrieve(source, scope, 300, 'useState')
+    const retrieval = await retrieve(source, scope, 300, 'what does this mean?')
     assert.equal(retrieval.chunks.length, MAX_WINDOW_CHUNKS)
     assert.ok(retrieval.chunks.every((chunk) => Math.abs(chunk.startSeconds - 300) <= 40))
+  })
+
+  it('reaches a matching chapter outside the window even when the window matches strongly', async () => {
+    const {source, scope} = await setup()
+    // The learner says "downsides"; the lesson teaches them under "Pros and Cons". The window matches
+    // "useState renders" strongly, and the "useState" chapter around the playhead matches too.
+    const retrieval = await retrieveEvidence(source, scope, {
+      currentSeconds: 110,
+      baseTerms: contentTerms('What are the downsides of useState renders?'),
+      terms: [...contentTerms('What are the downsides of useState renders?'), 'con'],
+    })
+    assert.equal(retrieval.scope, 'lesson')
+    assert.ok(starts(retrieval.chunks).includes(520), 'the Pros and Cons chunk is retrieved')
+    // Chapter fetches never re-read the window.
+    assert.ok(source.windows.slice(1).every((range) => range.fromSeconds > 200 || range.toSeconds < 20))
   })
 
   it('does not stop at a window chunk sharing only one of several question terms', async () => {
@@ -95,7 +110,7 @@ describe('retrieveEvidence', () => {
     const {source, scope} = await setup()
     const retrieval = await retrieve(source, scope, 110, 'When does the effect cleanup run?')
     assert.equal(retrieval.scope, 'lesson')
-    assert.deepEqual(source.calls, ['loadWindow', 'searchChunks'])
+    assert.deepEqual(source.calls.toSorted(), ['loadWindow', 'loadWindow', 'searchChunks'])
     assert.ok(starts(retrieval.chunks).includes(420))
     assert.equal(retrieval.chunks.filter((chunk) => chunk.startSeconds > 200).every((chunk) => chunk.lessonId === 'lesson-hooks'), true)
   })
@@ -106,6 +121,16 @@ describe('retrieveEvidence', () => {
     assert.equal(retrieval.scope, 'course')
     const memo = retrieval.chunks.find((chunk) => chunk.chunkId === `${MEMO_VIDEO_ID}:tc-60`)
     assert.deepEqual([memo?.lessonId, memo?.lessonSlug, memo?.endSeconds], [EFFECTS_LESSON.id, EFFECTS_LESSON.slug, 90])
+  })
+
+  it('parses chapters leniently and in time order', async () => {
+    const source = createGroqTutorSource(async () => [
+      {_id: 'video-youtube-a', videoId: 'youtube-a', durationSeconds: 100, chapters: [{startSeconds: 50, label: 'Later'}, {startSeconds: 0, label: 'Intro'}, {label: 'broken'}]},
+    ])
+    assert.deepEqual((await source.loadVideos(['youtube-a']))[0].chapters, [
+      {startSeconds: 0, label: 'Intro'},
+      {startSeconds: 50, label: 'Later'},
+    ])
   })
 
   it('stays in the window for a question with no topic words', async () => {
@@ -179,6 +204,6 @@ describe('createGroqTutorSource', () => {
         : {_id: 'drafts.lesson-hooks', title: 'x', slug: 'x'},
     )
     assert.equal(await source.loadLesson('lesson-hooks'), null)
-    assert.deepEqual(await source.loadVideos(['youtube-a']), [{id: 'video-youtube-a', videoId: 'youtube-a', durationSeconds: 10}])
+    assert.deepEqual(await source.loadVideos(['youtube-a']), [{id: 'video-youtube-a', videoId: 'youtube-a', durationSeconds: 10, chapters: []}])
   })
 })

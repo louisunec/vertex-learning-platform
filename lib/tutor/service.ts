@@ -4,15 +4,17 @@ import type postgres from 'postgres'
 import {AiCallError} from '../ai/gateway.ts'
 import {decideHelpLevel, type HelpDecision, type HelpLevel} from '../ai/help-policy.ts'
 import {
+  answerTutorQuestion,
   CLARIFYING_QUESTION,
   contentTerms,
-  generateTutorAnswer,
   INSUFFICIENT_EVIDENCE_MESSAGE,
   TUTOR_PROMPT_VERSION,
   type RetrievalScope,
   type TutorAnswer,
   type TutorStatus,
 } from '../ai/tutor.ts'
+import {TUTOR_SUPPORT_PROMPT_VERSION} from '../ai/tutor-support.ts'
+import {expandTutorTerms} from '../ai/tutor-terms.ts'
 import {asLearner, type LearnerTx} from '../db/learner-scope.ts'
 import {tutorResponseSchema, type TutorRequest, type TutorResponse} from '../learner/contracts.ts'
 import {
@@ -32,9 +34,11 @@ import type {TutorSource} from './source.ts'
  * 1. Resolve the published lesson and check the playhead against its duration.
  * 2. tx1: replay check, task ownership and lesson match, hourly budget, and
  *    the help level already given on the task instance or session.
- * 3. Retrieve bounded evidence, decide the level (PR-5 policy), and, unless
- *    the request needs clarifying or nothing was found, make one model call
- *    and validate it.
+ * 3. Widen the learner's terms (one small model call, after the budget
+ *    check so a rejected request costs nothing), retrieve bounded evidence,
+ *    decide the level (PR-5 policy), and, unless the request needs
+ *    clarifying or nothing was found, answer and support-check it (two
+ *    more calls; `lib/ai/tutor.ts`).
  * 4. tx2: record the request, the help event when help was delivered, and
  *    their outbox events.
  *
@@ -126,14 +130,15 @@ export async function askTutor({
   if (typeof checked === 'string') return rejected(checked)
   const {instance, currentLevel} = checked
 
-  const terms = contentTerms(request.question)
-  const retrieval = await retrieveEvidence(source, scope, {currentSeconds: request.currentSeconds, terms})
+  const baseTerms = contentTerms(request.question)
+  const terms = await expandTutorTerms({model, question: request.question, baseTerms})
+  const retrieval = await retrieveEvidence(source, scope, {currentSeconds: request.currentSeconds, terms, baseTerms})
   const decision = decideHelpLevel({
     mode: request.mode,
     request: request.helpRequest ?? 'hint',
     currentLevel,
     // Nothing to anchor on: no topic words and no transcript at the playhead.
-    ambiguous: terms.length === 0 && retrieval.chunks.length === 0,
+    ambiguous: baseTerms.length === 0 && retrieval.chunks.length === 0,
   })
 
   let outcome: Outcome
@@ -143,10 +148,11 @@ export async function askTutor({
     outcome = {status: 'insufficient_evidence', answer: null, evidenceCount: 0, modelId: null}
   } else {
     if (!model) throw new AiCallError('provider_error', 'The tutor model is not configured')
-    const answer = await generateTutorAnswer({
+    const answer = await answerTutorQuestion({
       model,
       level: decision.level,
       question: request.question,
+      terms,
       lessonTitle: scope.lesson.title,
       currentSeconds: request.currentSeconds,
       chunks: retrieval.chunks,
@@ -255,6 +261,9 @@ function record({
         scope,
         evidenceCount: outcome.evidenceCount,
         citedCount: outcome.answer?.citedCount ?? 0,
+        droppedStatements: outcome.answer?.dropped.length ?? 0,
+        // Model-assisted, not proof; null when no answer was generated.
+        supportCheck: outcome.answer ? TUTOR_SUPPORT_PROMPT_VERSION : null,
         promptVersion: TUTOR_PROMPT_VERSION,
       })})
     `

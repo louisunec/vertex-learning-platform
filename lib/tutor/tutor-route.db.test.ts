@@ -164,7 +164,7 @@ describe('POST /api/tutor gating', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(response.status, 201)
     assert.equal(response.headers.get('cache-control'), 'no-store')
     const body = await response.json()
-    assert.deepEqual([body.status, body.scope, body.help.level], ['supported', 'window', 1])
+    assert.deepEqual([body.status, body.scope, body.help.level], ['supported', 'lesson', 1])
     assert.ok(state.dbCalls > 0 && state.contentCalls > 0)
     assert.equal(state.model?.calls, 1)
     assert.deepEqual(await writes(), {requests: 1, events: 1, outbox: 2})
