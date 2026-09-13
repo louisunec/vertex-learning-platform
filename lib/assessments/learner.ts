@@ -44,3 +44,38 @@ export function toLearnerAssessments(rows: unknown): LearnerAssessment[] {
   }
   return [...latest.values()].toSorted((a, b) => a.familyId.localeCompare(b.familyId))
 }
+
+/**
+ * One item a lesson's understanding check may issue (PR-7). `primaryConceptRef`
+ * and `firstSeconds` are server-side selection inputs only; nothing but
+ * `item` (learner-safe) ever reaches a response.
+ */
+export type CheckCandidate = {
+  item: LearnerAssessment
+  primaryConceptRef: string | null
+  /** Earliest cited source second, or null when the item cites none. */
+  firstSeconds: number | null
+}
+
+const checkCandidateRowSchema = z.object({
+  item: z.looseObject({_id: z.string()}),
+  primaryConceptRef: z.string().min(1).nullish(),
+  firstSeconds: z.number().nonnegative().nullish(),
+})
+
+/**
+ * Parses `LESSON_CHECK_CANDIDATES_QUERY` rows. Items go through
+ * `toLearnerAssessments`, so a candidate is always an item that can be issued
+ * exactly as projected: invalid, draft, and superseded rows are dropped.
+ */
+export function toCheckCandidates(rows: unknown): CheckCandidate[] {
+  if (!Array.isArray(rows)) return []
+  const parsed = rows.flatMap((row) => {
+    const result = checkCandidateRowSchema.safeParse(row)
+    return result.success ? [result.data] : []
+  })
+  return toLearnerAssessments(parsed.map((row) => row.item)).map((item) => {
+    const row = parsed.find((candidate) => candidate.item._id === item._id)
+    return {item, primaryConceptRef: row?.primaryConceptRef ?? null, firstSeconds: row?.firstSeconds ?? null}
+  })
+}

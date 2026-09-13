@@ -17,6 +17,11 @@ export const FLAGS = {
   helpPolicy: 'help-policy',
   /** PR-6: the time-anchored tutor (`/api/tutor`). Requires `learner-evidence` and `help-policy` too. */
   tutor: 'tutor',
+  /**
+   * PR-7: the lesson-page tutor panel and understanding check (`/api/lesson-check`). The check
+   * requires `learner-evidence`, its hints `help-policy`, and the panel all three flags above.
+   */
+  lessonIntegration: 'lesson-integration',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

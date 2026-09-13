@@ -1,6 +1,6 @@
 import type {GradingItem} from '../assessments/grading.ts'
 import type {HintLadder} from '../assessments/hints.ts'
-import type {LearnerAssessment} from '../assessments/learner.ts'
+import type {CheckCandidate, LearnerAssessment} from '../assessments/learner.ts'
 import type {ConceptNode} from '../concepts/resolve.ts'
 
 /**
@@ -17,6 +17,8 @@ export type LearnerContentSource = {
   loadHintLadder(assessmentId: string): Promise<HintLadder | null>
   /** Published concept nodes by document id. */
   loadConceptIndex(): Promise<ReadonlyMap<string, ConceptNode>>
+  /** Items a published lesson's understanding check may issue now (PR-7), at most 50. */
+  loadLessonCheckCandidates(lessonId: string): Promise<CheckCandidate[]>
 }
 
 /** Published content could not be read; the request may be retried. */

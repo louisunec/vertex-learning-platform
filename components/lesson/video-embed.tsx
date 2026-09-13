@@ -5,6 +5,7 @@ import posthog from "posthog-js";
 import type { VideoProvider } from "@/lib/video/provider";
 import { COMPLETION_MILESTONE, reachedMilestones, type WatchDepthMilestone } from "@/lib/video/watch-depth";
 import { loadYouTubeIframeApi, type YouTubePlayer } from "@/lib/video/youtube-iframe-api";
+import { useLessonPlayer } from "./lesson-player";
 
 /** Where playback starts: a `?t=` deep link, the stored resume position, or 0. */
 export type StartSource = "deeplink" | "resume" | "beginning";
@@ -40,13 +41,16 @@ function postProgress(lessonId: string, positionSeconds: number, completed: bool
  * watch-depth analytics through the IFrame Player API and, for signed-in
  * learners, save progress (on pause, every 15 s of playback, at the 90%
  * completion milestone, on end, and when the page is hidden); other
- * providers only play.
+ * providers only play. Inside `LessonPlayerProvider` (PR-7) the YouTube
+ * player is also shared with the tutor and check, and the completion
+ * milestone is announced to them.
  */
 export function VideoEmbed({ src, title, tracking }: { src: string; title: string; tracking: VideoTracking }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // Refs survive Strict Mode's double effect, keeping each event once per mount.
   const played = useRef(false);
   const reported = useRef(new Set<WatchDepthMilestone>());
+  const bridge = useLessonPlayer();
   const { provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress } = tracking;
 
   useEffect(() => {
@@ -56,6 +60,7 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
     let activePlayer: YouTubePlayer | null = null;
+    let unregister: (() => void) | null = null;
     let completed = false;
     let secondsSinceSave = 0;
     const base = {
@@ -98,6 +103,7 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
           posthog.capture("lesson_completed", { ...base, completion_basis: "watch_depth_90" });
           completed = true;
           save(position);
+          bridge?.notifyCompleted();
         }
       }
     };
@@ -118,6 +124,9 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
         if (cancelled) return;
         new YT.Player(iframe, {
           events: {
+            onReady: ({ target }) => {
+              if (!cancelled && bridge) unregister = bridge.register(target, iframe);
+            },
             onStateChange: ({ target: player, data }) => {
               if (cancelled) return;
               activePlayer = player;
@@ -148,9 +157,10 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
     return () => {
       cancelled = true;
       stopPolling();
+      unregister?.();
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress]);
+  }, [provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress, bridge]);
 
   return (
     <div className="overflow-hidden rounded-[20px] bg-black shadow-sm">
