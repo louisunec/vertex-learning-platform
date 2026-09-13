@@ -120,3 +120,42 @@ The `tutor` flag stays off, and PR #12 stays a draft. Full live evaluations are 
 - Typecheck, lint, `npm test` and build. Test results are reported as counts.
 - The targeted checks above, reported as they come out.
 - The local Postgres stays running.
+
+## Implementation notes (2026-09-13)
+
+- **Fix 1 (PR-4)** landed as `9827b74` on `feat/pr-4-learner-evidence`, then merged up: `63163eb` on PR-5 and `965c3fd` on PR-6.
+  - **Conflict.** `lib/learner/attempts.ts` contains a literal NUL byte inside a `join('\x00')` in the PR-4 code, so git treats it as binary. The PR-5 merge therefore conflicted, and I resolved it by applying the same one-line change to PR-5's version, byte for byte.
+  - **Results:**
+    - PR-4 passes 361/361.
+    - The PR-5 merge commit passes 398/398, run in a clean detached worktree because the PR-5 worktree holds someone's uncommitted edits to `lib/assessments/hints.ts`, `lib/learner/help.ts` and `lib/learner/help.db.test.ts`. I left those untouched and did not commit them.
+    - The deterministic regression failed 3/3 before the fix and passes 3/3 after.
+    - The original concurrency test, 10 runs each on this machine: 3/10 failed without the fix, 0/10 with it.
+- **Fix 2 (`7dedef6`).** tx1 now looks up the help event first and the tutor request last, instead of adding a re-check. tx2 commits both rows together, so if a help event is visible, the tutor request is too.
+- **Transcripts:**
+  - Fixtures and gate tests use synthetic text with the same chunk times, chapter labels and sentence cuts.
+  - The eval logs and the old packet are redacted (`0ebd02b`).
+  - What remains in committed files:
+    - the tutor's own answer statements in the logs, which sometimes reuse short lesson phrases of 6–8 words;
+    - the new packet's excerpts, which cover 324 of the lesson's 1,237 words (26%). The pushed packet at `604ea16` covered 602 (49%).
+  - **History:** the full text is still in pushed commits on `feat/pr-6-tutor-endpoint` only:
+    - `8a5e148` (fixture) and `2a2666d` (gate tests);
+    - `604ea16` (packet and logs);
+    - `3a60177`/`b5e8899` and `4a48f3e`/`604ea16` (log excerpts).
+  - Nothing has been rewritten.
+- **Passages (`201ccba`): adopted.**
+  - **Offline replay** (stored claims from the comparison and runs 3–4, no model):
+    - of 13 `uncited_source` drops, 9 are citable with the one passage holding their wording, and 13 with two passages;
+    - of 100 kept claims, 1 becomes a drop. It credits "flattens" to the 3:13 example, where the lesson doesn't say it.
+  - **Targeted live** (3 cases):
+    - all structural checks were met;
+    - the nucleus answer kept 4 claims, all cited to 4:26–5:04 (before: 1–3), and two of them add a small uncited "rather than a fixed K/size" contrast;
+    - temperature and downsides claims are stated in their cited passages (the author's reading), with downsides citing 5:41–5:59 as one sentence.
+  - **Design choices:**
+    - level-1 pointers keep chunk refs;
+    - passage ids are local to a request, and an unknown one is `unknown_or_stale_ref`;
+    - dropping a connective leaves the status alone.
+- **Connectives:** `tutor-support-v2` passed both factual connectives from run 4.
+  - On my reading, "…reduce reliability…" is a fair paraphrase of 5:59.
+  - "…trade off creativity/diversity versus focus/determinism…" generalizes something the lesson states only at 7:34, which the answer does not cite.
+  - So the connective check is also fallible.
+- **Latency** (targeted, `tutor-v4`): total 13.3–16.2 s, answer 5.5–7.1 s, support 4.6–8.0 s. The prompts are larger now: passages repeat no text, but the support input includes `answerSources`.
