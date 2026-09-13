@@ -17,7 +17,8 @@ export type MapNodeView = {
   selected: boolean;
 };
 
-export type MapEdgeView = { id: string; path: string };
+/** A prerequisite arrow from the `from` concept to the `to` concept (node ids). */
+export type MapEdgeView = { id: string; from: string; to: string; path: string };
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5];
 
@@ -48,7 +49,16 @@ export function ConceptMap({
 }) {
   const [step, setStep] = useState(ZOOM_STEPS.indexOf(1));
   const zoom = ZOOM_STEPS[step];
-  const markerId = `${useId().replace(/:/g, "")}-arrow`;
+  const idPrefix = useId().replace(/:/g, "");
+  const markerId = `${idPrefix}-arrow`;
+
+  // The arrows are drawn for sighted users only; each node also describes its prerequisites in text.
+  const names = new Map(nodes.map((node) => [node.id, node.name]));
+  const prerequisites = new Map<string, string[]>();
+  for (const edge of edges) {
+    const name = names.get(edge.from);
+    if (name) prerequisites.set(edge.to, [...(prerequisites.get(edge.to) ?? []), name]);
+  }
 
   return (
     <div>
@@ -100,8 +110,10 @@ export function ConceptMap({
             </svg>
 
             <ul aria-labelledby="concept-map">
-              {nodes.map((node) => {
+              {nodes.map((node, index) => {
                 const ui = STATE_UI[node.state];
+                const nodePrerequisites = prerequisites.get(node.id);
+                const descriptionId = `${idPrefix}-prerequisites-${index}`;
                 return (
                   <li key={node.id} className="absolute" style={{ left: node.x, top: node.y, width: nodeWidth, height: nodeHeight }}>
                     <Link
@@ -109,6 +121,7 @@ export function ConceptMap({
                       scroll={false}
                       aria-current={node.selected ? "true" : undefined}
                       aria-label={`${node.name}: ${ui.label}`}
+                      aria-describedby={nodePrerequisites ? descriptionId : undefined}
                       className={cn(
                         "flex size-full items-center gap-3 rounded-sm border px-3 transition-colors",
                         "focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none",
@@ -127,6 +140,11 @@ export function ConceptMap({
                         <span className={cn("block truncate text-small", ui.text)}>{ui.label}</span>
                       </span>
                     </Link>
+                    {nodePrerequisites && (
+                      <span id={descriptionId} className="sr-only">
+                        Prerequisites: {nodePrerequisites.join(", ")}.
+                      </span>
+                    )}
                   </li>
                 );
               })}
