@@ -208,6 +208,8 @@ function reviewPacket(last: Result[]): string {
     'The help level is set by each case; the help policy is not exercised here. Timestamps link to the lesson page at that second.',
     '',
     'For each claim, mark one: `supported` · `not supported` · `wrong source`. For each case, mark whether the answer is acceptable.',
+    '',
+    'Connective and analogy statements carry no citation and no support check; note any that state a fact.',
   ]
   for (const evalCase of cases) {
     const result = last.find((candidate) => candidate.caseId === evalCase.id)
@@ -240,7 +242,10 @@ function reviewPacket(last: Result[]): string {
         lines.push('', 'Removed by the server before display:')
         for (const dropped of answer.dropped) {
           const chunk = dropped.uncitedChunkId ? result.evidence.find((candidate) => candidate.chunkId === dropped.uncitedChunkId) : null
-          lines.push(`- ${dropped.kind}, \`${dropped.reason}\`${chunk ? ` (its wording is at ${formatClock(chunk.startSeconds)})` : ''}: ${dropped.text}`)
+          // A dropped pointer's text is its chunk id: show where it pointed.
+          const pointed = dropped.kind === 'pointer' ? result.evidence.find((candidate) => candidate.chunkId === dropped.text) : null
+          const text = pointed ? `${pointed.lessonTitle} · ${formatClock(pointed.startSeconds)}` : dropped.text
+          lines.push(`- ${dropped.kind}, \`${dropped.reason}\`${chunk ? ` (its wording is at ${formatClock(chunk.startSeconds)})` : ''}: ${text}`)
         }
       }
     }

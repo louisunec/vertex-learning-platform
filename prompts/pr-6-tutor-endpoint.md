@@ -367,3 +367,14 @@ These differ from, or go beyond, the plan above:
 - Draft PR #12 has a follow-up: `prompts/pr-6-eval-fixes.md` fixes the evaluation findings (term expansion with chapter-first retrieval, a model support check, and a pointer-only level 1). Run 2's evaluation is in `docs/evals/`.
 - **OCR/VLM evidence is not integrated.** PR-2 (`68c2f25`) is not in this stack, so the tutor is transcript-only.
 - **Learner evidence and mastery don't depend on the missing outbox dispatcher.** Each is written in the same transaction as its outbox row, and nothing reads the outbox. Only delivery of those events to analytics and PR-10 depends on a dispatcher.
+
+## Follow-up 2 (2026-09-13)
+
+See `prompts/pr-6-citation-retrieval-review.md` for the details.
+
+- **Gate 2b (`uncited_source`)** drops claims whose wording sits in an uncited chunk. The run-2 nucleus pairing (4:47 wording cited to 5:04 and 6:36) is a regression test.
+- **Retrieval** uses deterministic terms: the learner's words plus a fixed pros/cons word list. The `tutor-terms-v1` model call was compared and removed (`docs/evals/pr-6-tutor-comparison.md`).
+- **Hit neighbours** are added, and a chapter that lies entirely inside the window no longer uses a slot.
+- **Prompt version** is now `tutor-v3`.
+- **Evidence:** run 3 and the human review packet are in `docs/evals/`.
+- **OCR/VLM** is follow-up issue #13.
