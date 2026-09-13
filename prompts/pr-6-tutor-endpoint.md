@@ -219,7 +219,7 @@ The work is on branch `feat/pr-6-tutor-endpoint`, in worktree `../vertex-pr-6`, 
      followUp?, message?, help: {helpEventId, level, reasonCode, policyVersion} | null}
     ```
 
-    - **Amended 2026-09-13 (follow-up 3, `201ccba`; documented at follow-up 4):** the citation cap per statement is 6 (`MAX_TUTOR_CITATIONS`), up from 4. A claim cites up to 2 passages of up to 3 time-adjacent chunks, and the server returns one citation per chunk. The canonical contract is `tutorStatementSchema` in `lib/learner/contracts.ts`.
+    - **Amended 2026-09-13 (follow-up 3, `b5a5b3b`; documented at follow-up 4):** the citation cap per statement is 6 (`MAX_TUTOR_CITATIONS`), up from 4. A claim cites up to 2 passages of up to 3 time-adjacent chunks, and the server returns one citation per chunk. The canonical contract is `tutorStatementSchema` in `lib/learner/contracts.ts`.
     - **Client rule (PR-7 `TutorPanel`, PR-10):** keep every citation's `chunkId` and `sourceRevision`. Contiguous same-lesson citations of one statement (each starting at or before the previous one's `endSeconds`) may be shown as one time range seeking to its first `startSeconds`.
     - No consumer exists yet: nothing outside PR-6 reads `tutorResponseSchema`.
 

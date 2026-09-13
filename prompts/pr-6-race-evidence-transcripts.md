@@ -2,6 +2,8 @@
 
 The `tutor` flag stays off, and PR #12 stays a draft. Full live evaluations are paused; only the targeted checks below will run. There is no deployment and no production migration.
 
+> **After the history rewrite (2026-09-13):** PR-6 SHAs below are those of the rewritten branch. Where this file says a commit carried transcript text, it describes that commit before the rewrite; the rewritten commits carry the redacted versions. The old-to-new table is in the PR #12 description.
+
 ## Findings from inspection
 
 ### 1. The concurrency failure is an application defect (PR-4), not a test issue
@@ -28,11 +30,11 @@ The `tutor` flag stays off, and PR #12 stays a draft. Full live evaluations are 
 
 | File | Copied text | Commit |
 | --- | --- | --- |
-| `lib/tutor/test-source.ts` | the **full** sampling transcript: 27 chunks, 1,237 words | `8a5e148` |
-| `lib/ai/tutor.test.ts` | 7 full chunks | `2a2666d` |
-| `docs/evals/pr-6-tutor-review-packet.md` | 35 full-chunk quotes, 14 unique chunks, 644 words (**52% of the transcript**), plus context-window lesson quotes | `604ea16` |
-| `docs/evals/pr-6-tutor-eval-run-{1,2,3,4}.txt` | 42, 41, 38 and 35 excerpts of ≤160 characters | `3a60177`, `b5e8899`, `604ea16` |
-| `docs/evals/pr-6-tutor-comparison-raw.txt` | 157 excerpts of ≤160 characters | `604ea16` |
+| `lib/tutor/test-source.ts` | the **full** sampling transcript: 27 chunks, 1,237 words | `16ae07e` |
+| `lib/ai/tutor.test.ts` | 7 full chunks | `8d4a4c2` |
+| `docs/evals/pr-6-tutor-review-packet.md` | 35 full-chunk quotes, 14 unique chunks, 644 words (**52% of the transcript**), plus context-window lesson quotes | `3843f17` |
+| `docs/evals/pr-6-tutor-eval-run-{1,2,3,4}.txt` | 42, 41, 38 and 35 excerpts of ≤160 characters | `4ece6dd`, `1ec35d7`, `3843f17` |
+| `docs/evals/pr-6-tutor-comparison-raw.txt` | 157 excerpts of ≤160 characters | `3843f17` |
 | `lib/tutor/retrieve.test.ts`, `eval-check.test.ts`, `prompts/*.md`, `docs/evals/pr-6-tutor-comparison.md` | short phrases (≤ 8 words) | various |
 
 - **History.** A new commit can remove the text from the branch tip, but it stays in history and in GitHub's PR views until the history is rewritten and force-pushed. I will not rewrite history without your agreement.
@@ -123,26 +125,26 @@ The `tutor` flag stays off, and PR #12 stays a draft. Full live evaluations are 
 
 ## Implementation notes (2026-09-13)
 
-- **Fix 1 (PR-4)** landed as `9827b74` on `feat/pr-4-learner-evidence`, then merged up: `63163eb` on PR-5 and `965c3fd` on PR-6.
+- **Fix 1 (PR-4)** landed as `9827b74` on `feat/pr-4-learner-evidence`, then merged up: `63163eb` on PR-5 and `496e365` on PR-6.
   - **Conflict.** `lib/learner/attempts.ts` contains a literal NUL byte inside a `join('\x00')` in the PR-4 code, so git treats it as binary. The PR-5 merge therefore conflicted, and I resolved it by applying the same one-line change to PR-5's version, byte for byte.
   - **Results:**
     - PR-4 passes 361/361.
     - The PR-5 merge commit passes 398/398, run in a clean detached worktree because the PR-5 worktree holds someone's uncommitted edits to `lib/assessments/hints.ts`, `lib/learner/help.ts` and `lib/learner/help.db.test.ts`. I left those untouched and did not commit them.
     - The deterministic regression failed 3/3 before the fix and passes 3/3 after.
     - The original concurrency test, 10 runs each on this machine: 3/10 failed without the fix, 0/10 with it.
-- **Fix 2 (`7dedef6`).** tx1 now looks up the help event first and the tutor request last, instead of adding a re-check. tx2 commits both rows together, so if a help event is visible, the tutor request is too.
+- **Fix 2 (`7eeb4d7`).** tx1 now looks up the help event first and the tutor request last, instead of adding a re-check. tx2 commits both rows together, so if a help event is visible, the tutor request is too.
 - **Transcripts:**
   - Fixtures and gate tests use synthetic text with the same chunk times, chapter labels and sentence cuts.
-  - The eval logs and the old packet are redacted (`0ebd02b`).
+  - The eval logs and the old packet are redacted (`9aaa2f4`).
   - What remains in committed files:
     - the tutor's own answer statements in the logs, which sometimes reuse short lesson phrases of 6–8 words;
-    - the new packet's excerpts, which cover 324 of the lesson's 1,237 words (26%). The pushed packet at `604ea16` covered 602 (49%).
+    - the new packet's excerpts, which cover 324 of the lesson's 1,237 words (26%). The pushed packet at `3843f17` covered 602 (49%).
   - **History:** the full text is still in pushed commits on `feat/pr-6-tutor-endpoint` only:
-    - `8a5e148` (fixture) and `2a2666d` (gate tests);
-    - `604ea16` (packet and logs);
-    - `3a60177`/`b5e8899` and `4a48f3e`/`604ea16` (log excerpts).
+    - `16ae07e` (fixture) and `8d4a4c2` (gate tests);
+    - `3843f17` (packet and logs);
+    - `4ece6dd`/`1ec35d7` and `9bf8d3b`/`3843f17` (log excerpts).
   - Nothing has been rewritten.
-- **Passages (`201ccba`): adopted.**
+- **Passages (`b5a5b3b`): adopted.**
   - **Offline replay** (stored claims from the comparison and runs 3–4, no model):
     - of 13 `uncited_source` drops, 9 are citable with the one passage holding their wording, and 13 with two passages;
     - of 100 kept claims, 1 becomes a drop. It credits "flattens" to the 3:13 example, where the lesson doesn't say it.

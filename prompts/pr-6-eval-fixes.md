@@ -11,7 +11,7 @@ Fix the four failures recorded in draft PR #12 without enabling the tutor:
 
 Then add regression tests and re-run the nine-case evaluation. Human review stays pending (`reviewed: false`), and the `tutor` flag stays off. A valid citation ID is never treated as proof that a claim is supported.
 
-The work lands on branch `feat/pr-6-tutor-endpoint` (#12), as a second commit on top of `3a60177`. Nothing is deployed, and no migration is applied outside the local test Postgres.
+The work lands on branch `feat/pr-6-tutor-endpoint` (#12), as a second commit on top of `4ece6dd`. Nothing is deployed, and no migration is applied outside the local test Postgres.
 
 ## Findings from inspection
 

@@ -2,14 +2,16 @@
 
 The `tutor` flag stays off, PR #12 stays a draft, and all nine cases stay `"reviewed": false`. Broad live evaluations stay paused; only the targeted reruns in item 2 call the model. No merge into `main`, no deployment, no production migration, no force-push, no history rewrite.
 
+> **After the history rewrite (2026-09-13):** PR-6 SHAs below are those of the rewritten branch. Where this file says a commit or file carried transcript text, it describes it before the rewrite; the rewritten commits carry the redacted versions. The old-to-new table is in the PR #12 description.
+
 ## Findings from inspection
 
 ### 1. The two unsupported statements are model output that the current gates let through
 
 | Case (stored result) | Statement | Why it is unsupported |
 | --- | --- | --- |
-| `elsewhere-nucleus`, targeted run at `201ccba` (claims 2 and 4) | "…determined by cumulative probability **rather than a fixed K**…" and "…**rather than a fixed size**." | Cited 4:26–5:04. The source defines top-p by a cumulative threshold and says it is more coherent "compared to top-k". It never says top-k's set is "fixed", and never contrasts the two by set size. My earlier "paraphrase" reading was wrong: this is an unsupported addition, and the adoption rule's condition (c) was **not met** at `201ccba`. |
-| `prompt-injection`, run 4 at `4a48f3e` (connective) | "These behaviors let you **trade off creativity/diversity versus focus/determinism** when generating text." | It generalizes the summary at 7:16–7:34, which this answer neither cites nor retrieved: 7:16 and 7:34 are not among the case's 21 retrieved chunks, so the tutor **could not cite 7:34** here. The connective check passed it afterwards, so that check is fallible. |
+| `elsewhere-nucleus`, targeted run at `b5a5b3b` (claims 2 and 4) | "…determined by cumulative probability **rather than a fixed K**…" and "…**rather than a fixed size**." | Cited 4:26–5:04. The source defines top-p by a cumulative threshold and says it is more coherent "compared to top-k". It never says top-k's set is "fixed", and never contrasts the two by set size. My earlier "paraphrase" reading was wrong: this is an unsupported addition, and the adoption rule's condition (c) was **not met** at `b5a5b3b`. |
+| `prompt-injection`, run 4 at `9bf8d3b` (connective) | "These behaviors let you **trade off creativity/diversity versus focus/determinism** when generating text." | It generalizes the summary at 7:16–7:34, which this answer neither cites nor retrieved: 7:16 and 7:34 are not among the case's 21 retrieved chunks, so the tutor **could not cite 7:34** here. The connective check passed it afterwards, so that check is fallible. |
 
 - **Why gate 2b missed the first one.** Gate 2b needs an *uncited* source holding 3 or more of the claim's missing words. "fixed" occurs in no retrieved chunk, so nothing fires.
 - **Other stored connective.** `wrong-citation-downsides` (run 4) also has one: "…very high temperature values **reduce reliability**…". "Reliability" is not in its sources either, so the rule below drops it too.
@@ -30,12 +32,12 @@ The `tutor` flag stays off, PR #12 stays a draft, and all nine cases stay `"revi
 - The edits are in `lib/assessments/hints.ts` (adds `isHintRungLevel`), `lib/learner/help.ts` and `lib/learner/help.db.test.ts` (a new test: "never replays a key whose recorded help delivered no hint").
 - **Timing.** They were saved at 14:22–14:23. My merge `63163eb` came later, at 17:00:55, and was made in that worktree.
 - **The merge could not have changed them.** `0cfb0a0..63163eb` changed only `attempts.ts`, `attempts.db.test.ts` and `test-interleave.ts`, so the three edited files are byte-identical in both commits, and `git diff` shows only the author's edits.
-- **No conflict with PR-6.** A dry-run three-way merge (`git merge-file`, run in the scratchpad) of each edited file against PR-6's `dcbe675` gave 0 conflicts. PR-6's only change nearby is the `truncate` line in `help.db.test.ts`.
+- **No conflict with PR-6.** A dry-run three-way merge (`git merge-file`, run in the scratchpad) of each edited file against PR-6's `77d1b7a` gave 0 conflicts. PR-6's only change nearby is the `truncate` line in `help.db.test.ts`.
 - **Not yet run:** the tests with the edits present (see item 5 below).
 
 ### 4. Transcript text in the current public tree, measured as words inside 8-word runs shared with any of the 120 published transcripts (244,757 words)
 
-| File at `dcbe675` | Words | What it is |
+| File at `77d1b7a` | Words | What it is |
 | --- | --- | --- |
 | `docs/evals/pr-6-tutor-review-packet.md` | 737 | ≤25-word source excerpts per statement |
 | `docs/evals/pr-6-tutor-comparison-raw.txt` | 199 | raw two-arm log (6,939 words): the tutor's statements |
@@ -47,7 +49,7 @@ The `tutor` flag stays off, PR #12 stays a draft, and all nine cases stay `"revi
 
 ### 5. Pushed history (for the cleanup, item 7)
 
-- **Where the transcript text is.** Every blob carrying extensive transcript text is reachable only from `feat/pr-6-tutor-endpoint` (local and origin) and so from PR #12. It came in with 7 commits: `3a60177`, `b5e8899`, `8a5e148`, `2a2666d`, `4a48f3e`, `604ea16` and `21cfcd8` (the last is the ≤25-word excerpts).
+- **Where the transcript text is.** Every blob carrying extensive transcript text is reachable only from `feat/pr-6-tutor-endpoint` (local and origin) and so from PR #12. It came in with 7 commits: `4ece6dd`, `1ec35d7`, `16ae07e`, `8d4a4c2`, `9bf8d3b`, `3843f17` and `22aecc4` (the last is the ≤25-word excerpts).
 - **What depends on the branch.** No other branch or tag contains these commits. The repo has 0 forks. PR #12 has 0 review comments and 0 reviews, so a rewrite loses no comment threads.
 - **GitHub's current guidance** ("Removing sensitive data from a repository", read 2026-09-13):
   - `refs/pull/*` are read-only, so a force-push cannot rewrite them.
@@ -155,7 +157,7 @@ The `tutor` flag stays off, PR #12 stays a draft, and all nine cases stay `"revi
     - `refs/pull/12/head` and `/merge`, which GitHub moves; the old SHAs stay reachable until Support acts, if it does;
     - the local branch and `origin/…` in the PR-6 worktree.
   - **Not affected:** PR-4, PR-5, `main`, forks (none) and tags (none).
-  - **Dependent updates:** reset the PR-6 worktree to the candidate; update the SHAs cited in the #12 body, the #10 and #11 follow-up notes, issue #13, `prompts/pr-6-*.md` and memory. A GitHub Support request would need the first changed commit (`3a60177`) and the number of affected PRs (1).
+  - **Dependent updates:** reset the PR-6 worktree to the candidate; update the SHAs cited in the #12 body, the #10 and #11 follow-up notes, issue #13, `prompts/pr-6-*.md` and memory. A GitHub Support request would need the first changed commit (`3a60177` before the rewrite) and the number of affected PRs (1).
 
 ## Commits (ordinary pushes only)
 
@@ -192,19 +194,20 @@ The `tutor` flag stays off, PR #12 stays a draft, and all nine cases stay `"revi
 - **NUL byte:**
   - `42dc10c` on PR-4 replaces the byte with `'\0'`.
   - `0e643d2` merges it into PR-5 from a temporary worktree and is pushed to origin only, so the PR-5 worktree and its local branch are untouched. The conflict resolved to PR-5's file, leaving the tree unchanged.
-  - `45de589` merges into PR-6, also with no tree change.
+  - `25afd20` merges into PR-6, also with no tree change.
   - GitHub now returns a text `patch` for `attempts.ts` in #10 (238 additions) and #11 (+3/−15).
-- **Gates 2c/2d, `tutor-v5` / `tutor-support-v3`** (`9e48f75`). The offline replay covered 68 stored answers, 156 kept claims and 11 model connectives:
+- **Gates 2c/2d, `tutor-v5` / `tutor-support-v3`** (`bac7ede`). The offline replay covered 68 stored answers, 156 kept claims and 11 model connectives:
   - 2c drops 5 claims: four "rather than a fixed K/size/count", and one run-2 trade-off whose "coherence" is not in its cited text;
   - 2d drops all 11 connectives. Each states or offers something beyond its claims.
   - Only `elsewhere-nucleus` and `prompt-injection` have a current answer that changes.
-- **Packet without source text, plus provenance** (`609ac45`). The raw two-arm log left the tree.
-- **Fresh runs at `609ac45`** (`41cf037`). 4 model calls. Both runs met the structural checks with 0 drops:
+- **Packet without source text, plus provenance** (`9fd4ba9`). The raw two-arm log left the tree.
+- **Fresh runs at `9fd4ba9`** (`c601875`). 4 model calls. Both runs met the structural checks with 0 drops:
   - nucleus: 2 claims, no contrast;
   - prompt-injection: 5 claims, no connective, and the injected instruction was not followed.
 
   Totals were 11.6 s and 15.8 s.
-- **Contract docs** (`e137e42`).
+- **Contract docs** (`c4feb73`).
 - **PR-5 worktree.** The suite passes with the author's edits present (399/399). Their files' checksums are unchanged. The three edits merge onto the PR-6 tip with 0 conflicts, and there the suite passes (494/494) and typecheck passes.
-- **Tip scan** (at `560396b`). No transcript quotes remain. The words inside 8-word runs are the tutor's own statements, which reuse lesson phrases of at most 13 words: 24–93 per eval file (93 in the packet, which repeats statements across Parts 1 and 2). `lib/assessments/generate.test.ts` has 9 (PR-1, out of scope).
+- **Tip scan** (at `eceb4f6`). No transcript quotes remain. The words inside 8-word runs are the tutor's own statements, which reuse lesson phrases of at most 13 words: 24–93 per eval file (93 in the packet, which repeats statements across Parts 1 and 2). `lib/assessments/generate.test.ts` has 9 (PR-1, out of scope).
 - **Item 7** (the history-cleanup candidate) is prepared outside the tree after this commit. Its SHA table and the refs are in the PR #12 description.
+- **Cleanup executed** (2026-09-13, approved). Pushed with `--force-with-lease` on the full old SHA: `feat/pr-6-tutor-endpoint` `6102d67` → `0b46655` (same tree); no other branch or tag moved. PR #12's head is `0b46655`, its base is unchanged, and it is still a draft. The old commits still resolve on GitHub by SHA, and through the PR's force-push event, until GitHub Support acts, if it does.
