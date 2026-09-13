@@ -30,33 +30,33 @@ export const metadata: Metadata = {
 /* ------------------------------------------------------------------ */
 
 const primaryColors = [
-  { name: "Primary 500", hex: "#F97316", cls: "bg-primary-500" },
-  { name: "Primary 400", hex: "#FB923C", cls: "bg-primary-400" },
-  { name: "Primary 300", hex: "#FDBA74", cls: "bg-primary-300" },
-  { name: "Primary 200", hex: "#FED7AA", cls: "bg-primary-200" },
-  { name: "Primary 100", hex: "#FFEEE5", cls: "bg-primary-100" },
+  { name: "Primary 500", hex: "#31FBB8", cls: "bg-primary-500" },
+  { name: "Primary 400", hex: "#31FBB8 · 60%", cls: "bg-primary-400" },
+  { name: "Primary 300", hex: "#31FBB8 · 35%", cls: "bg-primary-300" },
+  { name: "Primary 200", hex: "#31FBB8 · 18%", cls: "bg-primary-200" },
+  { name: "Primary 100", hex: "#31FBB8 · 10%", cls: "bg-primary-100" },
 ];
 
 const neutralColors = [
-  { name: "Neutral 900", hex: "#0F172A", cls: "bg-neutral-900" },
-  { name: "Neutral 700", hex: "#334155", cls: "bg-neutral-700" },
-  { name: "Neutral 500", hex: "#64748B", cls: "bg-neutral-500" },
-  { name: "Neutral 300", hex: "#CBD5E1", cls: "bg-neutral-300" },
-  { name: "Neutral 200", hex: "#E2E8F0", cls: "bg-neutral-200" },
-  { name: "Neutral 100", hex: "#F1F5F9", cls: "bg-neutral-100" },
-  { name: "Neutral 50", hex: "#FAFAFC", cls: "bg-neutral-50" },
-  { name: "White", hex: "#FFFFFF", cls: "bg-white" },
+  { name: "Neutral 900", hex: "#EDEDED", cls: "bg-neutral-900" },
+  { name: "Neutral 700", hex: "#CAD5E2", cls: "bg-neutral-700" },
+  { name: "Neutral 500", hex: "#9EAABF", cls: "bg-neutral-500" },
+  { name: "Neutral 300", hex: "#51555C", cls: "bg-neutral-300" },
+  { name: "Neutral 200", hex: "#2E3238", cls: "bg-neutral-200" },
+  { name: "Neutral 100", hex: "#16171B", cls: "bg-neutral-100" },
+  { name: "Neutral 50", hex: "#101115", cls: "bg-neutral-50" },
+  { name: "Canvas", hex: "#0D0E11", cls: "bg-canvas" },
 ];
 
 const typeScale = [
-  { style: "Display 1", font: "Playfair Display", size: "48 / 56", weight: "Bold", use: "Page titles", cls: "font-display text-display-1" },
-  { style: "Display 2", font: "Playfair Display", size: "36 / 44", weight: "Bold", use: "Section titles", cls: "font-display text-display-2" },
-  { style: "Heading 1", font: "Inter", size: "28 / 36", weight: "Semi Bold", use: "Card titles", cls: "text-h1" },
-  { style: "Heading 2", font: "Inter", size: "22 / 30", weight: "Semi Bold", use: "Sub section", cls: "text-h2" },
-  { style: "Heading 3", font: "Inter", size: "18 / 26", weight: "Medium", use: "Small titles", cls: "text-h3" },
-  { style: "Body Large", font: "Inter", size: "16 / 24", weight: "Regular", use: "Body copy", cls: "text-body-lg" },
-  { style: "Body", font: "Inter", size: "14 / 20", weight: "Regular", use: "Supporting text", cls: "text-body" },
-  { style: "Small", font: "Inter", size: "12 / 16", weight: "Regular", use: "Captions, meta", cls: "text-small" },
+  { style: "Display 1", font: "Geist", size: "48 / 56", weight: "Bold", use: "Page titles", cls: "font-display text-display-1" },
+  { style: "Display 2", font: "Geist", size: "36 / 44", weight: "Bold", use: "Section titles", cls: "font-display text-display-2" },
+  { style: "Heading 1", font: "Geist", size: "28 / 36", weight: "Semi Bold", use: "Card titles", cls: "text-h1" },
+  { style: "Heading 2", font: "Geist", size: "22 / 30", weight: "Semi Bold", use: "Sub section", cls: "text-h2" },
+  { style: "Heading 3", font: "Geist", size: "18 / 26", weight: "Medium", use: "Small titles", cls: "text-h3" },
+  { style: "Body Large", font: "Geist", size: "16 / 24", weight: "Regular", use: "Body copy", cls: "text-body-lg" },
+  { style: "Body", font: "Geist", size: "14 / 20", weight: "Regular", use: "Supporting text", cls: "text-body" },
+  { style: "Small", font: "Geist", size: "12 / 16", weight: "Regular", use: "Captions, meta", cls: "text-small" },
 ];
 
 const spacing = [4, 8, 12, 16, 24, 32, 40, 48, 64];
@@ -71,10 +71,10 @@ const radii = [
 ];
 
 const shadows = [
-  { name: "Sm", value: "0 1px 2px 0", alpha: "rgba(15, 23, 42, 0.05)", cls: "shadow-sm" },
-  { name: "Md", value: "0 4px 12px -2px", alpha: "rgba(15, 23, 42, 0.08)", cls: "shadow-md" },
-  { name: "Lg", value: "0 12px 24px -4px", alpha: "rgba(15, 23, 42, 0.10)", cls: "shadow-lg" },
-  { name: "Xl", value: "0 20px 40px -8px", alpha: "rgba(15, 23, 42, 0.12)", cls: "shadow-xl" },
+  { name: "Sm", value: "0 1px 2px 0", alpha: "rgba(0, 0, 0, 0.30)", cls: "shadow-sm" },
+  { name: "Md", value: "0 4px 12px -2px", alpha: "rgba(0, 0, 0, 0.40)", cls: "shadow-md" },
+  { name: "Lg", value: "0 12px 24px -4px", alpha: "rgba(0, 0, 0, 0.50)", cls: "shadow-lg" },
+  { name: "Xl", value: "0 20px 40px -8px", alpha: "rgba(0, 0, 0, 0.60)", cls: "shadow-xl" },
 ];
 
 const iconSet: IconName[] = ["bell", "search", "play", "file", "bookmark", "chart", "clock", "user", "chevron-right"];
@@ -91,7 +91,7 @@ const principles: Array<{ icon: IconName; title: string; body: string }> = [
 /* ------------------------------------------------------------------ */
 
 function Panel({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn("rounded-lg border border-neutral-200 bg-white/60 p-6", className)}>{children}</section>;
+  return <section className={cn("rounded-lg border border-neutral-200 bg-surface/60 p-6", className)}>{children}</section>;
 }
 
 function SectionTitle({ n, children }: { n: string; children: ReactNode }) {
@@ -142,7 +142,7 @@ export default function DesignSystemPage() {
     <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 md:px-6">
       {/* Hero + 01 Colors */}
       <div className="grid gap-4 lg:grid-cols-[400px_1fr]">
-        <Panel className="flex flex-col justify-between bg-white">
+        <Panel className="flex flex-col justify-between bg-surface">
           <div>
             <Logo size={32} />
             <h1 className="mt-8 font-display text-display-1 text-neutral-900">Design System</h1>
@@ -152,7 +152,7 @@ export default function DesignSystemPage() {
             </p>
           </div>
           <p className="mt-10 text-small tracking-[0.14em] text-neutral-500 uppercase">
-            Version 1.0 <span className="mx-2">·</span> May 2025
+            Version 2.0 <span className="mx-2">·</span> September 2026
           </p>
         </Panel>
 
@@ -179,16 +179,16 @@ export default function DesignSystemPage() {
           <SectionTitle n="02">Typography</SectionTitle>
           <div className="space-y-10 pt-2">
             <div className="flex items-center gap-8">
-              <span className="w-24 font-display text-[64px] leading-none text-neutral-900">Ag</span>
+              <span className="w-24 font-display text-[64px] leading-none font-bold tracking-tight text-neutral-900">Ag</span>
               <div>
-                <p className="font-display text-h2 font-medium text-neutral-900">Playfair Display</p>
-                <p className="mt-1 text-small text-neutral-500">Elegant · Readable · Timeless</p>
+                <p className="font-display text-h2 font-bold text-neutral-900">Geist Bold</p>
+                <p className="mt-1 text-small text-neutral-500">Display · Tight · Confident</p>
               </div>
             </div>
             <div className="flex items-center gap-8">
               <span className="w-24 text-[64px] leading-none font-medium text-neutral-900">Ag</span>
               <div>
-                <p className="text-h3 font-medium text-neutral-900">Inter</p>
+                <p className="text-h3 font-medium text-neutral-900">Geist</p>
                 <p className="mt-1 text-small text-neutral-500">Clean · Modern · Highly legible</p>
               </div>
             </div>
@@ -263,7 +263,7 @@ export default function DesignSystemPage() {
           <Label>Shadows</Label>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {shadows.map((s) => (
-              <div key={s.name} className={cn("rounded-sm border border-neutral-100 bg-white p-3", s.cls)}>
+              <div key={s.name} className={cn("rounded-sm border border-neutral-100 bg-surface p-3", s.cls)}>
                 <p className="text-body font-semibold text-neutral-900">{s.name}</p>
                 <p className="mt-2 text-[11px] leading-4 whitespace-nowrap text-neutral-700">{s.value}</p>
                 <p className="text-[11px] leading-4 text-neutral-500">{s.alpha}</p>
@@ -363,7 +363,7 @@ export default function DesignSystemPage() {
                 "Height: 44px (default)",
                 "Padding: 0 16px (lg), 0 12px (md)",
                 "Radius: 12px",
-                "Font: Inter Medium (14–16px)",
+                "Font: Geist Medium (14–16px)",
               ]}
             />
           </div>
@@ -389,9 +389,9 @@ export default function DesignSystemPage() {
             items={[
               "Height: 44px",
               "Radius: 12px",
-              "Border: 1px solid #E2E8F0",
+              "Border: 1px solid #2E3238",
               "Padding: 0 16px",
-              "Focus: Border color #FB923C",
+              "Focus: Border color #31FBB8 · 60%",
             ]}
           />
         </Panel>
@@ -437,7 +437,7 @@ export default function DesignSystemPage() {
               title="Next.js for Production"
               description="Build scalable, high-performance web applications with Next.js."
               icon={
-                <span className="flex size-10 items-center justify-center rounded-sm bg-neutral-900 text-[22px] font-semibold text-white">
+                <span className="flex size-10 items-center justify-center rounded-sm border border-neutral-200 bg-black text-[22px] font-semibold text-white">
                   N
                 </span>
               }

@@ -41,7 +41,7 @@ export function LessonResultCard({ result, onOpen }: { result: LessonSearchResul
           )}
           <span
             aria-hidden="true"
-            className="absolute right-3 bottom-3 flex size-7 items-center justify-center rounded-full bg-neutral-700"
+            className="absolute right-3 bottom-3 flex size-7 items-center justify-center rounded-full bg-neutral-300"
           >
             <Icon name="check-circle" size={18} className="text-white" />
           </span>

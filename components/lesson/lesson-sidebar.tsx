@@ -64,7 +64,7 @@ export function LessonSidebar({
         </Link>
 
         <div className="mt-5 flex items-center gap-4">
-          <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-neutral-900">
+          <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-black">
             {coverImageUrl && <Image src={coverImageUrl} alt="" fill sizes="48px" className="object-cover" />}
           </div>
           <div className="min-w-0 flex-1">
@@ -116,8 +116,8 @@ export function LessonSidebar({
                   className={cn(
                     "flex size-8 shrink-0 items-center justify-center rounded-full text-body",
                     isCurrent
-                      ? "bg-primary-500 font-medium text-white"
-                      : "border border-neutral-200 bg-white text-neutral-900",
+                      ? "bg-primary-500 font-medium text-on-primary"
+                      : "border border-neutral-200 bg-surface text-neutral-900",
                   )}
                 >
                   {i + 1}
@@ -166,7 +166,7 @@ export function LessonSidebar({
                           ) : (
                             <span
                               aria-hidden="true"
-                              className="size-2 shrink-0 rounded-full border border-neutral-300 bg-white"
+                              className="size-2 shrink-0 rounded-full border border-neutral-300 bg-surface"
                             />
                           )}
                           <span className="min-w-0 flex-1">

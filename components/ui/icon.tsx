@@ -74,7 +74,7 @@ const glyphs: Record<IconName, Glyph> = {
     filled: (
       <>
         <circle cx="12" cy="12" r="10" fill="currentColor" stroke="none" />
-        <path d="M10 8.5v7l5.5-3.5L10 8.5Z" fill="#fff" stroke="none" />
+        <path d="M10 8.5v7l5.5-3.5L10 8.5Z" stroke="none" className="fill-on-primary" />
       </>
     ),
   },
@@ -89,7 +89,7 @@ const glyphs: Record<IconName, Glyph> = {
     filled: (
       <>
         <path fill="currentColor" stroke="none" d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8l-4-5Z" />
-        <path d="M9 13h6M9 17h6" stroke="#fff" />
+        <path d="M9 13h6M9 17h6" className="stroke-on-primary" />
       </>
     ),
   },
@@ -123,7 +123,7 @@ const glyphs: Record<IconName, Glyph> = {
     filled: (
       <>
         <circle cx="12" cy="12" r="10" fill="currentColor" stroke="none" />
-        <path d="M12 7v5l3 2" stroke="#fff" />
+        <path d="M12 7v5l3 2" className="stroke-on-primary" />
       </>
     ),
   },
