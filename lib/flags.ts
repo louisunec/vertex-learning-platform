@@ -13,6 +13,8 @@ export const FLAGS = {
   aiGatewaySearch: 'ai-gateway-search',
   /** PR-4: task instances, server grading, and learner evidence (`/api/task-instances`, `/api/attempts`). */
   learnerEvidence: 'learner-evidence',
+  /** PR-5: the server-side help policy (`/api/help`). Requires `learner-evidence` too. */
+  helpPolicy: 'help-policy',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

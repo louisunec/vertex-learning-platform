@@ -1,5 +1,7 @@
 import {z} from 'zod'
 
+import {HELP_MODES, HELP_REASON_CODES, HELP_REQUESTS} from '../ai/help-policy.ts'
+import {MAX_HINT_LENGTH} from '../assessments/hints.ts'
 import {learnerAssessmentSchema} from '../assessments/learner.ts'
 import {EVIDENCE_KINDS, EVIDENCE_REASONS} from './evidence.ts'
 
@@ -8,7 +10,8 @@ import {EVIDENCE_KINDS, EVIDENCE_REASONS} from './evidence.ts'
  * Requests are strict: a body carrying anything beyond the listed keys — a
  * user id, a score, a correctness flag, a help level — is rejected, so the
  * client can never assert what only the server knows. Responses are strict
- * too, and none of them has a field for an answer key, hints, or reasons.
+ * too: none has a field for an answer key or reasons, and only the help
+ * response (PR-5) carries a hint — exactly one, the decided level's.
  */
 
 export const MAX_BODY_BYTES = 2048
@@ -48,6 +51,43 @@ export const attemptResultSchema = z.strictObject({
 
 export type AttemptResult = z.infer<typeof attemptResultSchema>
 
+/**
+ * One help request (development plan §5 PR-5). `mode` and `request` are the
+ * learner's own choice of how much help they want and can only raise the
+ * recorded assistance; the level itself is decided and stored by the server,
+ * so a body claiming a level or help history is rejected.
+ */
+export const helpRequestSchema = z.strictObject({
+  taskInstanceId: z.uuid(),
+  mode: z.enum(HELP_MODES),
+  request: z.enum(HELP_REQUESTS),
+  requestKey: z.string().regex(IDEMPOTENCY_KEY),
+})
+
+export type HelpRequest = z.infer<typeof helpRequestSchema>
+
+const hintTextSchema = z.string().min(1).max(MAX_HINT_LENGTH)
+
+/** The decided rung only; the correct option id appears with the solution (level 3) and nowhere else. */
+const deliveredHintSchema = z.discriminatedUnion('level', [
+  z.strictObject({level: z.literal(1), text: hintTextSchema}),
+  z.strictObject({level: z.literal(2), text: hintTextSchema}),
+  z.strictObject({level: z.literal(3), text: hintTextSchema, correctOptionId: z.string().min(1).max(128)}),
+])
+
+export const helpResponseSchema = z
+  .strictObject({
+    helpEventId: z.uuid(),
+    level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    reasonCode: z.enum(HELP_REASON_CODES),
+    policyVersion: z.string().min(1).max(64),
+    hint: deliveredHintSchema,
+    replayed: z.boolean(),
+  })
+  .refine((body) => body.hint.level === body.level, 'The hint must be the decided level')
+
+export type HelpResponse = z.infer<typeof helpResponseSchema>
+
 /** Error codes a client can act on; `retryable` failures carry no grade. */
 export const LEARNER_ERROR_CODES = [
   'invalid_request',
@@ -59,6 +99,7 @@ export const LEARNER_ERROR_CODES = [
   'task_unavailable',
   'already_submitted',
   'idempotency_key_reused',
+  'hint_unavailable',
   'unavailable',
   'internal_error',
 ] as const

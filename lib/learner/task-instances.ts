@@ -61,6 +61,20 @@ export async function issueTask({
   }
 }
 
+/** The content fields a delivery is pinned to, shared by the grading and hint projections. */
+export type DeliveredItem = {_id: string; familyId: string; version: number; optionIds: readonly string[]}
+
+/** The item still matches what the instance delivered: same family, version, and option ids. */
+export function matchesDelivery(item: DeliveredItem, instance: TaskInstanceRow): boolean {
+  const sorted = (ids: readonly string[]) => [...ids].sort().join('\0')
+  return (
+    item._id === instance.assessmentId &&
+    item.familyId === instance.familyId &&
+    item.version === instance.assessmentVersion &&
+    sorted(item.optionIds) === sorted(instance.deliveredOptionIds)
+  )
+}
+
 /**
  * The instance when it exists and belongs to `learnerId`; another learner's
  * instance is indistinguishable from none. Row level security already hides

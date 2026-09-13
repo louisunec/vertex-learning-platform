@@ -3,7 +3,7 @@ import {ContentUnavailableError} from './content-source.ts'
 import {MAX_BODY_BYTES, type LearnerErrorCode} from './contracts.ts'
 
 /**
- * Response helpers shared by the learner-evidence route handlers. Private
+ * Response helpers shared by the learner-evidence and help route handlers. Private
  * learner responses are never cached. Framework-free (plain `Request` and
  * `Response`) so the body bound is testable under `node --test`.
  */
@@ -24,6 +24,7 @@ const MESSAGES: Record<LearnerErrorCode, string> = {
   task_unavailable: 'This task is no longer available',
   already_submitted: 'This task was already answered',
   idempotency_key_reused: 'This idempotency key was used for a different submission',
+  hint_unavailable: 'No reviewed help is available for this task',
   unavailable: 'Temporarily unavailable, please retry',
   internal_error: 'Something went wrong',
 }
@@ -38,6 +39,7 @@ const STATUS: Record<LearnerErrorCode, number> = {
   task_unavailable: 409,
   already_submitted: 409,
   idempotency_key_reused: 409,
+  hint_unavailable: 409,
   unavailable: 503,
   internal_error: 500,
 }

@@ -3,7 +3,14 @@ import {describe, it} from 'node:test'
 
 import {DatabaseUnavailableError} from '../db/errors.ts'
 import {ContentUnavailableError} from './content-source.ts'
-import {attemptResultSchema, issueTaskResponseSchema, MAX_BODY_BYTES, submitAttemptRequestSchema} from './contracts.ts'
+import {
+  attemptResultSchema,
+  helpRequestSchema,
+  helpResponseSchema,
+  issueTaskResponseSchema,
+  MAX_BODY_BYTES,
+  submitAttemptRequestSchema,
+} from './contracts.ts'
 import {failureResponse, readBoundedJson} from './http.ts'
 
 const INSTANCE = '4f7f3c1e-8f55-4f53-9a4c-0d6c6a3b7e21'
@@ -69,6 +76,59 @@ describe('response contracts', () => {
       assert.equal(issueTaskResponseSchema.safeParse({...issued, item: {...item, [key]: 'x'}}).success, false, key)
       assert.equal(attemptResultSchema.safeParse({...graded, [key]: 'x'}).success, false, key)
     }
+  })
+})
+
+describe('helpRequestSchema', () => {
+  const help = {taskInstanceId: INSTANCE, mode: 'study', request: 'hint', requestKey: 'key-0123456789abcdef'}
+
+  it('accepts each mode and request', () => {
+    for (const mode of ['study', 'reference']) {
+      for (const request of ['hint', 'escalate', 'solution']) {
+        assert.ok(helpRequestSchema.safeParse({...help, mode, request}).success, `${mode} ${request}`)
+      }
+    }
+  })
+
+  it('rejects a forged level, help history, or identity', () => {
+    for (const forged of [{level: 3}, {helpLevel: 0}, {currentLevel: 2}, {hintsUsed: 0}, {userId: 'user_other'}, {learnerId: 'user_other'}]) {
+      assert.equal(helpRequestSchema.safeParse({...help, ...forged}).success, false, JSON.stringify(forged))
+    }
+  })
+
+  it('rejects unknown modes and requests and a malformed key or instance id', () => {
+    for (const bad of [{mode: 'exam'}, {request: 'answer'}, {request: 3}, {requestKey: 'short'}, {taskInstanceId: 'nope'}]) {
+      assert.equal(helpRequestSchema.safeParse({...help, ...bad}).success, false, JSON.stringify(bad))
+    }
+  })
+})
+
+describe('helpResponseSchema', () => {
+  const body = (level: number, hint: Record<string, unknown>) => ({
+    helpEventId: INSTANCE,
+    level,
+    reasonCode: 'escalation',
+    policyVersion: 'help-v1',
+    hint: {level, ...hint},
+    replayed: false,
+  })
+
+  it('carries one rung, with the correct option id only at the solution level', () => {
+    assert.ok(helpResponseSchema.safeParse(body(1, {text: 'Direction.'})).success)
+    assert.ok(helpResponseSchema.safeParse(body(2, {text: 'Key concept.'})).success)
+    assert.ok(helpResponseSchema.safeParse(body(3, {text: 'Solution.', correctOptionId: 'opt-a'})).success)
+    assert.equal(helpResponseSchema.safeParse(body(1, {text: 'Direction.', correctOptionId: 'opt-a'})).success, false)
+    assert.equal(helpResponseSchema.safeParse(body(2, {text: 'Key concept.', correctOptionId: 'opt-a'})).success, false)
+    assert.equal(helpResponseSchema.safeParse(body(3, {text: 'Solution.'})).success, false)
+  })
+
+  it('rejects other rungs, reasons, an answer key, a level-0 hint, or a mismatched hint level', () => {
+    for (const key of [...FORBIDDEN, 'direction', 'keyConcept', 'hint2']) {
+      assert.equal(helpResponseSchema.safeParse({...body(1, {text: 'Direction.'}), [key]: 'x'}).success, false, key)
+      assert.equal(helpResponseSchema.safeParse(body(1, {text: 'Direction.', [key]: 'x'})).success, false, `hint.${key}`)
+    }
+    assert.equal(helpResponseSchema.safeParse(body(0, {text: 'Clarify?'})).success, false)
+    assert.equal(helpResponseSchema.safeParse({...body(2, {text: 'Key concept.'}), level: 1}).success, false)
   })
 })
 

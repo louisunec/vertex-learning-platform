@@ -1,17 +1,23 @@
 import 'server-only'
 
 import {toGradingItem, toConceptIndex} from '@/lib/assessments/grading'
+import {toHintLadder} from '@/lib/assessments/hints'
 import {toLearnerAssessments} from '@/lib/assessments/learner'
 import {CONTENT_REVALIDATE_SECONDS, sanityFetch} from '@/sanity/lib/fetch'
-import {CONCEPT_NODES_QUERY, GRADING_ASSESSMENT_QUERY, SERVABLE_ASSESSMENT_QUERY} from '@/sanity/queries/assessments'
+import {
+  CONCEPT_NODES_QUERY,
+  GRADING_ASSESSMENT_QUERY,
+  HINT_LADDER_QUERY,
+  SERVABLE_ASSESSMENT_QUERY,
+} from '@/sanity/queries/assessments'
 
 import {ContentUnavailableError, type LearnerContentSource} from './content-source'
 
 /**
  * Sanity-backed content for the learner-evidence routes, through the
  * published-perspective server client. Item reads are uncached so a
- * withdrawn or stale item stops being issued and graded at once; the concept
- * graph uses the normal content revalidation.
+ * withdrawn or stale item stops being issued, graded, and hinted at once;
+ * the concept graph uses the normal content revalidation.
  */
 
 async function read<T>(label: string, run: () => Promise<T>): Promise<T> {
@@ -35,6 +41,13 @@ export const sanityLearnerContent: LearnerContentSource = {
       sanityFetch({query: GRADING_ASSESSMENT_QUERY, params: {assessmentId}, revalidate: 0}),
     )
     return toGradingItem(row)
+  },
+
+  async loadHintLadder(assessmentId) {
+    const row = await read('Hint ladder', () =>
+      sanityFetch({query: HINT_LADDER_QUERY, params: {assessmentId}, revalidate: 0}),
+    )
+    return toHintLadder(row)
   },
 
   async loadConceptIndex() {
