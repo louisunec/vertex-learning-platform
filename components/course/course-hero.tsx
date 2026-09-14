@@ -14,9 +14,10 @@ export interface CourseHeroProps {
   ctaLabel: string;
 }
 
-const COVER_PX = 280;
+/** Widest the 16:9 cover renders (lg and up, and full-width on small screens). */
+const COVER_PX = 400;
 
-/** Course header: cover tile, badge, title, summary, grounded meta row and CTAs. */
+/** Course header: cover, badge, title, summary, grounded meta row and CTAs. */
 export function CourseHero({ course, ctaHref, ctaLabel }: CourseHeroProps) {
   const meta: Array<{ icon: IconName; label: string }> = [
     { icon: "chart", label: formatLevel(course.level) },
@@ -28,21 +29,19 @@ export function CourseHero({ course, ctaHref, ctaLabel }: CourseHeroProps) {
   const cover = course.coverImage?.asset ? course.coverImage : null;
 
   return (
-    <section className="grid gap-10 md:grid-cols-[280px_1fr] md:gap-14">
-      <div
-        className="relative aspect-square w-full max-w-[280px] overflow-hidden rounded-[20px] bg-black shadow-sm"
-        style={{ maxWidth: COVER_PX }}
-      >
+    <section className="grid gap-10 md:grid-cols-[280px_1fr] md:gap-14 lg:grid-cols-[400px_1fr]">
+      <div className="relative aspect-video w-full max-w-[400px] overflow-hidden rounded-[20px] bg-black shadow-sm">
         {cover && (
           <Image
-            src={urlFor(cover).width(COVER_PX * 2).height(COVER_PX * 2).fit("crop").auto("format").url()}
+            // Width only with fit=max keeps the source aspect ratio; width + height would crop on the CDN.
+            src={urlFor(cover).width(COVER_PX * 2).fit("max").auto("format").url()}
             alt={cover.alt ?? ""}
             fill
             sizes={`${COVER_PX}px`}
             priority
             placeholder={cover.asset?.metadata?.lqip ? "blur" : "empty"}
             blurDataURL={cover.asset?.metadata?.lqip ?? undefined}
-            className="object-cover"
+            className="object-contain"
           />
         )}
       </div>
