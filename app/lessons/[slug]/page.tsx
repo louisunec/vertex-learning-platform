@@ -197,8 +197,6 @@ export default async function LessonPage({ params, searchParams }: Props) {
 
         <main className="flex flex-1 flex-col">
           <LessonWorkspace
-            lessonTitle={lesson.title}
-            lessonSlug={slug}
             outline={
               course ? (
                 <LessonSidebar
@@ -273,26 +271,26 @@ export default async function LessonPage({ params, searchParams }: Props) {
                   />
                 }
                 notes={lesson.notes ? <LessonNotes value={lesson.notes} /> : null}
+                // The activity tabs follow `lesson-integration` (features is null when it's off or signed out).
+                // Each activity is resolved by the PR that owns it; null shows its tab's "not yet" line.
+                activities={
+                  features
+                    ? {
+                        quickCheck: features.check ? (
+                          <LessonCheck
+                            lessonId={lesson._id}
+                            lessonSlug={slug}
+                            courseSlug={course?.slug ?? null}
+                            lessonRev={lesson._rev}
+                            hints={features.hints}
+                          />
+                        ) : null,
+                        explainBack: null,
+                        submitImplementation: null,
+                      }
+                    : null
+                }
               />
-            }
-            // The activities card follows `lesson-integration` (features is null when it's off or signed out).
-            // Each activity is resolved by the PR that owns it; null shows its tab's "not yet" line.
-            activities={
-              features
-                ? {
-                    quickCheck: features.check ? (
-                      <LessonCheck
-                        lessonId={lesson._id}
-                        lessonSlug={slug}
-                        courseSlug={course?.slug ?? null}
-                        lessonRev={lesson._rev}
-                        hints={features.hints}
-                      />
-                    ) : null,
-                    explainBack: null,
-                    submitImplementation: null,
-                  }
-                : null
             }
             footer={<LessonFooterNav prev={prev} next={next} />}
             tutor={tutor}
