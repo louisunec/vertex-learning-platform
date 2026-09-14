@@ -27,7 +27,7 @@ export function CourseCatalogCard({ course, className }: CourseCatalogCardProps)
       }
       title={course.title}
       description={course.summary ?? ""}
-      icon={<CourseCoverTile cover={course.coverImage} size={72} />}
+      icon={<CourseCoverTile cover={course.coverImage} size={192} letterbox />}
       level={formatLevel(course.level)}
       duration={course.durationSeconds ? formatDuration(course.durationSeconds) : undefined}
       modules={course.moduleCount ? pluralize(course.moduleCount, "module") : undefined}
