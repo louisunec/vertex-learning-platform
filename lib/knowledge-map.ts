@@ -1,5 +1,5 @@
 import {conceptDocumentId} from './concepts/cluster.ts'
-import {validateGraph, type GraphEdge} from './concepts/graph.ts'
+import {findCycles, validateGraph, type GraphEdge} from './concepts/graph.ts'
 import {resolveConcept, type ConceptNode} from './concepts/resolve.ts'
 import {EMPTY_COUNTS, type EvidenceKind, type EvidenceReason, type MasteryCounts} from './learner/evidence.ts'
 
@@ -194,6 +194,75 @@ export function drawableEdges(concepts: ReadonlyArray<MapConcept>, edges: Readon
   return {edges: drawn, dropped: [...dropped].toSorted()}
 }
 
+/** An AI-proposed edge: a generator draft with status `proposed` that no editor has reviewed. */
+export type ProposedEdgeRow = {id: string; prerequisite: string | null; dependent: string | null}
+
+/**
+ * AI-proposed edges safe to show beside the approved graph — display only,
+ * never part of it. Dropped: endpoints not on the map, self-links, a pair the
+ * approved graph already relates (either direction), repeats of a pair (the
+ * first by id is kept), and every proposal inside a cycle formed with the
+ * approved edges and the other proposals.
+ */
+export function displayableProposedEdges(
+  concepts: ReadonlyArray<MapConcept>,
+  approved: ReadonlyArray<MapEdge>,
+  proposed: ReadonlyArray<ProposedEdgeRow>,
+): {edges: MapEdge[]; dropped: string[]} {
+  const onMap = new Set(concepts.map((concept) => concept.id))
+  const related = new Set(approved.flatMap((edge) => [`${edge.from}→${edge.to}`, `${edge.to}→${edge.from}`]))
+  const dropped: string[] = []
+  const kept: MapEdge[] = []
+  for (const row of proposed.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    const {prerequisite: from, dependent: to} = row
+    const valid = from && to && onMap.has(from) && onMap.has(to) && from !== to
+    if (!valid || related.has(`${from}→${to}`) || kept.some((edge) => edge.from === from && edge.to === to)) {
+      dropped.push(row.id)
+      continue
+    }
+    kept.push({id: row.id, from, to})
+  }
+  const cycles = findCycles([...approved, ...kept]).map((members) => new Set(members))
+  const edges = kept.filter((edge) => {
+    const inCycle = cycles.some((members) => members.has(edge.from) && members.has(edge.to))
+    if (inCycle) dropped.push(edge.id)
+    return !inCycle
+  })
+  return {edges, dropped: dropped.toSorted()}
+}
+
+/**
+ * Whether this learner may see AI-proposed edges: a display-only option for
+ * the Clerk user ids listed (comma-separated) in the server-only
+ * `KNOWLEDGE_MAP_PROPOSED_EDGES_USER_IDS`. Off when unset.
+ */
+export function canViewProposedEdges(userId: string, allowlist: string | undefined): boolean {
+  return (allowlist ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .some((id) => id !== '' && id === userId)
+}
+
+/** A cited moment of an edge's evidence. */
+export type EdgeEvidence = {lessonId: string | null; startSeconds: number | null}
+
+/**
+ * The edge's cited moments in this course, as lesson deep links in teaching
+ * order, one per lesson second. Moments in lessons outside the course are
+ * left out.
+ */
+export function edgeSources(evidence: ReadonlyArray<EdgeEvidence>, lessons: ReadonlyMap<string, CourseLesson>): RelatedSource[] {
+  const sources = new Map<string, RelatedSource>()
+  for (const {lessonId, startSeconds} of evidence) {
+    const lesson = lessonId ? lessons.get(lessonId) : undefined
+    if (!lesson || typeof startSeconds !== 'number' || !Number.isFinite(startSeconds) || startSeconds < 0) continue
+    const second = Math.floor(startSeconds)
+    const key = `${lesson._id}@${second}`
+    if (!sources.has(key)) sources.set(key, {lesson, startSeconds: second, href: lessonMomentHref(lesson.slug, second)})
+  }
+  return [...sources.values()].toSorted((a, b) => a.lesson.number - b.lesson.number || a.startSeconds - b.startSeconds)
+}
+
 /* ---------- Layout ---------- */
 
 /** Sized so three columns fit the map card at desktop width (658px of 662px). */
@@ -208,14 +277,15 @@ export const MAP_LAYOUT = {
 } as const
 
 export type PlacedNode = {id: string; x: number; y: number; row: number; column: number}
-export type PlacedEdge = {id: string; from: string; to: string; path: string}
+export type PlacedEdge<E extends MapEdge = MapEdge> = E & {path: string}
 
 /**
  * Grid layout in teaching order, `MAP_LAYOUT.columns` per row. Edges between
  * neighbours in a row are straight; others curve from the bottom of the
- * earlier row to the top of the later one, or arc over the row.
+ * earlier row to the top of the later one, or arc over the row. Extra edge
+ * fields are carried through.
  */
-export function layoutMap(orderedIds: ReadonlyArray<string>, edges: ReadonlyArray<MapEdge>) {
+export function layoutMap<E extends MapEdge>(orderedIds: ReadonlyArray<string>, edges: ReadonlyArray<E>) {
   const {columns, nodeWidth: w, nodeHeight: h, columnGap, rowGap, paddingX, paddingY} = MAP_LAYOUT
   const nodes = new Map<string, PlacedNode>()
   orderedIds.forEach((id, i) => {
@@ -227,7 +297,7 @@ export function layoutMap(orderedIds: ReadonlyArray<string>, edges: ReadonlyArra
   const width = paddingX * 2 + columns * w + (columns - 1) * columnGap
   const height = rows === 0 ? 0 : paddingY * 2 + rows * h + (rows - 1) * rowGap
 
-  const placedEdges: PlacedEdge[] = []
+  const placedEdges: PlacedEdge<E>[] = []
   for (const edge of edges) {
     const a = nodes.get(edge.from)
     const b = nodes.get(edge.to)

@@ -1,6 +1,6 @@
 import {defineQuery} from 'next-sanity'
 
-import {imageFragment} from './fragments'
+import {imageFragment} from './fragments.ts'
 
 /**
  * My Learning reads. `$lessonIds` always comes from the signed-in learner's
@@ -89,6 +89,33 @@ export const KNOWLEDGE_MAP_EDGES_QUERY = defineQuery(/* groq */ `
     "id": _id,
     "prerequisite": prerequisite._ref,
     "dependent": dependent._ref,
-    status
+    status,
+    rationale,
+    "evidence": evidence[0...2] { "lessonId": lesson._ref, startSeconds }
+  }
+`)
+
+/**
+ * SERVER-ONLY, display only: AI-proposed prerequisite edges between concepts
+ * on the map — generator drafts with status "proposed" that no editor has
+ * reviewed (DATA_MODEL: only approved, published edges are the graph). Read
+ * with the raw perspective, and only for viewers allowlisted by
+ * `KNOWLEDGE_MAP_PROPOSED_EDGES_USER_IDS`. Never used for gating, mastery,
+ * or next actions.
+ */
+export const KNOWLEDGE_MAP_PROPOSED_EDGES_QUERY = defineQuery(/* groq */ `
+  *[
+    _type == "conceptPrerequisite" &&
+    _id in path("drafts.**") &&
+    status == "proposed" &&
+    sourceStatus == "current" &&
+    prerequisite._ref in $conceptIds &&
+    dependent._ref in $conceptIds
+  ] | order(_id asc)[0...300] {
+    "id": _id,
+    "prerequisite": prerequisite._ref,
+    "dependent": dependent._ref,
+    rationale,
+    "evidence": evidence[0...2] { "lessonId": lesson._ref, startSeconds }
   }
 `)

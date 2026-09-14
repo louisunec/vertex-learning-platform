@@ -1468,12 +1468,31 @@ export type KNOWLEDGE_MAP_CONCEPTS_QUERY_RESULT = Array<{
 
 // Source: ../sanity/queries/my-learning.ts
 // Variable: KNOWLEDGE_MAP_EDGES_QUERY
-// Query: *[    _type == "conceptPrerequisite" &&    status == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    prerequisite._ref in $conceptIds &&    dependent._ref in $conceptIds  ] | order(_id asc)[0...300] {    "id": _id,    "prerequisite": prerequisite._ref,    "dependent": dependent._ref,    status  }
+// Query: *[    _type == "conceptPrerequisite" &&    status == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    prerequisite._ref in $conceptIds &&    dependent._ref in $conceptIds  ] | order(_id asc)[0...300] {    "id": _id,    "prerequisite": prerequisite._ref,    "dependent": dependent._ref,    status,    rationale,    "evidence": evidence[0...2] { "lessonId": lesson._ref, startSeconds }  }
 export type KNOWLEDGE_MAP_EDGES_QUERY_RESULT = Array<{
   id: string;
   prerequisite: string;
   dependent: string;
   status: "approved" | "proposed" | "rejected" | "retired";
+  rationale: string;
+  evidence: Array<{
+    lessonId: string | null;
+    startSeconds: number | null;
+  }> | null;
+}>;
+
+// Source: ../sanity/queries/my-learning.ts
+// Variable: KNOWLEDGE_MAP_PROPOSED_EDGES_QUERY
+// Query: *[    _type == "conceptPrerequisite" &&    _id in path("drafts.**") &&    status == "proposed" &&    sourceStatus == "current" &&    prerequisite._ref in $conceptIds &&    dependent._ref in $conceptIds  ] | order(_id asc)[0...300] {    "id": _id,    "prerequisite": prerequisite._ref,    "dependent": dependent._ref,    rationale,    "evidence": evidence[0...2] { "lessonId": lesson._ref, startSeconds }  }
+export type KNOWLEDGE_MAP_PROPOSED_EDGES_QUERY_RESULT = Array<{
+  id: string;
+  prerequisite: string;
+  dependent: string;
+  rationale: string;
+  evidence: Array<{
+    lessonId: string | null;
+    startSeconds: number | null;
+  }> | null;
 }>;
 
 // Source: ../sanity/queries/next-action.ts
@@ -1629,7 +1648,8 @@ declare module "@sanity/client" {
     '\n  *[_type == "lesson" && _id in $lessonIds && defined(slug.current)] {\n    _id,\n    title,\n    "slug": slug.current\n  }\n': LESSONS_BY_IDS_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...500].conceptId\n': CONCEPT_IDS_FOR_LESSONS_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...100] {\n    "id": _id,\n    conceptId,\n    name,\n    summary,\n    "sources": sourceRefs[lesson._ref in $lessonIds][0...20] {\n      "lessonId": lesson._ref,\n      startSeconds\n    }\n  }\n': KNOWLEDGE_MAP_CONCEPTS_QUERY_RESULT;
-    '\n  *[\n    _type == "conceptPrerequisite" &&\n    status == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    prerequisite._ref in $conceptIds &&\n    dependent._ref in $conceptIds\n  ] | order(_id asc)[0...300] {\n    "id": _id,\n    "prerequisite": prerequisite._ref,\n    "dependent": dependent._ref,\n    status\n  }\n': KNOWLEDGE_MAP_EDGES_QUERY_RESULT;
+    '\n  *[\n    _type == "conceptPrerequisite" &&\n    status == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    prerequisite._ref in $conceptIds &&\n    dependent._ref in $conceptIds\n  ] | order(_id asc)[0...300] {\n    "id": _id,\n    "prerequisite": prerequisite._ref,\n    "dependent": dependent._ref,\n    status,\n    rationale,\n    "evidence": evidence[0...2] { "lessonId": lesson._ref, startSeconds }\n  }\n': KNOWLEDGE_MAP_EDGES_QUERY_RESULT;
+    '\n  *[\n    _type == "conceptPrerequisite" &&\n    _id in path("drafts.**") &&\n    status == "proposed" &&\n    sourceStatus == "current" &&\n    prerequisite._ref in $conceptIds &&\n    dependent._ref in $conceptIds\n  ] | order(_id asc)[0...300] {\n    "id": _id,\n    "prerequisite": prerequisite._ref,\n    "dependent": dependent._ref,\n    rationale,\n    "evidence": evidence[0...2] { "lessonId": lesson._ref, startSeconds }\n  }\n': KNOWLEDGE_MAP_PROPOSED_EDGES_QUERY_RESULT;
     '\n  *[\n    _type == "course" &&\n    defined(slug.current) &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ] | order(title asc)[0...100] {\n    _id,\n    title,\n    "slug": slug.current\n  }\n': GOAL_COURSES_QUERY_RESULT;
     '\n  *[\n    _type == "course" &&\n    _id == $courseId &&\n    defined(slug.current) &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ][0] {\n    _id,\n    title,\n    "slug": slug.current,\n    summary,\n    modules[] {\n      _key,\n      lessons[]->{ _id, title, "slug": slug.current, durationSeconds }\n    }\n  }\n': NEXT_ACTION_COURSE_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...100] {\n    "id": _id,\n    conceptId,\n    name,\n    "sources": sourceRefs[lesson._ref in $lessonIds][0...40] {\n      chunkId,\n      "lessonId": lesson._ref,\n      startSeconds,\n      endSeconds\n    }\n  }\n': NEXT_ACTION_CONCEPTS_QUERY_RESULT;
