@@ -31,7 +31,12 @@ export type IconName =
   | "arrow-right"
   | "arrow-left"
   | "bulb"
-  | "users";
+  | "users"
+  | "check"
+  | "refresh"
+  | "message"
+  | "network"
+  | "play-solid";
 
 type Glyph = { outline: React.ReactNode; filled?: React.ReactNode };
 
@@ -74,7 +79,7 @@ const glyphs: Record<IconName, Glyph> = {
     filled: (
       <>
         <circle cx="12" cy="12" r="10" fill="currentColor" stroke="none" />
-        <path d="M10 8.5v7l5.5-3.5L10 8.5Z" fill="#fff" stroke="none" />
+        <path d="M10 8.5v7l5.5-3.5L10 8.5Z" stroke="none" className="fill-on-primary" />
       </>
     ),
   },
@@ -89,7 +94,7 @@ const glyphs: Record<IconName, Glyph> = {
     filled: (
       <>
         <path fill="currentColor" stroke="none" d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8l-4-5Z" />
-        <path d="M9 13h6M9 17h6" stroke="#fff" />
+        <path d="M9 13h6M9 17h6" className="stroke-on-primary" />
       </>
     ),
   },
@@ -123,7 +128,7 @@ const glyphs: Record<IconName, Glyph> = {
     filled: (
       <>
         <circle cx="12" cy="12" r="10" fill="currentColor" stroke="none" />
-        <path d="M12 7v5l3 2" stroke="#fff" />
+        <path d="M12 7v5l3 2" className="stroke-on-primary" />
       </>
     ),
   },
@@ -260,6 +265,31 @@ const glyphs: Record<IconName, Glyph> = {
       </>
     ),
   },
+  check: { outline: <path d="m5 12.5 4.5 4.5L19 7.5" /> },
+  refresh: {
+    outline: (
+      <>
+        <path d="M20 11a8 8 0 0 0-14.6-4.5L4 8" />
+        <path d="M4 4v4h4" />
+        <path d="M4 13a8 8 0 0 0 14.6 4.5L20 16" />
+        <path d="M20 20v-4h-4" />
+      </>
+    ),
+  },
+  message: {
+    outline: <path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4V5Z" />,
+  },
+  network: {
+    outline: (
+      <>
+        <circle cx="12" cy="5" r="2" />
+        <circle cx="5" cy="19" r="2" />
+        <circle cx="19" cy="19" r="2" />
+        <path d="M12 7v5M12 12l-5.6 5.4M12 12l5.6 5.4" />
+      </>
+    ),
+  },
+  "play-solid": { outline: <path d="M8 5.5v13l10-6.5-10-6.5Z" fill="currentColor" /> },
 };
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {

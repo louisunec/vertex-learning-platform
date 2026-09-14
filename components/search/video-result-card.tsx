@@ -23,7 +23,7 @@ export function VideoResultCard({ result, onOpen }: { result: VideoSearchResult;
       onClick={onOpen}
     >
       <Card className="flex flex-col gap-4 p-4 transition-colors hover:border-primary-400 md:flex-row md:gap-8">
-        <div className="relative aspect-video shrink-0 overflow-hidden rounded-md bg-neutral-900 md:w-[275px]">
+        <div className="relative aspect-video shrink-0 overflow-hidden rounded-md bg-black md:w-[275px]">
           {result.posterUrl && (
             <Image
               src={result.posterUrl}
@@ -34,11 +34,11 @@ export function VideoResultCard({ result, onOpen }: { result: VideoSearchResult;
             />
           )}
           <span className="absolute inset-0 flex items-center justify-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-white/90 text-neutral-900">
+            <span className="flex size-12 items-center justify-center rounded-full bg-white/90 text-black">
               <Icon name="play" size={22} aria-hidden />
             </span>
           </span>
-          <span className="absolute right-2.5 bottom-2.5 rounded-sm bg-neutral-900/85 px-2 py-1 text-body font-medium text-white">
+          <span className="absolute right-2.5 bottom-2.5 rounded-sm bg-black/85 px-2 py-1 text-body font-medium text-white">
             {startClock}
           </span>
         </div>

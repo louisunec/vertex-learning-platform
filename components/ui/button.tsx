@@ -12,11 +12,11 @@ export type ButtonSize = "md" | "lg";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary-500 text-white hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-300",
+    "bg-primary-500 text-on-primary hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-300",
   secondary:
-    "border border-primary-500 bg-white text-primary-500 hover:bg-primary-100 disabled:border-primary-200 disabled:text-primary-300 disabled:hover:bg-white",
+    "border border-primary-500 bg-surface text-primary-500 hover:bg-primary-100 disabled:border-primary-200 disabled:text-primary-300 disabled:hover:bg-surface",
   tertiary:
-    "border border-neutral-200 bg-white text-neutral-900 hover:border-neutral-300 hover:bg-neutral-50 disabled:text-neutral-300 disabled:hover:border-neutral-200 disabled:hover:bg-white",
+    "border border-neutral-200 bg-surface text-neutral-900 hover:border-neutral-300 hover:bg-neutral-50 disabled:text-neutral-300 disabled:hover:border-neutral-200 disabled:hover:bg-surface",
   text: "h-auto px-0 text-primary-500 hover:text-primary-600 disabled:text-primary-300",
 };
 

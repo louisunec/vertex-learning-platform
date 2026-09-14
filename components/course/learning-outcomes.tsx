@@ -17,14 +17,14 @@ export function LearningOutcomes({ outcomes }: { outcomes: LearningOutcome[] }) 
   return (
     <section
       aria-labelledby="what-youll-learn"
-      className="rounded-lg border border-neutral-200 bg-white/60 p-6 md:p-7"
+      className="rounded-lg border border-neutral-200 bg-surface/60 p-6 md:p-7"
     >
       <h2 id="what-youll-learn" className="font-display text-[26px] leading-9 font-normal text-neutral-900">
         What you&rsquo;ll learn
       </h2>
       <ul className="mt-6 grid gap-5 md:grid-cols-2">
         {outcomes.map((o) => (
-          <li key={o._key} className="flex gap-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+          <li key={o._key} className="flex gap-6 rounded-lg border border-neutral-200 bg-surface p-6 shadow-sm">
             <Icon name={toIconName(o.icon)} size={48} strokeWidth={1.5} className="mt-0.5 text-primary-500" />
             <div>
               <h3 className="font-display text-[20px] leading-7 font-normal text-neutral-900">{o.title}</h3>

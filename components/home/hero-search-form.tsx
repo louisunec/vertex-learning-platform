@@ -20,7 +20,7 @@ export function HeroSearchForm() {
       role="search"
       action="/search"
       onSubmit={handleSubmit}
-      className="mx-auto mt-11 flex h-16 w-full max-w-[880px] items-center gap-3 rounded-lg border border-neutral-200 bg-white pr-5 pl-5 shadow-sm transition-colors focus-within:border-primary-400 sm:h-20 sm:gap-4 sm:pl-7"
+      className="mx-auto mt-11 flex h-16 w-full max-w-[880px] items-center gap-3 rounded-lg border border-neutral-200 bg-surface pr-5 pl-5 shadow-sm transition-colors focus-within:border-primary-400 sm:h-20 sm:gap-4 sm:pl-7"
     >
       <Icon name="search" size={26} className="shrink-0 text-neutral-900" />
       <input

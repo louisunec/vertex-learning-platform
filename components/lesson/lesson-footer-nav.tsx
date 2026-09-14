@@ -14,7 +14,7 @@ export interface FooterLesson {
 export function LessonFooterNav({ prev, next }: { prev: FooterLesson | null; next: FooterLesson | null }) {
   if (!prev && !next) return null;
   return (
-    <div className="sticky bottom-0 z-10 border-t border-neutral-200 bg-white">
+    <div className="sticky bottom-0 z-10 border-t border-neutral-200 bg-surface">
       <div className="flex items-center justify-between gap-4 px-6 py-4 md:px-12">
         <div className="flex items-center gap-5">
           {prev && (

@@ -1274,6 +1274,56 @@ export type LESSON_BY_SLUG_QUERY_RESULT = {
 // Query: *[_type == "lesson" && defined(slug.current)].slug.current
 export type LESSON_SLUGS_QUERY_RESULT = Array<string>;
 
+// Source: ../sanity/queries/my-learning.ts
+// Variable: MY_LEARNING_COURSES_QUERY
+// Query: *[_type == "course" && defined(slug.current) && references($lessonIds)] | order(title asc) {    _id,    title,    "slug": slug.current,    summary,    coverImage {   _type,  alt,  hotspot,  crop,  asset->{    _id,    url,    metadata { lqip, dimensions { width, height, aspectRatio } }  } },    modules[] {      _key,      lessons[]->{ _id, title, "slug": slug.current }    }  }
+export type MY_LEARNING_COURSES_QUERY_RESULT = Array<{
+  _id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  coverImage: {
+    _type: "image";
+    alt: string | null;
+    hotspot: SanityImageHotspot | null;
+    crop: SanityImageCrop | null;
+    asset: {
+      _id: string;
+      url: string;
+      metadata: {
+        lqip: string | null;
+        dimensions: {
+          width: number;
+          height: number;
+          aspectRatio: number;
+        } | null;
+      } | null;
+    } | null;
+  } | null;
+  modules: Array<{
+    _key: string;
+    lessons: Array<{
+      _id: string;
+      title: string;
+      slug: string;
+    }> | null;
+  }> | null;
+}>;
+
+// Source: ../sanity/queries/my-learning.ts
+// Variable: LESSONS_BY_IDS_QUERY
+// Query: *[_type == "lesson" && _id in $lessonIds && defined(slug.current)] {    _id,    title,    "slug": slug.current  }
+export type LESSONS_BY_IDS_QUERY_RESULT = Array<{
+  _id: string;
+  title: string;
+  slug: string;
+}>;
+
+// Source: ../sanity/queries/my-learning.ts
+// Variable: CONCEPT_IDS_FOR_LESSONS_QUERY
+// Query: *[    _type == "concept" &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    count(lessons[@._ref in $lessonIds]) > 0  ] | order(_id asc)[0...500].conceptId
+export type CONCEPT_IDS_FOR_LESSONS_QUERY_RESULT = Array<string>;
+
 // Source: ../sanity/queries/progress.ts
 // Variable: PROGRESS_FOR_USER_QUERY
 // Query: *[_type == "progress" && userId == $userId] | order(updatedAt desc) {    _id,    "lessonId": lesson._ref,    completed,    completedAt,    resumeSeconds,    updatedAt  }
@@ -1285,6 +1335,14 @@ export type PROGRESS_FOR_USER_QUERY_RESULT = Array<{
   resumeSeconds: number | null;
   updatedAt: string | null;
 }>;
+
+// Source: ../sanity/queries/progress.ts
+// Variable: PROGRESS_TARGET_LESSON_QUERY
+// Query: *[_type == "lesson" && _id == $lessonId && !(_id in path("drafts.**")) && !(_id in path("versions.**"))][0] {    _id,    durationSeconds  }
+export type PROGRESS_TARGET_LESSON_QUERY_RESULT = {
+  _id: string;
+  durationSeconds: number | null;
+} | null;
 
 // Source: ../sanity/queries/progress.ts
 // Variable: PROGRESS_FOR_LESSON_QUERY
@@ -1336,7 +1394,11 @@ declare module "@sanity/client" {
     '\n  *[_type == "instructor" && slug.current == $slug][0] {\n    \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n,\n    bio,\n    "courses": *[_type == "course" && instructor._ref == ^._id && defined(slug.current)]\n      | order(title asc) { \n  _id,\n  title,\n  "slug": slug.current,\n  summary,\n  level,\n  priceDisplay,\n  popular,\n  studentCountDisplay,\n  coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n  instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n  category->{ \n  _id,\n  title,\n  "slug": slug.current\n },\n  "moduleCount": count(modules),\n  "lessonCount": count(modules[].lessons[]),\n  "durationSeconds": math::sum(modules[].lessons[]->durationSeconds)\n }\n  }\n': INSTRUCTOR_BY_SLUG_QUERY_RESULT;
     '\n  *[_type == "lesson" && slug.current == $slug][0] {\n    _id,\n    title,\n    "slug": slug.current,\n    videoUrl,\n    poster { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n    durationSeconds,\n    freePreview,\n    studentCountDisplay,\n    notes,\n    keyPoints,\n    proTip,\n    resources[] { _key, type, title, description, url },\n    "course": *[_type == "course" && references(^._id)] | order(_createdAt asc)[0] {\n      _id,\n      title,\n      "slug": slug.current,\n      level,\n      coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n      instructor->{ \n  _id,\n  name,\n  "slug": slug.current,\n  expertise,\n  photo { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n },\n      modules[] {\n        _key,\n        title,\n        lessons[]->{ \n  _id,\n  title,\n  "slug": slug.current,\n  durationSeconds,\n  freePreview,\n  poster { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n }\n }\n      }\n    }\n  }\n': LESSON_BY_SLUG_QUERY_RESULT;
     '\n  *[_type == "lesson" && defined(slug.current)].slug.current\n': LESSON_SLUGS_QUERY_RESULT;
+    '\n  *[_type == "course" && defined(slug.current) && references($lessonIds)] | order(title asc) {\n    _id,\n    title,\n    "slug": slug.current,\n    summary,\n    coverImage { \n  _type,\n  alt,\n  hotspot,\n  crop,\n  asset->{\n    _id,\n    url,\n    metadata { lqip, dimensions { width, height, aspectRatio } }\n  }\n },\n    modules[] {\n      _key,\n      lessons[]->{ _id, title, "slug": slug.current }\n    }\n  }\n': MY_LEARNING_COURSES_QUERY_RESULT;
+    '\n  *[_type == "lesson" && _id in $lessonIds && defined(slug.current)] {\n    _id,\n    title,\n    "slug": slug.current\n  }\n': LESSONS_BY_IDS_QUERY_RESULT;
+    '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...500].conceptId\n': CONCEPT_IDS_FOR_LESSONS_QUERY_RESULT;
     '\n  *[_type == "progress" && userId == $userId] | order(updatedAt desc) {\n    _id,\n    "lessonId": lesson._ref,\n    completed,\n    completedAt,\n    resumeSeconds,\n    updatedAt\n  }\n': PROGRESS_FOR_USER_QUERY_RESULT;
+    '\n  *[_type == "lesson" && _id == $lessonId && !(_id in path("drafts.**")) && !(_id in path("versions.**"))][0] {\n    _id,\n    durationSeconds\n  }\n': PROGRESS_TARGET_LESSON_QUERY_RESULT;
     '\n  *[_type == "progress" && userId == $userId && lesson._ref == $lessonId][0] {\n    _id,\n    "lessonId": lesson._ref,\n    completed,\n    completedAt,\n    resumeSeconds,\n    updatedAt\n  }\n': PROGRESS_FOR_LESSON_QUERY_RESULT;
     '\n  *[_type == "video" && videoId == $videoId] | order(_createdAt asc)[0] {\n    _id,\n    videoId,\n    provider,\n    providerVideoId,\n    sourceUrl,\n    title,\n    durationSeconds,\n    ingestedAt,\n    chapters[] { _key, startSeconds, label },\n    "transcriptChunkCount": count(transcriptChunks)\n  }\n': VIDEO_BY_VIDEO_ID_QUERY_RESULT;
   }
