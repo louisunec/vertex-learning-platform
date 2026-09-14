@@ -49,17 +49,14 @@ export function EvidencePanel({
         >
           {letter}
         </span>
-        <div className="min-w-0 flex-1">
-          <h2 id="concept-name" className="text-h1 font-medium break-words text-neutral-900">
+        {/* A name too long to share its line with the state pushes the state below, so words never split. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <h2 id="concept-name" className="min-w-0 text-h1 font-medium break-words text-neutral-900">
             {name}
           </h2>
-          {/* On phones the state sits under the name so the name keeps its width. */}
-          <div className="mt-2 sm:hidden">
+          <div className="mt-1 shrink-0">
             <Badge variant={ui.badge}>{ui.label}</Badge>
           </div>
-        </div>
-        <div className="mt-1 hidden shrink-0 sm:block">
-          <Badge variant={ui.badge}>{ui.label}</Badge>
         </div>
       </div>
       {summary && <p className="mt-6 text-body-lg text-neutral-700">{summary}</p>}
