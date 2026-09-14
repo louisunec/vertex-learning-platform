@@ -1,0 +1,23 @@
+{
+  "taskId": "sql-injection-user-lookup",
+  "lessonSlug": "practical-web-security-sql-injection",
+  "title": "Look up a user without SQL injection",
+  "language": "javascript",
+  "instructions": "Write an async JavaScript (or TypeScript) function findUserByUsername(db, username) for a Node.js app.\n\ndb is a connected client from the database driver of your choice, for example node-postgres, mysql2, or better-sqlite3. username comes straight from a login form, so treat it as untrusted.\n\nThe function looks up the row in the users table whose username column equals username, and returns that row, or null when there is none. Submit the function and any imports it needs.",
+  "criteria": [
+    {
+      "key": "no-query-building",
+      "text": "The username is never inserted into the SQL text itself: not by concatenation, an ordinary template string, or manual escaping."
+    },
+    {
+      "key": "bound-parameter",
+      "text": "The username reaches the database as a bound value, through a placeholder (such as $1 or ?) or a query API that binds it for you."
+    },
+    {
+      "key": "returns-row-or-null",
+      "text": "The function returns the matching user row, or null when no user matches."
+    }
+  ],
+  "conceptIds": [],
+  "sourceChunkKeys": ["tc-27-1", "tc-64-3", "tc-82-4", "tc-100-5", "tc-116-6", "tc-138-7", "tc-155-8"]
+}

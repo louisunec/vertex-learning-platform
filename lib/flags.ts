@@ -22,6 +22,11 @@ export const FLAGS = {
    * requires `learner-evidence`, its hints `help-policy`, and the panel all three flags above.
    */
   lessonIntegration: 'lesson-integration',
+  /**
+   * PR-12: learner submission review (`/api/review` and the lesson-page task). Requires
+   * `learner-evidence` and `help-policy` too; not `lesson-integration` or `tutor`.
+   */
+  submissionReview: 'submission-review',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

@@ -11,6 +11,7 @@ import {course} from './documents/course'
 import {instructor} from './documents/instructor'
 import {lesson} from './documents/lesson'
 import {progress} from './documents/progress'
+import {submissionTask} from './documents/submission-task'
 import {video} from './documents/video'
 import {blockContent} from './objects/block-content'
 import {chapter} from './objects/chapter'
@@ -34,6 +35,7 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   conceptPrerequisite,
   conceptMergeProposal,
   conceptGenerationRecord,
+  submissionTask,
   // Objects
   module,
   learningOutcome,

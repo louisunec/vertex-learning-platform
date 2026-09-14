@@ -12,11 +12,13 @@ import { LessonNotes } from "@/components/lesson/lesson-notes";
 import { LessonPlayerProvider } from "@/components/lesson/lesson-player";
 import { LessonSidebar, type SidebarModule } from "@/components/lesson/lesson-sidebar";
 import { LessonTabs } from "@/components/lesson/lesson-tabs";
+import { SubmissionReview } from "@/components/lesson/submission-review";
 import { VideoEmbed, type StartSource } from "@/components/lesson/video-embed";
 import { summarizeCourseProgress } from "@/lib/course-progress";
 import { formatDuration, formatLevel } from "@/lib/format";
 import { resolveLessonFeatures } from "@/lib/lesson/resolve-features";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { resolveSubmissionTask } from "@/lib/submissions/resolve";
 import { getEmbedSource, toStartSeconds } from "@/lib/video/embed";
 import { parseVideoUrl } from "@/lib/video/provider";
 import { getLessonBySlug, getProgressForUser } from "@/sanity/data";
@@ -50,13 +52,14 @@ export default async function LessonPage({ params, searchParams }: Props) {
   const parsed = parseVideoUrl(lesson.videoUrl);
 
   // Learner state is read per request, keyed by the server-resolved Clerk user id.
-  // Learning features (PR-7) are flag-gated per learner and never read the database here.
-  const [progressRows, features] = userId
+  // Learning features (PR-7) and the code task (PR-12) are flag-gated per learner and never read the database here.
+  const [progressRows, features, submissionTask] = userId
     ? await Promise.all([
         getProgressForUser(userId),
         resolveLessonFeatures({ userId, lessonId: lesson._id, provider: parsed?.provider ?? null }),
+        resolveSubmissionTask({ userId, lessonId: lesson._id }),
       ])
-    : [null, null];
+    : [null, null, null];
   const progress = course ? summarizeCourseProgress(course.modules, progressRows) : null;
 
   // Start position: explicit deep link (?t=seconds) wins over the stored resume position.
@@ -229,18 +232,23 @@ export default async function LessonPage({ params, searchParams }: Props) {
               </ul>
             )}
 
-            {features ? (
+            {features || submissionTask ? (
               <LessonPlayerProvider>
                 {video}
-                <LessonAssist
-                  lessonId={lesson._id}
-                  lessonSlug={slug}
-                  courseSlug={course?.slug ?? null}
-                  lessonRev={lesson._rev}
-                  startSeconds={startSeconds}
-                  durationSeconds={lesson.durationSeconds ?? null}
-                  features={features}
-                />
+                {features && (
+                  <LessonAssist
+                    lessonId={lesson._id}
+                    lessonSlug={slug}
+                    courseSlug={course?.slug ?? null}
+                    lessonRev={lesson._rev}
+                    startSeconds={startSeconds}
+                    durationSeconds={lesson.durationSeconds ?? null}
+                    features={features}
+                  />
+                )}
+                {submissionTask && (
+                  <SubmissionReview task={submissionTask} lessonSlug={slug} courseSlug={course?.slug ?? null} />
+                )}
               </LessonPlayerProvider>
             ) : (
               video

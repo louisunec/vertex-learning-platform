@@ -28,6 +28,7 @@ const MESSAGES: Record<LearnerErrorCode, string> = {
   hint_unavailable: 'No reviewed help is available for this task',
   already_answered: 'This question was already answered; ask again with a new request key',
   rate_limited: 'Too many tutor questions; try again later',
+  review_in_progress: 'This code is already being reviewed; retry shortly',
   unavailable: 'Temporarily unavailable, please retry',
   internal_error: 'Something went wrong',
 }
@@ -45,12 +46,13 @@ const STATUS: Record<LearnerErrorCode, number> = {
   hint_unavailable: 409,
   already_answered: 409,
   rate_limited: 429,
+  review_in_progress: 409,
   unavailable: 503,
   internal_error: 500,
 }
 
 export function learnerError(code: LearnerErrorCode): Response {
-  return learnerJson({error: MESSAGES[code], code, retryable: code === 'unavailable' || code === 'rate_limited'}, STATUS[code])
+  return learnerJson({error: MESSAGES[code], code, retryable: code === 'unavailable' || code === 'rate_limited' || code === 'review_in_progress'}, STATUS[code])
 }
 
 export type BodyResult = {ok: true; value: unknown} | {ok: false; code: 'invalid_request' | 'payload_too_large'}
