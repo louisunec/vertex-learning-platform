@@ -1,9 +1,14 @@
-/** Features in the design that have no backend yet (goals and recommendations PR-11, reviews, practice PR-7). */
+/** Features in the design that may not be on yet (goals and recommendations PR-11, reviews, practice PR-7). */
 const UPCOMING = ["Learning goals", "Recommendations", "Reviews", "Practice"];
 
-/** One quiet line instead of dead-end cards; nothing here is a link. Reviews drops out once its tab is on. */
-export function ComingSoon({ reviews = false }: { reviews?: boolean }) {
-  const upcoming = reviews ? UPCOMING.filter((label) => label !== "Reviews") : UPCOMING;
+/**
+ * One quiet line instead of dead-end cards; nothing here is a link. Reviews
+ * drops out once its tab is on, and goals and recommendations once next
+ * actions are on.
+ */
+export function ComingSoon({ reviews = false, nextAction = false }: { reviews?: boolean; nextAction?: boolean }) {
+  const hidden = new Set([...(reviews ? ["Reviews"] : []), ...(nextAction ? ["Learning goals", "Recommendations"] : [])]);
+  const upcoming = UPCOMING.filter((label) => !hidden.has(label));
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-neutral-500">
       <span className="font-medium tracking-[0.14em] uppercase">Coming soon</span>

@@ -182,7 +182,7 @@ async function lockLearnerReviews(tx: LearnerTx, learnerId: string): Promise<voi
   await tx`select pg_advisory_xact_lock(hashtextextended(${`review:${learnerId}`}, 0))`
 }
 
-async function readLatestCounted(tx: LearnerTx, learnerId: string, since: Date): Promise<LatestCounted[]> {
+export async function readLatestCounted(tx: LearnerTx, learnerId: string, since: Date): Promise<LatestCounted[]> {
   const rows = await tx<LatestCounted[]>`
     select distinct on (resolved_concept_id)
            resolved_concept_id as "conceptId", correct, evidence_kind as "evidenceKind", created_at as "createdAt"
@@ -195,7 +195,7 @@ async function readLatestCounted(tx: LearnerTx, learnerId: string, since: Date):
   return [...rows]
 }
 
-async function readAnsweredFamilies(tx: LearnerTx, learnerId: string, familyIds: string[]): Promise<Set<string>> {
+export async function readAnsweredFamilies(tx: LearnerTx, learnerId: string, familyIds: string[]): Promise<Set<string>> {
   if (familyIds.length === 0) return new Set()
   const rows = await tx<{familyId: string}[]>`
     select distinct family_id as "familyId" from learner.attempt_log
@@ -205,7 +205,7 @@ async function readAnsweredFamilies(tx: LearnerTx, learnerId: string, familyIds:
 }
 
 /** The learner's newest unexpired session that still has an unanswered item, with its items in order. */
-async function findActiveSession(tx: LearnerTx, learnerId: string, now: Date): Promise<StoredSession | null> {
+export async function findActiveSession(tx: LearnerTx, learnerId: string, now: Date): Promise<StoredSession | null> {
   const [session] = await tx<{id: string; expiresAt: Date}[]>`
     select s.id, s.expires_at as "expiresAt"
     from learner.review_session s
