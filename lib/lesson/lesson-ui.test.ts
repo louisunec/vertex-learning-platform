@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {describe, it} from 'node:test'
 
 import type {ResolvedCitation} from '../ai/contracts.ts'
-import {ACTIVITY_EMPTY_TEXT, activityTabs, initialActivity} from './activities.ts'
+import {ACTIVITY_EMPTY_TEXT, activityTabs} from './activities.ts'
 import {citationText, groupCitations, type SourcedCitation} from './citations.ts'
 import {decideLessonFeatures} from './features.ts'
 import {helpActions, tutorHelpActions} from './help-actions.ts'
@@ -123,12 +123,6 @@ describe('activityTabs', () => {
       ['Quick check:false', 'Explain it back:false', 'Submit implementation:false'],
     )
     for (const tab of tabs) assert.ok(ACTIVITY_EMPTY_TEXT[tab.key].endsWith('for this lesson yet.'))
-  })
-
-  it('opens the first available tab, or Quick check when none is', () => {
-    assert.equal(initialActivity(activityTabs(slots(null, null, null))), 'quickCheck')
-    assert.equal(initialActivity(activityTabs(slots('check', 'explain', null))), 'quickCheck')
-    assert.equal(initialActivity(activityTabs(slots(null, null, 'submit'))), 'submitImplementation')
   })
 
   it('treats only null or undefined as unavailable', () => {

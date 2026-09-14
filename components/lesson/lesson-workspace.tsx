@@ -4,7 +4,6 @@ import { useId, useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import type { TutorUnavailableReason } from "@/lib/lesson/features";
-import { LessonActivities, type LessonActivitySlots } from "./lesson-activities";
 import { LessonPlayerProvider } from "./lesson-player";
 import { TutorPanel, TutorUnavailable } from "./tutor-panel";
 import { useMediaQuery } from "./use-media-query";
@@ -42,8 +41,8 @@ const CENTRE = "px-6 md:px-10 lg:col-start-2 xl:px-8";
  * The tutor is one `TutorPanel` whose position never changes in the tree;
  * only its `layout` prop does, so its conversation survives a resize. The
  * video sits outside every drawer and tab, so playback and progress saving
- * are never interrupted. `LessonPlayerProvider` wraps it all: the tutor, the
- * check, and the other activities share the player and the open check task.
+ * are never interrupted. `LessonPlayerProvider` wraps it all: the tutor and
+ * the activities in `content`'s tabs share the player and the open check task.
  */
 export function LessonWorkspace({
   outline,
@@ -51,24 +50,18 @@ export function LessonWorkspace({
   header,
   video,
   content,
-  activities,
   footer,
   tutor,
-  lessonTitle,
-  lessonSlug,
 }: {
   outline: ReactNode | null;
   outlineSummary: OutlineSummary | null;
   header: ReactNode;
   video: ReactNode;
+  /** The lesson tabs: Lesson Content, Notes, and the learning activities when the learner gets them. */
   content: ReactNode;
-  /** Null for a signed-out visitor: every activity needs sign-in. */
-  activities: LessonActivitySlots | null;
   footer: ReactNode;
   /** Null when signed out or when `lesson-integration` is off for the learner. */
   tutor: LessonTutorSlot | null;
-  lessonTitle: string;
-  lessonSlug: string;
 }) {
   const wide = useMediaQuery(WIDE);
   const layout = wide ? "column" : "drawer";
@@ -163,12 +156,6 @@ export function LessonWorkspace({
         )}
 
         <div className={cn(CENTRE, "mt-10")}>{content}</div>
-
-        {activities && (
-          <div className={cn(CENTRE, "mt-10 empty:hidden")}>
-            <LessonActivities activities={activities} lessonTitle={lessonTitle} lessonSlug={lessonSlug} />
-          </div>
-        )}
 
         <div className={cn(CENTRE, "mt-10 empty:hidden")}>{footer}</div>
       </div>
