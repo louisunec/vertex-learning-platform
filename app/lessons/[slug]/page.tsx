@@ -152,6 +152,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
             startSeconds,
             startSource,
             saveProgress: Boolean(userId),
+            videoId: parsed.videoId,
           }}
         />
       ) : poster ? (

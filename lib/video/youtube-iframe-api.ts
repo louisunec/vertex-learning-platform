@@ -10,6 +10,8 @@ export type YouTubePlayer = {
   /** Seeks within the provider's own player (lesson-page citations, PR-7). */
   seekTo(seconds: number, allowSeekAhead: boolean): void
   playVideo(): void
+  /** Current speed (1 = normal); seek detection (PR-10) predicts the playhead with it. */
+  getPlaybackRate(): number
 }
 
 export type YouTubeNamespace = {

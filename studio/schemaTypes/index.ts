@@ -7,6 +7,7 @@ import {concept} from './documents/concept'
 import {conceptGenerationRecord} from './documents/concept-generation-record'
 import {conceptMergeProposal} from './documents/concept-merge-proposal'
 import {conceptPrerequisite} from './documents/concept-prerequisite'
+import {contentSignal} from './documents/content-signal'
 import {course} from './documents/course'
 import {instructor} from './documents/instructor'
 import {lesson} from './documents/lesson'
@@ -34,6 +35,7 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   conceptPrerequisite,
   conceptMergeProposal,
   conceptGenerationRecord,
+  contentSignal,
   // Objects
   module,
   learningOutcome,

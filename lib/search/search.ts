@@ -2,6 +2,7 @@ import 'server-only'
 
 import {interpretQuery} from './interpret'
 import {connectContextMcp, runGroqQuery} from './mcp'
+import type {InterpretationMode, SearchDiagnostics} from './outcome'
 import {
   buildCourseCandidatesQuery,
   buildLessonCandidatesQuery,
@@ -36,19 +37,28 @@ export async function searchVertex({
   cursor,
   pageSize = DEFAULT_PAGE_SIZE,
   distinctId = 'anonymous',
+  diagnostics,
 }: {
   query: string
   cursor?: string | null
   pageSize?: number
   /** Clerk user id or `"anonymous"`; selects feature-flag variants only. */
   distinctId?: string
+  /** Receives how the query was interpreted, for the route's outcome analytics (PR-10). */
+  diagnostics?: SearchDiagnostics
 }): Promise<SearchResponse> {
   const trimmed = query.trim().slice(0, MAX_QUERY_LENGTH)
   const size = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE)
 
   const decoded = decodeSearchCursor(cursor)
   const offset = decoded?.offset ?? 0
-  const terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed, {distinctId}) : [])
+  const onMode = diagnostics
+    ? (mode: InterpretationMode) => {
+        diagnostics.interpretation = mode
+      }
+    : undefined
+  const terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed, {distinctId, onMode}) : [])
+  if (diagnostics) diagnostics.termCount = terms.length
   // The learner's own words rank at full weight; LLM expansion terms rank
   // reduced. Recomputed deterministically, so cursor pages need no LLM call.
   const primaryTerms = fallbackTerms(trimmed)

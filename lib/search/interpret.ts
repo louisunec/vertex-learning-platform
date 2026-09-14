@@ -7,6 +7,7 @@ import {z} from 'zod'
 import {generateBoundedObject} from '@/lib/ai/gateway'
 import {FLAGS, isFlagEnabled} from '@/lib/flags'
 import {sanityFetch} from '@/sanity/lib/fetch'
+import type {InterpretationMode} from './outcome'
 import {fallbackTerms, sanitizeTerms} from './terms'
 
 /**
@@ -106,11 +107,19 @@ async function fetchPromptContext(): Promise<string> {
 /**
  * Interpreted, sanitized retrieval terms for a learner query. `distinctId`
  * (Clerk user id or `"anonymous"`) only selects the `ai-gateway-search` flag
- * variant; it is never sent to the model.
+ * variant; it is never sent to the model. `onMode` learns how the terms were
+ * produced, so a fallback after a provider failure is never mistaken for a
+ * normal search (editorial signals, PR-10).
  */
-export async function interpretQuery(query: string, {distinctId}: {distinctId: string}): Promise<string[]> {
+export async function interpretQuery(
+  query: string,
+  {distinctId, onMode}: {distinctId: string; onMode?: (mode: InterpretationMode) => void},
+): Promise<string[]> {
   const fallback = fallbackTerms(query)
-  if (!process.env.OPENAI_API_KEY) return fallback
+  if (!process.env.OPENAI_API_KEY) {
+    onMode?.('deterministic')
+    return fallback
+  }
   try {
     const [promptContext, useGateway] = await Promise.all([
       fetchPromptContext(),
@@ -145,8 +154,10 @@ export async function interpretQuery(query: string, {distinctId}: {distinctId: s
     // Keep the deterministic tokens in front so the learner's own words always
     // participate; model variants widen recall behind them.
     const terms = sanitizeTerms([...fallback, ...keywords])
+    onMode?.('model')
     return terms.length > 0 ? terms : fallback
   } catch {
+    onMode?.('fallback_after_error')
     return fallback
   }
 }

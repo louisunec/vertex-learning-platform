@@ -106,6 +106,78 @@ export type Module = {
   >;
 };
 
+export type AssessmentReference = {
+  _ref: string;
+  _type: "reference";
+  _weak?: boolean;
+  [internalGroqTypeReferenceTo]?: "assessment";
+};
+
+export type ContentSignal = {
+  _id: string;
+  _type: "contentSignal";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  title?: string;
+  signalType?:
+    | "assessment_difficulty"
+    | "replay_hotspot"
+    | "search_no_results"
+    | "tutor_insufficient_evidence";
+  summary?: string;
+  reason?: string;
+  reviewStatus?: "open" | "investigating" | "acknowledged" | "resolved";
+  reviewNote?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  lesson?: LessonReference;
+  assessment?: AssessmentReference;
+  assessmentFamilyId?: string;
+  assessmentVersion?: number;
+  timestampSeconds?: number;
+  timestampEndSeconds?: number;
+  window?: {
+    start?: string;
+    end?: string;
+    days?: number;
+    key?: string;
+    partial?: boolean;
+  };
+  measurement?: {
+    numerator?: number;
+    numeratorLabel?: string;
+    denominator?: number;
+    denominatorLabel?: string;
+    rate?: number;
+    distinctLearners?: number;
+  };
+  supporting?: Array<{
+    key?: string;
+    label?: string;
+    value?: number;
+    _type: "metric";
+    _key: string;
+  }>;
+  searchTerms?: Array<string>;
+  rule?: {
+    text?: string;
+    version?: string;
+  };
+  thresholdMet?: boolean;
+  regeneration?: {
+    status?: string;
+    candidateId?: string;
+    queuedDay?: string;
+    draftIds?: Array<string>;
+    detail?: string;
+  };
+  source?: "postgres" | "posthog" | "fixture";
+  fixture?: boolean;
+  subjectKey?: string;
+  computedAt?: string;
+};
+
 export type CourseReference = {
   _ref: string;
   _type: "reference";
@@ -678,6 +750,8 @@ export type AllSanitySchemaTypes =
   | Resource
   | LearningOutcome
   | Module
+  | AssessmentReference
+  | ContentSignal
   | CourseReference
   | ConceptGenerationRecord
   | ConceptReference

@@ -225,10 +225,11 @@ function record({
     const [row] = await tx<{id: string}[]>`
       insert into learner.tutor_request
         (learner_id, request_key, lesson_id, task_instance_id, session_id, help_event_id,
-         status, scope, evidence_count, cited_count, prompt_version, model_id)
+         status, scope, evidence_count, cited_count, prompt_version, model_id, current_seconds)
       values
         (${learnerId}, ${request.requestKey}, ${lessonId}, ${instance?.id ?? null}, ${request.sessionId ?? null}, ${helpEventId},
-         ${outcome.status}, ${scope}, ${outcome.evidenceCount}, ${outcome.answer?.citedCount ?? 0}, ${TUTOR_PROMPT_VERSION}, ${outcome.modelId})
+         ${outcome.status}, ${scope}, ${outcome.evidenceCount}, ${outcome.answer?.citedCount ?? 0}, ${TUTOR_PROMPT_VERSION}, ${outcome.modelId},
+         ${request.currentSeconds})
       on conflict (learner_id, request_key) do nothing
       returning id
     `

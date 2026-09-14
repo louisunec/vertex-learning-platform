@@ -1,5 +1,6 @@
 import {CONTEXT_SCHEMA_TYPE_NAME} from '@sanity/context/studio'
 import {
+  ActivityIcon,
   BookIcon,
   BulbOutlineIcon,
   CheckmarkCircleIcon,
@@ -55,6 +56,28 @@ const reviewList = (
         .filter(`_type == "${schemaType}" && ${filter}`)
         .initialValueTemplates([])
         .defaultOrdering(ordering),
+    )
+
+/**
+ * Editorial learning signals (development plan §5 PR-10), by review status
+ * and by type. Prompts for investigation, not verdicts; no list offers
+ * "create" (signals come only from `npm run signals`).
+ */
+const signalList = (S: StructureBuilder, title: string, filter: string) =>
+  S.listItem()
+    .title(title)
+    .schemaType('contentSignal')
+    .child(
+      S.documentList()
+        .title(title)
+        .schemaType('contentSignal')
+        .apiVersion('2026-08-31')
+        .filter(`_type == "contentSignal" && ${filter}`)
+        .initialValueTemplates([])
+        .defaultOrdering([
+          {field: 'window.start', direction: 'desc'},
+          {field: 'measurement.distinctLearners', direction: 'desc'},
+        ]),
     )
 
 const BY_NAME = [{field: 'name', direction: 'asc' as const}]
@@ -123,6 +146,27 @@ export const structure: StructureResolver = (S) =>
                     .initialValueTemplates([])
                     .defaultOrdering([{field: 'processedAt', direction: 'desc'}]),
                 ),
+            ]),
+        ),
+      S.listItem()
+        .title('Content signals')
+        .icon(ActivityIcon)
+        .child(
+          S.list()
+            .title('Content signals')
+            .items([
+              signalList(S, 'Open', 'reviewStatus == "open" && thresholdMet == true'),
+              signalList(S, 'Investigating', 'reviewStatus == "investigating"'),
+              signalList(S, 'Acknowledged', 'reviewStatus == "acknowledged"'),
+              signalList(S, 'Resolved', 'reviewStatus == "resolved"'),
+              signalList(S, 'No longer meets its threshold', 'thresholdMet == false && reviewStatus in ["open", "investigating"]'),
+              S.divider(),
+              signalList(S, 'High first-attempt error rate', 'signalType == "assessment_difficulty"'),
+              signalList(S, 'Repeated replays', 'signalType == "replay_hotspot"'),
+              signalList(S, 'Searches with no grounded results', 'signalType == "search_no_results"'),
+              signalList(S, 'Tutor found insufficient supporting material', 'signalType == "tutor_insufficient_evidence"'),
+              S.divider(),
+              signalList(S, 'All signals', 'true'),
             ]),
         ),
       S.divider(),

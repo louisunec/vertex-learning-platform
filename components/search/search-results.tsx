@@ -11,9 +11,6 @@ import type { SearchResponse, SearchResult } from "@/lib/search/schema";
 
 type Status = "loading" | "loaded" | "error";
 
-/** Upper bound on query text sent to analytics. */
-const MAX_TRACKED_QUERY_CHARS = 200;
-
 /**
  * Fetches server-validated structured results from `/api/search` and renders
  * the results section. The client renders only what the canonical server
@@ -48,11 +45,11 @@ export function SearchResults({ query, children }: { query: string; children: Re
   useEffect(() => {
     let cancelled = false;
     // Once per query, from either search form; "Show more" pages are not new searches.
+    // No query text leaves the browser: only its length, the outcome, and grounded counts.
     const trackSearch = (outcome: { status: "success" | "error"; resultCount: number | null; courseCount: number | null }) => {
       if (searchTracked.current) return;
       searchTracked.current = true;
       posthog.capture("search_performed", {
-        query: query.slice(0, MAX_TRACKED_QUERY_CHARS),
         query_length: query.length,
         status: outcome.status,
         result_count: outcome.resultCount,
@@ -104,7 +101,7 @@ export function SearchResults({ query, children }: { query: string; children: Re
       lesson_slug: result.slug,
       course_slug: result.course?.slug ?? null,
       ...(result.type === "video" ? { start_seconds: result.startSeconds } : {}),
-      query: query.slice(0, MAX_TRACKED_QUERY_CHARS),
+      query_length: query.length,
       position,
     });
   };
