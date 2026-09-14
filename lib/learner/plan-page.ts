@@ -4,7 +4,7 @@ import {getDb} from '@/lib/db/client'
 import {nextActionCapabilities} from '@/lib/flags'
 
 import {ContentUnavailableError} from './content-source'
-import {planNextActions} from './next-action'
+import {planNextActions, type NextActionCapabilities} from './next-action'
 import {sanityNextActionContent} from './next-action-content'
 import type {NextActionResponse} from './next-action-contracts'
 import type {CourseOption} from './next-action-source'
@@ -21,7 +21,8 @@ export type PlanState =
   | {status: 'not_configured'}
   | {status: 'error'; source: 'content' | 'learner_data'}
 
-export async function loadPlan(userId: string): Promise<PlanState> {
+/** `capabilities`, when the caller already evaluated them, spares a second round of flag reads. */
+export async function loadPlan(userId: string, capabilities?: NextActionCapabilities): Promise<PlanState> {
   if (!process.env.DATABASE_URL?.trim()) {
     console.error('[next-action] enabled but DATABASE_URL is not set')
     return {status: 'not_configured'}
@@ -32,7 +33,7 @@ export async function loadPlan(userId: string): Promise<PlanState> {
       content: sanityNextActionContent,
       learnerId: userId,
       request: {},
-      capabilities: await nextActionCapabilities(userId),
+      capabilities: capabilities ?? (await nextActionCapabilities(userId)),
       now: new Date(),
     })
     // Without a requested course, the service never rejects.

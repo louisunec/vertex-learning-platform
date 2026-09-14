@@ -10,7 +10,14 @@ import { RecentLearningCard } from "@/components/my-learning/recent-learning-car
 import { RecommendedCard } from "@/components/my-learning/recommended-card";
 import { SignedOut } from "@/components/my-learning/signed-out";
 import { getDb } from "@/lib/db/client";
-import { FLAGS, isFlagEnabled, isKnowledgeMapEnabled, isNextActionEnabled, isReviewEnabled } from "@/lib/flags";
+import {
+  FLAGS,
+  isFlagEnabled,
+  isKnowledgeMapEnabled,
+  isNextActionEnabled,
+  isReviewEnabled,
+  nextActionCapabilities,
+} from "@/lib/flags";
 import { formatRelativeTime } from "@/lib/format";
 import { sanityLearnerContent } from "@/lib/learner/content";
 import { readLearnerOverview } from "@/lib/learner/overview";
@@ -79,11 +86,16 @@ async function Overview({
   knowledgeMap: boolean;
   nextAction: boolean;
 }) {
-  const [progress, evidence, plan, goalCourses] = await Promise.all([
+  // The plan's own flag reads (review and lesson-check capabilities), evaluated once and
+  // shared: `checks` is `lesson-integration`, which also retires "Practice" from Coming soon.
+  // With next actions off nothing here reads it, so Practice stays listed.
+  const capabilities = nextAction ? nextActionCapabilities(userId) : null;
+  const [progress, evidence, plan, goalCourses, lessonChecks] = await Promise.all([
     settle("progress", getProgressForUser(userId)),
     readEvidence(userId),
-    nextAction ? loadPlan(userId) : null,
+    capabilities ? capabilities.then((granted) => loadPlan(userId, granted)) : null,
     nextAction ? loadGoalCourses() : null,
+    capabilities ? capabilities.then((granted) => granted.checks) : false,
   ]);
   const rows = progress.ok ? progress.value : [];
   const attempts = evidence.status === "ready" ? evidence.recentAttempts : [];
@@ -151,7 +163,7 @@ async function Overview({
           partial={state.recent.status === "ready" && state.recent.partial}
         />
       </div>
-      <ComingSoon reviews={reviews} nextAction={nextAction} />
+      <ComingSoon reviews={reviews} nextAction={nextAction} lessonChecks={lessonChecks} />
     </div>
   );
 }
