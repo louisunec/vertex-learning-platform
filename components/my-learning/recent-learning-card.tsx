@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui";
 import type { RecentLearningKind, RecentLearningState } from "@/lib/my-learning";
 import { IconTile, LoadError, SectionHeader } from "./card-parts";
@@ -8,6 +9,8 @@ export interface RecentLearningEntry {
   kind: RecentLearningKind;
   label: string;
   lessonTitle: string;
+  /** The lesson page; it resumes an unfinished lesson at the saved position. */
+  href: string;
   /** ISO timestamp and its display form, e.g. "2 hours ago". */
   at: string;
   when: string;
@@ -41,11 +44,18 @@ export function RecentLearningCard({ status, items, partial }: RecentLearningCar
         <>
           <ul className="mt-4">
             {items.map((item) => (
-              <li key={item.key} className="flex items-center gap-4 border-b border-neutral-200 py-4">
+              <li key={item.key} className="group relative flex items-center gap-4 border-b border-neutral-200 py-4">
                 {tiles[item.kind]}
                 <div className="min-w-0 flex-1">
                   <p className="text-body font-medium text-neutral-900">{item.label}</p>
-                  <p className="mt-0.5 truncate text-body text-neutral-500">{item.lessonTitle}</p>
+                  <p className="mt-0.5 truncate text-body text-neutral-500">
+                    <Link
+                      href={item.href}
+                      className="group-hover:text-primary-500 after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary-400"
+                    >
+                      {item.lessonTitle}
+                    </Link>
+                  </p>
                 </div>
                 <time dateTime={item.at} className="shrink-0 text-small text-neutral-500">
                   {item.when}
