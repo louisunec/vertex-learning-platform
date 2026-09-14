@@ -210,7 +210,7 @@ AGENTS.md; `docs/Vertex_AI_Native_Development_Plan.md` (§3, §5 PR-4/5/6/7/12, 
 Trial merges in a throwaway detached worktree:
 - **`preview/my-learning`**: conflicts in `lib/flags.ts`, `lib/db/migrate.db.test.ts`, `package.json`, `studio/sanity.config.ts`, `studio/structure.ts`. All are additive lists; keep both sides.
   - `migrate.db.test.ts`: `TABLES` gains `submission_review` and `submission_log`, `MIGRATIONS` gains `0006_submission_reviews.sql` after 0003–0005, and `granted` gains both entries plus the column checks.
-  - Regenerate `sanity.types.ts` with `npm run typegen` rather than merging it by hand.
+  - `sanity.types.ts`: add PR-12's delta by hand and don't regenerate the whole file. The preview's copy carries PR-2 and PR-11 types by hand, and this stack has no PR-2 schema. The delta is the `SubmissionTask` type, `ConceptReference` (moved, not changed; keep one copy), and `| SubmissionTask` in `AllSanitySchemaTypes`. No PR-12 code imports these generated types.
 - **`feat/pr-11-next-action`**: `lib/flags.ts` and `migrate.db.test.ts`, as above.
 - **`feat/pr-9-scheduled-review`**: the same two, plus PR-7's own `lib/learner/content*.ts` and `test-content.ts` conflicts, which the preview already resolved.
 - **`feat/pr-2-visual-index`**: `.env.example`, `lib/flags.ts`, `package.json`, and the two studio files, all additive.
