@@ -60,6 +60,30 @@ export function pickContinueLesson<C extends CourseLike>(
   return {lesson, resumeSeconds: seconds && seconds > 0 ? seconds : null}
 }
 
+/**
+ * Where "Continue learning" goes once the active course is finished: the
+ * most recently touched incomplete lesson in the learner's other courses
+ * (else such a course's first incomplete lesson), so finishing one course
+ * never hides unfinished work in another. Null when every course is done.
+ */
+export function pickContinueElsewhere<C extends CourseLike>(
+  courses: ReadonlyArray<C>,
+  rows: ReadonlyArray<ProgressRow>,
+  active: ActiveCourse<C>,
+): {course: C; next: ContinueLesson} | null {
+  let best: {course: C; next: ContinueLesson; touchedAt: string} | null = null
+  for (const course of courses) {
+    if (course._id === active.course._id) continue
+    const progress = summarizeCourseProgress(course.modules, rows)
+    if (!progress.hasProgress) continue
+    const next = pickContinueLesson({course, progress, lastActivityAt: ''}, rows)
+    if (!next) continue
+    const touchedAt = rows.find((row) => row.lessonId === next.lesson._id)?.updatedAt ?? ''
+    if (!best || touchedAt > best.touchedAt) best = {course, next, touchedAt}
+  }
+  return best && {course: best.course, next: best.next}
+}
+
 export type ConceptEvidence = {withEvidence: number; total: number}
 
 /**
@@ -130,9 +154,10 @@ export function buildRecentLearning(
   attempts.forEach((attempt, i) => {
     const lesson = lessons.get(attempt.lessonId)
     const practice = PRACTICE[attempt.evidenceReason]
-    if (!lesson || !practice) return
-    const at = new Date(attempt.createdAt).toISOString()
-    items.push({key: `attempt-${i}`, ...practice, lesson, at})
+    const time = new Date(attempt.createdAt).getTime()
+    // An unparseable or infinite timestamp (e.g. Postgres `infinity`) would make `toISOString` throw.
+    if (!lesson || !practice || !Number.isFinite(time)) return
+    items.push({key: `attempt-${i}`, ...practice, lesson, at: new Date(time).toISOString()})
   })
   for (const row of latestRows(rows, limit)) {
     const lesson = lessons.get(row.lessonId)
@@ -230,9 +255,10 @@ export function buildOverviewState<C extends CourseWithTitle>({
     nextStep = {kind: 'missing_content'}
     myCourses = {status: 'missing_content'}
   } else {
-    const next = pickContinueLesson(active, rows)
+    const here = pickContinueLesson(active, rows)
+    const next = here ? {course: active.course, next: here} : pickContinueElsewhere(courses.ok ? courses.value : [], rows, active)
     nextStep = next
-      ? {kind: 'continue', course: active.course, lesson: next.lesson, resumeSeconds: next.resumeSeconds}
+      ? {kind: 'continue', course: next.course, lesson: next.next.lesson, resumeSeconds: next.next.resumeSeconds}
       : {kind: 'course_complete', course: active.course}
     myCourses = {
       status: 'ready',

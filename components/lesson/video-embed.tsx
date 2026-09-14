@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import posthog from "posthog-js";
+import { createProgressQueue, type ProgressSave } from "@/lib/progress/queue";
 import type { VideoProvider } from "@/lib/video/provider";
 import { COMPLETION_MILESTONE, reachedMilestones, type WatchDepthMilestone } from "@/lib/video/watch-depth";
 import { loadYouTubeIframeApi, type YouTubePlayer } from "@/lib/video/youtube-iframe-api";
@@ -24,8 +25,8 @@ export interface VideoTracking {
 const PROGRESS_SAVE_INTERVAL_SECONDS = 15;
 
 /** Sends one progress save; `keepalive` lets it finish while the page unloads. Failures never affect playback. */
-function postProgress(lessonId: string, positionSeconds: number, completed: boolean) {
-  void fetch("/api/progress", {
+function postProgress(lessonId: string, { positionSeconds, completed }: ProgressSave): Promise<unknown> {
+  return fetch("/api/progress", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lessonId, positionSeconds: Math.max(0, positionSeconds), ...(completed ? { completed } : {}) }),
@@ -39,8 +40,9 @@ function postProgress(lessonId: string, positionSeconds: number, completed: bool
  * the provider's supported mechanism. YouTube embeds also report play and
  * watch-depth analytics through the IFrame Player API and, for signed-in
  * learners, save progress (on pause, every 15 s of playback, at the 90%
- * completion milestone, on end, and when the page is hidden); other
- * providers only play.
+ * completion milestone, on end, when the player unmounts on in-app
+ * navigation, and when the page is hidden); other providers only play.
+ * Saves go out one at a time, in order (`lib/progress/queue.ts`).
  */
 export function VideoEmbed({ src, title, tracking }: { src: string; title: string; tracking: VideoTracking }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -71,10 +73,14 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
       timer = null;
     };
 
-    const save = (position: number) => {
+    const queue = createProgressQueue((next) => postProgress(lessonId, next));
+    /** `unloading`: the page is going away and cannot wait for a save in flight. */
+    const save = (position: number, unloading = false) => {
       if (!saveProgress || !played.current) return;
       secondsSinceSave = 0;
-      postProgress(lessonId, position, completed);
+      const next = { positionSeconds: position, completed };
+      if (unloading) queue.flush(next);
+      else queue.save(next);
     };
 
     const checkDepth = (player: YouTubePlayer, ended: boolean) => {
@@ -109,7 +115,7 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
     };
 
     const onPageHide = () => {
-      if (activePlayer) save(activePlayer.getCurrentTime());
+      if (activePlayer) save(activePlayer.getCurrentTime(), true);
     };
     window.addEventListener("pagehide", onPageHide);
 
@@ -147,6 +153,14 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
 
     return () => {
       cancelled = true;
+      // In-app navigation unmounts the player without a `pagehide`; save where the learner left off.
+      if (activePlayer) {
+        try {
+          save(activePlayer.getCurrentTime());
+        } catch (error) {
+          console.warn("[progress] final position unavailable:", error);
+        }
+      }
       stopPolling();
       window.removeEventListener("pagehide", onPageHide);
     };

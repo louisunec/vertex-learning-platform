@@ -56,7 +56,7 @@ Worktree `../vertex-my-learning`, branch `feat/my-learning-overview` (uncommitte
 - **A (recommended): add the progress write path.**
   - `POST /api/progress {lessonId, positionSeconds, completed?}`: Clerk `auth()` required, bounded JSON, Zod schema, and the published lesson must exist. Position is clamped to `[0, durationSeconds]`. `completed` is never unset.
   - Deterministic doc id `progress-<sha256(userId)[:24]>-<lessonId>`, written via `createIfNotExists` + `patch`.
-  - Server-only write client with a new `SANITY_API_WRITE_TOKEN` (**not** the read token). Added to `.env.example`.
+  - Server-only write client with a new `SANITY_API_PROGRESS_WRITE_TOKEN` (**not** the read token, and not the offline-only `SANITY_API_WRITE_TOKEN`). Added to `.env.example`.
   - `video-embed.tsx` (YouTube only; other providers are play-only) saves on pause, every 15 s while playing, at the existing 90 % completion milestone, on end, and on `pagehide` (`keepalive` fetch).
   - Tests: unauthenticated → 401, unknown lesson → 404, invalid body → 400, clamping, completion never reverts, repeat writes update one document.
 - **B:** no writer. Copy production to a temporary dataset, add progress for a test user there, verify against it, then delete the dataset.
@@ -67,7 +67,7 @@ Worktree `../vertex-my-learning`, branch `feat/my-learning-overview` (uncommitte
 - `app/my-learning/page.tsx`, `lib/my-learning.ts` (+ tests).
 - `components/my-learning/{next-step-card,coming-soon,card-parts,my-courses-card,recent-learning-card}.tsx`. `quick-tile.tsx` and `next-step-cards.tsx` are removed.
 - `components/home/site-header.tsx` (responsive Sign up).
-- A only: `app/api/progress/route.ts`, `lib/progress/{write,contracts}.ts` (+ tests), `sanity/lib/write-client.ts`, `components/lesson/video-embed.tsx`, `.env.example`.
+- A only: `app/api/progress/route.ts`, `lib/progress/{write,contracts}.ts` (+ tests), `sanity/lib/learner-client.ts`, `components/lesson/video-embed.tsx`, `.env.example`.
 
 ## Security
 - Clerk id comes only from `auth()`. The write token is server-only and never reaches the browser. No client-side Sanity writes.
