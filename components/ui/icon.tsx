@@ -33,6 +33,7 @@ export type IconName =
   | "bulb"
   | "users"
   | "check"
+  | "x"
   | "refresh"
   | "message"
   | "network"
@@ -266,6 +267,7 @@ const glyphs: Record<IconName, Glyph> = {
     ),
   },
   check: { outline: <path d="m5 12.5 4.5 4.5L19 7.5" /> },
+  x: { outline: <path d="M6 6l12 12M18 6 6 18" /> },
   refresh: {
     outline: (
       <>

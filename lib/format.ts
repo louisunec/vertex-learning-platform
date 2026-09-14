@@ -16,13 +16,13 @@ export function formatDuration(totalSeconds: number): string {
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 }
 
-/** `12:45`, `1:02:03` — clock-style duration for a single lesson video. */
-export function formatClock(totalSeconds: number): string {
+/** `12:45`, `1:02:03` — clock-style duration for a single lesson video. `pad` gives `05:41`. */
+export function formatClock(totalSeconds: number, {pad = false}: {pad?: boolean} = {}): string {
   const seconds = Math.max(0, Math.round(totalSeconds))
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
-  const mm = h > 0 ? String(m).padStart(2, '0') : String(m)
+  const mm = h > 0 || pad ? String(m).padStart(2, '0') : String(m)
   return `${h > 0 ? `${h}:` : ''}${mm}:${String(s).padStart(2, '0')}`
 }
 

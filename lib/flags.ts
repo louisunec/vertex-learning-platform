@@ -17,6 +17,8 @@ export const FLAGS = {
   helpPolicy: 'help-policy',
   /** PR-6: the time-anchored tutor (`/api/tutor`). Requires `learner-evidence` and `help-policy` too. */
   tutor: 'tutor',
+  /** The My Learning knowledge map (`/my-learning/knowledge-map`). Requires `learner-evidence` too. */
+  knowledgeMap: 'knowledge-map',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]
@@ -31,4 +33,13 @@ export async function isFlagEnabled(key: FlagKey, distinctId: string): Promise<b
     console.warn(`[flags] ${key} evaluation failed; treating as off:`, error instanceof Error ? error.message : error)
     return false
   }
+}
+
+/** The knowledge map reads learner evidence, so it needs `learner-evidence` as well as its own flag. */
+export async function isKnowledgeMapEnabled(distinctId: string): Promise<boolean> {
+  const [map, evidence] = await Promise.all([
+    isFlagEnabled(FLAGS.knowledgeMap, distinctId),
+    isFlagEnabled(FLAGS.learnerEvidence, distinctId),
+  ])
+  return map && evidence
 }
