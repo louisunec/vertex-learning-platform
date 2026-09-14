@@ -1,5 +1,7 @@
 import 'server-only'
 
+import type {MCPClient} from '@ai-sdk/mcp'
+
 import {FLAGS, isFlagEnabled} from '@/lib/flags'
 
 import {interpretQuery} from './interpret'
@@ -53,29 +55,37 @@ export async function searchVertex({
   const offset = decoded?.offset ?? 0
   // Evaluated alongside interpretation; off (and on any flag error) keeps visual evidence out.
   const visualEnabled = isFlagEnabled(FLAGS.searchVisualEvidence, distinctId)
-  const terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed, {distinctId}) : [])
   // The learner's own words rank at full weight; LLM expansion terms rank
   // reduced. Recomputed deterministically, so cursor pages need no LLM call.
   const primaryTerms = fallbackTerms(trimmed)
+  // Interpretation never returns fewer terms than the learner's own words, and
+  // cursor terms are never empty, so retrieval is certain when either exists:
+  // the MCP handshake and the term-independent lesson-video index then start
+  // now and overlap the LLM call. Otherwise they wait for the terms, as before.
+  let retrieval = decoded || primaryTerms.length > 0 ? startTermIndependentRetrieval() : null
 
-  if (terms.length === 0) {
-    return searchResponseSchema.parse({
-      query: trimmed,
-      results: [],
-      total: 0,
-      courseCount: 0,
-      nextCursor: null,
-    })
-  }
-
-  const mcp = await connectContextMcp()
+  let terms: string[]
   let ranked
   try {
+    terms = decoded?.terms ?? (trimmed ? await interpretQuery(trimmed, {distinctId}) : [])
+
+    if (terms.length === 0) {
+      return searchResponseSchema.parse({
+        query: trimmed,
+        results: [],
+        total: 0,
+        courseCount: 0,
+        nextCursor: null,
+      })
+    }
+
+    retrieval ??= startTermIndependentRetrieval()
+    const mcp = await retrieval.client
     const [lessonRows, videoRows, courseRows, lessonIndexRows, visualRows] = await Promise.all([
       runGroqQuery(mcp, buildLessonCandidatesQuery(terms)),
       runGroqQuery(mcp, buildVideoCandidatesQuery(terms)),
       runGroqQuery(mcp, buildCourseCandidatesQuery(terms)),
-      runGroqQuery(mcp, LESSON_VIDEO_INDEX_QUERY),
+      retrieval.lessonIndexRows,
       visualEnabled.then((enabled) => (enabled ? runGroqQuery(mcp, buildVisualCandidatesQuery(terms)) : [])),
     ])
     ranked = rankCandidates(
@@ -85,7 +95,9 @@ export async function searchVertex({
       parseVideoMomentCandidates(videoRows, lessonIndexRows, visualRows),
     )
   } finally {
-    await mcp.close().catch(() => undefined)
+    // Every path closes a client it opened, early return and failures included;
+    // one that never connected has nothing to close.
+    if (retrieval) await retrieval.client.then((mcp) => mcp.close()).catch(() => undefined)
   }
 
   const page = ranked.slice(offset, offset + size)
@@ -110,4 +122,18 @@ export async function searchVertex({
     courseCount,
     nextCursor,
   })
+}
+
+/**
+ * Opens the per-request MCP client and starts the lesson-video index query,
+ * which needs no terms. Both promises are marked handled now so a failure
+ * while interpretation is still running is never an unhandled rejection;
+ * awaiting them later still throws, so MCP failures keep answering 502.
+ */
+function startTermIndependentRetrieval(): {client: Promise<MCPClient>; lessonIndexRows: Promise<unknown>} {
+  const client = connectContextMcp()
+  const lessonIndexRows = client.then((mcp) => runGroqQuery(mcp, LESSON_VIDEO_INDEX_QUERY))
+  client.catch(() => undefined)
+  lessonIndexRows.catch(() => undefined)
+  return {client, lessonIndexRows}
 }
