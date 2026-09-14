@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { Button, Card, Icon } from "@/components/ui";
 import { SiteHeader } from "@/components/home/site-header";
 import { LoadError } from "@/components/my-learning/card-parts";
-import { ConceptMap, type MapNodeView } from "@/components/my-learning/knowledge-map/concept-map";
+import { ConceptMap, type MapEdgeView, type MapNodeView } from "@/components/my-learning/knowledge-map/concept-map";
 import { CourseSelect } from "@/components/my-learning/knowledge-map/course-select";
 import { EvidencePanel, type AttemptView } from "@/components/my-learning/knowledge-map/evidence-panel";
 import { MapLegend } from "@/components/my-learning/knowledge-map/map-legend";
@@ -21,8 +21,11 @@ import {
   ATTEMPT_LABELS,
   MAP_LAYOUT,
   attemptReason,
+  canViewProposedEdges,
   countedAttempts,
+  displayableProposedEdges,
   drawableEdges,
+  edgeSources,
   evidenceIdsFor,
   evidenceSummary,
   firstSource,
@@ -34,6 +37,9 @@ import {
   resolveEvidence,
   type AttemptFeedbackItem,
   type ConceptSource,
+  type CourseLesson,
+  type EdgeEvidence,
+  type MapEdge,
 } from "@/lib/knowledge-map";
 import { sanityLearnerContent } from "@/lib/learner/content";
 import { EMPTY_COUNTS } from "@/lib/learner/evidence";
@@ -44,6 +50,7 @@ import {
   getCoursesContainingLessons,
   getKnowledgeMapConcepts,
   getKnowledgeMapEdges,
+  getKnowledgeMapProposedEdges,
   getProgressForUser,
 } from "@/sanity/data";
 
@@ -157,13 +164,27 @@ async function KnowledgeMap({ userId, course: requestedCourse, concept: requeste
   }));
   // Evidence is read for this map's concepts only, including concepts merged into them.
   const evidenceIds = [...new Set(mapConcepts.flatMap((concept) => evidenceIdsFor(concept, index.value)))];
-  const [edgeRows, evidence] = await Promise.all([
-    attempt("prerequisites", getKnowledgeMapEdges(mapConcepts.map((concept) => concept.id))),
+  const conceptIds = mapConcepts.map((concept) => concept.id);
+  // Display only, for allowlisted viewers: unreviewed proposals never reach gating, mastery, or next actions.
+  const showProposed = canViewProposedEdges(userId, process.env.KNOWLEDGE_MAP_PROPOSED_EDGES_USER_IDS);
+  const [edgeRows, evidence, proposedRows] = await Promise.all([
+    attempt("prerequisites", getKnowledgeMapEdges(conceptIds)),
     attempt("learner evidence", readMapEvidence(getDb(), userId, evidenceIds)),
+    showProposed ? attempt("proposed prerequisites", getKnowledgeMapProposedEdges(conceptIds)) : null,
   ]);
   if (!edgeRows.ok || !evidence.ok) return <Failure selector={selector} />;
   const { edges, dropped } = drawableEdges(mapConcepts, edgeRows.value);
   if (dropped.length > 0) console.warn("[knowledge-map] prerequisite edges failed validation and are not drawn:", dropped.join(", "));
+  const proposed = proposedRows?.ok ? displayableProposedEdges(mapConcepts, edges, proposedRows.value) : null;
+  if (proposed && proposed.dropped.length > 0) {
+    console.warn("[knowledge-map] AI-proposed edges failed validation and are not shown:", proposed.dropped.join(", "));
+  }
+  const details = new Map([...edgeRows.value, ...(proposedRows?.ok ? proposedRows.value : [])].map((row) => [row.id, row]));
+  const edgeView = (kind: MapEdgeView["kind"]) => (edge: MapEdge) => ({
+    ...edge,
+    kind,
+    ...edgeDetails(details.get(edge.id), lessons),
+  });
 
   const now = new Date();
   const byConcept = resolveEvidence(evidence.value.mastery, evidence.value.latestIndependent, index.value);
@@ -176,10 +197,10 @@ async function KnowledgeMap({ userId, course: requestedCourse, concept: requeste
     };
   });
   const selected = pickSelected(ordered, requestedConcept)!;
-  const layout = layoutMap(
-    ordered.map((concept) => concept.id),
-    edges,
-  );
+  const layout = layoutMap(ordered.map((concept) => concept.id), [
+    ...edges.map(edgeView("approved")),
+    ...(proposed?.edges ?? []).map(edgeView("proposed")),
+  ]);
   const placed = new Map(layout.nodes.map((node) => [node.id, node]));
   const nodes: MapNodeView[] = ordered.map((concept) => ({
     id: concept.id,
@@ -208,7 +229,7 @@ async function KnowledgeMap({ userId, course: requestedCourse, concept: requeste
             nodes={nodes}
             edges={layout.edges}
           />
-          <MapLegend />
+          <MapLegend proposed={(proposed?.edges.length ?? 0) > 0} proposedUnavailable={proposedRows?.ok === false} />
         </Card>
         <EvidencePanel
           name={selected.name}
@@ -251,6 +272,21 @@ async function readAttempts(userId: string, conceptIds: string[], now: Date): Pr
     reason: attemptReason(row, items),
     badge: ATTEMPT_BADGES[row.evidenceKind],
   }));
+}
+
+/** An edge's rationale and its cited moments in this course, as "Lesson 2 · 03:15" deep links. */
+function edgeDetails(
+  row: { rationale: string | null; evidence: EdgeEvidence[] | null } | undefined,
+  lessons: ReadonlyMap<string, CourseLesson>,
+): Pick<MapEdgeView, "rationale" | "sources"> {
+  return {
+    rationale: row?.rationale?.trim() || null,
+    sources: edgeSources(row?.evidence ?? [], lessons).map((source) => ({
+      label: `Lesson ${source.lesson.number} · ${formatClock(source.startSeconds, { pad: true })}`,
+      title: source.lesson.title,
+      href: source.href,
+    })),
+  };
 }
 
 type Attempted<T> = { ok: true; value: T } | { ok: false };

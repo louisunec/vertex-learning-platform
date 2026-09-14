@@ -1,11 +1,13 @@
 import 'server-only'
 
+import {draftReadClient} from '../lib/client'
 import {cacheTags, CONTENT_REVALIDATE_SECONDS, sanityFetch} from '../lib/fetch'
 import {ATTEMPT_FEEDBACK_QUERY} from '../queries/assessments'
 import {
   CONCEPT_IDS_FOR_LESSONS_QUERY,
   KNOWLEDGE_MAP_CONCEPTS_QUERY,
   KNOWLEDGE_MAP_EDGES_QUERY,
+  KNOWLEDGE_MAP_PROPOSED_EDGES_QUERY,
   LESSONS_BY_IDS_QUERY,
   MY_LEARNING_COURSES_QUERY,
 } from '../queries/my-learning'
@@ -46,6 +48,11 @@ export function getKnowledgeMapEdges(conceptIds: string[]) {
     params: {conceptIds},
     revalidate: CONTENT_REVALIDATE_SECONDS,
   })
+}
+
+/** SERVER-ONLY, display only: unreviewed AI-proposed edges, for allowlisted viewers (see the query). */
+export function getKnowledgeMapProposedEdges(conceptIds: string[]) {
+  return draftReadClient.fetch(KNOWLEDGE_MAP_PROPOSED_EDGES_QUERY, {conceptIds}, {next: {revalidate: 0}})
 }
 
 /**

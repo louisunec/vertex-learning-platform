@@ -6,7 +6,10 @@ import {
   MAP_LAYOUT,
   RECENT_EVIDENCE_DAYS,
   attemptReason,
+  canViewProposedEdges,
+  displayableProposedEdges,
   drawableEdges,
+  edgeSources,
   evidenceIdsFor,
   evidenceSummary,
   firstSource,
@@ -150,6 +153,25 @@ describe('course order and sources', () => {
     assert.equal(lessonMomentHref('loss', -3), '/lessons/loss?t=0')
   })
 
+  it('lists an edge’s moments in this course in teaching order, once per second', () => {
+    const sources = edgeSources(
+      [
+        {lessonId: 'l4', startSeconds: 20.6},
+        {lessonId: 'l3', startSeconds: 341.9},
+        {lessonId: 'l3', startSeconds: 341.2},
+        {lessonId: 'elsewhere', startSeconds: 1},
+        {lessonId: null, startSeconds: 5},
+        {lessonId: 'l1', startSeconds: null},
+        {lessonId: 'l1', startSeconds: -1},
+      ],
+      lessons,
+    )
+    assert.deepEqual(sources.map((source) => [source.lesson._id, source.startSeconds, source.href]), [
+      ['l3', 341, '/lessons/training?t=341'],
+      ['l4', 20, `/lessons/${lessons.get('l4')!.slug}?t=20`],
+    ])
+  })
+
   it('orders concepts as the course teaches them, sourceless ones last', () => {
     const concepts = [
       {id: 'c-eval', conceptId: 'cpt-eval', name: 'Evaluation', sources: [{lessonId: 'l4', startSeconds: 500}]},
@@ -174,6 +196,53 @@ describe('drawableEdges', () => {
     ])
     assert.deepEqual(edges, [{id: 'e-ab', from: 'a', to: 'b'}])
     assert.deepEqual(dropped, ['e-aa', 'e-ax', 'e-bc', 'e-cb'])
+  })
+
+  it('never draws an unapproved edge as a prerequisite', () => {
+    const {edges} = drawableEdges(concepts, [
+      {id: 'drafts.p-ab', prerequisite: 'a', dependent: 'b', status: 'proposed'},
+      {id: 'p-bc', prerequisite: 'b', dependent: 'c', status: 'rejected'},
+    ])
+    assert.deepEqual(edges, [])
+  })
+})
+
+describe('displayableProposedEdges', () => {
+  const concepts = ['a', 'b', 'c', 'd'].map((id) => ({id, conceptId: `cpt-${id}`, name: id, sources: []}))
+  const approved = [{id: 'e-ab', from: 'a', to: 'b'}]
+
+  it('shows valid proposals and drops off-map, self, approved, repeated, and cyclic ones', () => {
+    const {edges, dropped} = displayableProposedEdges(concepts, approved, [
+      {id: 'p-bc', prerequisite: 'b', dependent: 'c'},
+      {id: 'p-ax', prerequisite: 'a', dependent: 'x'},
+      {id: 'p-cc', prerequisite: 'c', dependent: 'c'},
+      {id: 'p-ab', prerequisite: 'a', dependent: 'b'},
+      {id: 'p-ba', prerequisite: 'b', dependent: 'a'},
+      {id: 'p-bc-2', prerequisite: 'b', dependent: 'c'},
+      {id: 'p-null', prerequisite: null, dependent: 'c'},
+    ])
+    assert.deepEqual(edges, [{id: 'p-bc', from: 'b', to: 'c'}])
+    assert.deepEqual(dropped, ['p-ab', 'p-ax', 'p-ba', 'p-bc-2', 'p-cc', 'p-null'])
+  })
+
+  it('drops every proposal inside a cycle with the approved graph, keeping the rest', () => {
+    const {edges, dropped} = displayableProposedEdges(concepts, approved, [
+      {id: 'p-bc', prerequisite: 'b', dependent: 'c'},
+      {id: 'p-ca', prerequisite: 'c', dependent: 'a'},
+      {id: 'p-ad', prerequisite: 'a', dependent: 'd'},
+    ])
+    assert.deepEqual(edges, [{id: 'p-ad', from: 'a', to: 'd'}])
+    assert.deepEqual(dropped, ['p-bc', 'p-ca'])
+  })
+})
+
+describe('canViewProposedEdges', () => {
+  it('is on only for listed user ids', () => {
+    assert.equal(canViewProposedEdges('user_1', ' user_2 , user_1 '), true)
+    assert.equal(canViewProposedEdges('user_3', 'user_2,user_1'), false)
+    assert.equal(canViewProposedEdges('user_1', undefined), false)
+    assert.equal(canViewProposedEdges('user_1', ''), false)
+    assert.equal(canViewProposedEdges('', ','), false)
   })
 })
 

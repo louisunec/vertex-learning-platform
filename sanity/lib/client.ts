@@ -19,3 +19,10 @@ export const client = createClient({
   stega: false,
   token: process.env.SANITY_API_READ_TOKEN,
 })
+
+/**
+ * Server-only, uncached raw reads that can see unpublished drafts (with the
+ * read token). For display-only review aids such as the knowledge map's
+ * AI-proposed edges; learner-facing decisions never read through it.
+ */
+export const draftReadClient = client.withConfig({useCdn: false, perspective: 'raw'})
