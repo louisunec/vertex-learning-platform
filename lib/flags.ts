@@ -33,6 +33,12 @@ export const FLAGS = {
    * `/my-learning/reviews`). Requires `review-session` and `learner-evidence` too.
    */
   scheduledReview: 'scheduled-review',
+  /**
+   * PR-11: the learning goal and next actions (`/api/goal`, `/api/next`, `/learn`, and the My
+   * Learning goal and recommendation cards). Requires `learner-evidence` too. Practice items
+   * also need `review-session`, and check items `lesson-integration`.
+   */
+  nextAction: 'next-action',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]
@@ -71,4 +77,24 @@ export async function isReviewEnabled(distinctId: string): Promise<boolean> {
 export async function isScheduledReviewEnabled(distinctId: string): Promise<boolean> {
   const [scheduled, review] = await Promise.all([isFlagEnabled(FLAGS.scheduledReview, distinctId), isReviewEnabled(distinctId)])
   return scheduled && review
+}
+
+/** Next actions read the goal and evidence from the learner database, so they need `learner-evidence` too. */
+export async function isNextActionEnabled(distinctId: string): Promise<boolean> {
+  const [next, evidence] = await Promise.all([
+    isFlagEnabled(FLAGS.nextAction, distinctId),
+    isFlagEnabled(FLAGS.learnerEvidence, distinctId),
+  ])
+  return next && evidence
+}
+
+/**
+ * The routes a next action may send an enabled learner to, beyond lesson
+ * pages: focused review, and the lesson check (whose own gate is
+ * `lesson-integration` + `learner-evidence`; call only once next actions are
+ * enabled, which already requires `learner-evidence`).
+ */
+export async function nextActionCapabilities(distinctId: string): Promise<{practice: boolean; checks: boolean}> {
+  const [practice, checks] = await Promise.all([isReviewEnabled(distinctId), isFlagEnabled(FLAGS.lessonIntegration, distinctId)])
+  return {practice, checks}
 }

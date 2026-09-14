@@ -3,17 +3,27 @@ import { auth } from "@clerk/nextjs/server";
 import { SiteHeader } from "@/components/home/site-header";
 import { ComingSoon } from "@/components/my-learning/coming-soon";
 import { DueReviews, type DueReviewsState } from "@/components/my-learning/due-reviews";
+import { GoalCard, type GoalCardState } from "@/components/my-learning/goal-card";
 import { LearningTabs } from "@/components/my-learning/learning-tabs";
 import { MyCoursesCard } from "@/components/my-learning/my-courses-card";
 import { NextStepCard } from "@/components/my-learning/next-step-card";
 import { RecentLearningCard } from "@/components/my-learning/recent-learning-card";
+import { RecommendedCard } from "@/components/my-learning/recommended-card";
 import { SignedOut } from "@/components/my-learning/signed-out";
 import { getDb } from "@/lib/db/client";
 import { asLearner } from "@/lib/db/learner-scope";
-import { FLAGS, isFlagEnabled, isKnowledgeMapEnabled, isReviewEnabled, isScheduledReviewEnabled } from "@/lib/flags";
+import {
+  FLAGS,
+  isFlagEnabled,
+  isKnowledgeMapEnabled,
+  isNextActionEnabled,
+  isReviewEnabled,
+  isScheduledReviewEnabled,
+} from "@/lib/flags";
 import { formatRelativeTime } from "@/lib/format";
 import { sanityLearnerContent } from "@/lib/learner/content";
 import { readLearnerOverview } from "@/lib/learner/overview";
+import { loadGoalCourses, loadPlan, type PlanState } from "@/lib/learner/plan-page";
 import { readDueSummary } from "@/lib/review/cards";
 import {
   buildOverviewState,
@@ -38,9 +48,14 @@ export const metadata: Metadata = {
 
 export default async function MyLearningPage() {
   const { userId } = await auth();
-  const [knowledgeMap, reviews, scheduled] = userId
-    ? await Promise.all([isKnowledgeMapEnabled(userId), isReviewEnabled(userId), isScheduledReviewEnabled(userId)])
-    : [false, false, false];
+  const [knowledgeMap, reviews, scheduled, nextAction] = userId
+    ? await Promise.all([
+        isKnowledgeMapEnabled(userId),
+        isReviewEnabled(userId),
+        isScheduledReviewEnabled(userId),
+        isNextActionEnabled(userId),
+      ])
+    : [false, false, false, false];
 
   return (
     <div className="bg-hatch flex flex-1 flex-col">
@@ -54,7 +69,7 @@ export default async function MyLearningPage() {
           </h1>
           <p className="mt-3 text-[20px] leading-7 text-neutral-500">A clear next step, every time.</p>
           {userId ? (
-            <Overview userId={userId} reviews={reviews} scheduled={scheduled} />
+            <Overview userId={userId} reviews={reviews} scheduled={scheduled} knowledgeMap={knowledgeMap} nextAction={nextAction} />
           ) : (
             <SignedOut
               message="Sign in to see your courses, progress, and recent learning."
@@ -68,11 +83,25 @@ export default async function MyLearningPage() {
 }
 
 /** Everything below is keyed by the server-resolved Clerk user id. */
-async function Overview({ userId, reviews, scheduled }: { userId: string; reviews: boolean; scheduled: boolean }) {
-  const [progress, evidence, due] = await Promise.all([
+async function Overview({
+  userId,
+  reviews,
+  scheduled,
+  knowledgeMap,
+  nextAction,
+}: {
+  userId: string;
+  reviews: boolean;
+  scheduled: boolean;
+  knowledgeMap: boolean;
+  nextAction: boolean;
+}) {
+  const [progress, evidence, due, plan, goalCourses] = await Promise.all([
     settle("progress", getProgressForUser(userId)),
     readEvidence(userId),
     scheduled ? readDueReviews(userId) : null,
+    nextAction ? loadPlan(userId) : null,
+    nextAction ? loadGoalCourses() : null,
   ]);
   const rows = progress.ok ? progress.value : [];
   const attempts = evidence.status === "ready" ? evidence.recentAttempts : [];
@@ -105,9 +134,33 @@ async function Overview({ userId, reviews, scheduled }: { userId: string; review
         }))
       : [];
 
+  // Next actions (PR-11), when on: the goal beside one recommendation. Otherwise, or
+  // when the plan has nothing or can't be read, the existing next step stays.
+  const primary = plan?.status === "ready" && plan.body.status === "ready" ? (plan.body.items[0] ?? null) : null;
+  const step = state.nextStep;
+  const continueLesson =
+    primary && step.kind === "continue" && (primary.kind !== "continue" || primary.lesson?.id !== step.lesson._id)
+      ? { title: step.lesson.title, href: `/lessons/${step.lesson.slug}` }
+      : null;
+  const mappedSlugs = new Set(courses.ok ? courses.value.map((course) => course.slug) : []);
+
   return (
     <div className="mt-10 flex flex-col gap-6">
-      <NextStepCard step={state.nextStep} />
+      {plan ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <GoalCard
+            state={goalCardState(plan, knowledgeMap ? mappedSlugs : new Set())}
+            courses={goalCourses?.map((course) => ({ id: course._id, title: course.title })) ?? null}
+          />
+          {primary ? (
+            <RecommendedCard item={primary} continueLesson={continueLesson} />
+          ) : (
+            <NextStepCard step={step} />
+          )}
+        </div>
+      ) : (
+        <NextStepCard step={step} />
+      )}
       <div className="grid gap-6 lg:grid-cols-2">
         <MyCoursesCard state={state.myCourses} concepts={concepts} />
         <RecentLearningCard
@@ -117,7 +170,7 @@ async function Overview({ userId, reviews, scheduled }: { userId: string; review
         />
       </div>
       {due && <DueReviews state={due} />}
-      <ComingSoon reviews={reviews} />
+      <ComingSoon reviews={reviews} nextAction={nextAction} />
     </div>
   );
 }
@@ -132,6 +185,19 @@ async function readDueReviews(userId: string): Promise<DueReviewsState> {
     console.error("[my-learning] due reviews read failed:", error instanceof Error ? error.message : error);
     return { status: "error" };
   }
+}
+
+/** The goal card for a plan read; a failed read is an error, never "no goal". */
+function goalCardState(plan: PlanState, mappedSlugs: ReadonlySet<string>): GoalCardState {
+  if (plan.status !== "ready") return { status: "error" };
+  const { body } = plan;
+  if (body.status !== "ready") return { status: body.status };
+  const { slug } = body.course;
+  return {
+    status: "ready",
+    course: body.course,
+    mapHref: mappedSlugs.has(slug) ? `/my-learning/knowledge-map?course=${encodeURIComponent(slug)}` : null,
+  };
 }
 
 function loaded<T>(value: T): Loaded<T> {

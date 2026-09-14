@@ -186,7 +186,7 @@ export async function lockLearnerReviews(tx: LearnerTx, learnerId: string): Prom
   await tx`select pg_advisory_xact_lock(hashtextextended(${`review:${learnerId}`}, 0))`
 }
 
-async function readLatestCounted(tx: LearnerTx, learnerId: string, since: Date): Promise<LatestCounted[]> {
+export async function readLatestCounted(tx: LearnerTx, learnerId: string, since: Date): Promise<LatestCounted[]> {
   const rows = await tx<LatestCounted[]>`
     select distinct on (resolved_concept_id)
            resolved_concept_id as "conceptId", correct, evidence_kind as "evidenceKind", created_at as "createdAt"
@@ -199,7 +199,7 @@ async function readLatestCounted(tx: LearnerTx, learnerId: string, since: Date):
   return [...rows]
 }
 
-async function readAnsweredFamilies(tx: LearnerTx, learnerId: string, familyIds: string[]): Promise<Set<string>> {
+export async function readAnsweredFamilies(tx: LearnerTx, learnerId: string, familyIds: string[]): Promise<Set<string>> {
   if (familyIds.length === 0) return new Set()
   const rows = await tx<{familyId: string}[]>`
     select distinct family_id as "familyId" from learner.attempt_log

@@ -20,9 +20,16 @@ const TABLES = [
   'review_session_item',
   'review_card',
   'review_log',
+  'learning_goal',
   'schema_migrations',
 ]
-const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql', '0003_review_sessions.sql', '0004_review_cards.sql']
+const MIGRATIONS = [
+  '0001_learner_evidence.sql',
+  '0002_tutor_requests.sql',
+  '0003_review_sessions.sql',
+  '0004_review_cards.sql',
+  '0005_learning_goal.sql',
+]
 
 describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
@@ -79,6 +86,7 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
       review_session_item: ['select', 'insert'],
       review_card: ['select', 'insert'],
       review_log: ['select', 'insert'],
+      learning_goal: ['select', 'insert'],
       explanation_log: [],
       schema_migrations: [],
     }
@@ -97,6 +105,14 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(await column('estimate'), true)
     assert.equal(await column('learner_id'), false)
     assert.equal(await column('concept_id'), false)
+    const goalColumn = async (name: string) => {
+      const [row] = await db.sql<{ok: boolean}[]>`
+        select has_column_privilege('vertex_learner_app', 'learner.learning_goal', ${name}, 'update') as ok
+      `
+      return row.ok
+    }
+    assert.equal(await goalColumn('course_id'), true)
+    assert.equal(await goalColumn('learner_id'), false)
   })
 
   it('lets the app role update only a review card’s scheduler state', async () => {
