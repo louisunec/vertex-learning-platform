@@ -17,6 +17,8 @@ export type LearnerContentSource = {
   loadHintLadder(assessmentId: string): Promise<HintLadder | null>
   /** Published concept nodes by document id. */
   loadConceptIndex(): Promise<ReadonlyMap<string, ConceptNode>>
+  /** Items a published lesson's understanding check may issue now (PR-7), at most 50. */
+  loadLessonCheckCandidates(lessonId: string): Promise<CheckCandidate[]>
   /** Items a focused review may issue now, whose primary concept is one of `conceptRefs` (document ids), at most 100. */
   loadReviewCandidates(conceptRefs: string[]): Promise<CheckCandidate[]>
   /** Names of servable concepts by document id. */

@@ -5,14 +5,17 @@ import { after } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Badge, Breadcrumbs, Icon, type IconName } from "@/components/ui";
 import { SiteHeader } from "@/components/home/site-header";
+import { LessonAssist } from "@/components/lesson/lesson-assist";
 import { LessonContent } from "@/components/lesson/lesson-content";
 import { LessonFooterNav, type FooterLesson } from "@/components/lesson/lesson-footer-nav";
 import { LessonNotes } from "@/components/lesson/lesson-notes";
+import { LessonPlayerProvider } from "@/components/lesson/lesson-player";
 import { LessonSidebar, type SidebarModule } from "@/components/lesson/lesson-sidebar";
 import { LessonTabs } from "@/components/lesson/lesson-tabs";
 import { VideoEmbed, type StartSource } from "@/components/lesson/video-embed";
 import { summarizeCourseProgress } from "@/lib/course-progress";
 import { formatDuration, formatLevel } from "@/lib/format";
+import { resolveLessonFeatures } from "@/lib/lesson/resolve-features";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { getEmbedSource, toStartSeconds } from "@/lib/video/embed";
 import { parseVideoUrl } from "@/lib/video/provider";
@@ -44,8 +47,16 @@ export default async function LessonPage({ params, searchParams }: Props) {
   const course = lesson.course;
   const context = lesson.context;
 
+  const parsed = parseVideoUrl(lesson.videoUrl);
+
   // Learner state is read per request, keyed by the server-resolved Clerk user id.
-  const progressRows = userId ? await getProgressForUser(userId) : null;
+  // Learning features (PR-7) are flag-gated per learner and never read the database here.
+  const [progressRows, features] = userId
+    ? await Promise.all([
+        getProgressForUser(userId),
+        resolveLessonFeatures({ userId, lessonId: lesson._id, provider: parsed?.provider ?? null }),
+      ])
+    : [null, null];
   const progress = course ? summarizeCourseProgress(course.modules, progressRows) : null;
 
   // Start position: explicit deep link (?t=seconds) wins over the stored resume position.
@@ -57,7 +68,6 @@ export default async function LessonPage({ params, searchParams }: Props) {
   const startSource: StartSource =
     deepLinkSeconds !== null ? "deeplink" : resumeSeconds ? "resume" : "beginning";
 
-  const parsed = parseVideoUrl(lesson.videoUrl);
   const embedSrc = parsed ? getEmbedSource(parsed, startSeconds) : null;
   const poster = lesson.poster?.asset ? lesson.poster : null;
 
@@ -127,6 +137,37 @@ export default async function LessonPage({ params, searchParams }: Props) {
   if (course?.level) meta.push({ icon: "chart", label: formatLevel(course.level) });
   if (lesson.studentCountDisplay) meta.push({ icon: "users", label: lesson.studentCountDisplay });
 
+  const video = (
+    <div className="mt-8">
+      {parsed && embedSrc ? (
+        <VideoEmbed
+          key={embedSrc}
+          src={embedSrc}
+          title={lesson.title}
+          tracking={{
+            provider: parsed.provider,
+            lessonId: lesson._id,
+            lessonSlug: slug,
+            courseSlug: course?.slug ?? null,
+            startSeconds,
+            startSource,
+            saveProgress: Boolean(userId),
+          }}
+        />
+      ) : poster ? (
+        <div className="relative aspect-video overflow-hidden rounded-[20px] bg-black shadow-sm">
+          <Image
+            src={urlFor(poster).width(1280).fit("max").auto("format").url()}
+            alt={poster.alt ?? ""}
+            fill
+            sizes="(min-width: 1024px) 860px, 100vw"
+            className="object-cover"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+
   const crumbs = [
     { label: "All Courses", href: "/courses" },
     ...(course ? [{ label: course.title, href: `/courses/${course.slug}` }] : []),
@@ -188,34 +229,22 @@ export default async function LessonPage({ params, searchParams }: Props) {
               </ul>
             )}
 
-            <div className="mt-8">
-              {parsed && embedSrc ? (
-                <VideoEmbed
-                  key={embedSrc}
-                  src={embedSrc}
-                  title={lesson.title}
-                  tracking={{
-                    provider: parsed.provider,
-                    lessonId: lesson._id,
-                    lessonSlug: slug,
-                    courseSlug: course?.slug ?? null,
-                    startSeconds,
-                    startSource,
-                    saveProgress: Boolean(userId),
-                  }}
+            {features ? (
+              <LessonPlayerProvider>
+                {video}
+                <LessonAssist
+                  lessonId={lesson._id}
+                  lessonSlug={slug}
+                  courseSlug={course?.slug ?? null}
+                  lessonRev={lesson._rev}
+                  startSeconds={startSeconds}
+                  durationSeconds={lesson.durationSeconds ?? null}
+                  features={features}
                 />
-              ) : poster ? (
-                <div className="relative aspect-video overflow-hidden rounded-[20px] bg-black shadow-sm">
-                  <Image
-                    src={urlFor(poster).width(1280).fit("max").auto("format").url()}
-                    alt={poster.alt ?? ""}
-                    fill
-                    sizes="(min-width: 1024px) 860px, 100vw"
-                    className="object-cover"
-                  />
-                </div>
-              ) : null}
-            </div>
+              </LessonPlayerProvider>
+            ) : (
+              video
+            )}
 
             <div className="mt-10">
               <LessonTabs

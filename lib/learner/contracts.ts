@@ -32,6 +32,44 @@ export const issueTaskResponseSchema = z.strictObject({
 
 export type IssueTaskResponse = z.infer<typeof issueTaskResponseSchema>
 
+export const LESSON_CHECK_KINDS = ['check', 'follow_up'] as const
+export type LessonCheckKind = (typeof LESSON_CHECK_KINDS)[number]
+
+/** Why no question was issued; none of these is evidence about the learner. */
+export const LESSON_CHECK_NONE_REASONS = ['no_items', 'all_checked', 'no_variant'] as const
+
+/**
+ * The next question of a lesson's understanding check (development plan §5
+ * PR-7). The server chooses the item: `check` asks for the next idea the
+ * learner has not answered; `follow_up` asks for an unseen reviewed variant
+ * of an answered task's concept. The body names no assessment.
+ */
+export const lessonCheckRequestSchema = z.discriminatedUnion('kind', [
+  z.strictObject({lessonId: z.string().regex(SANITY_ID), kind: z.literal('check')}),
+  z.strictObject({lessonId: z.string().regex(SANITY_ID), kind: z.literal('follow_up'), afterTaskInstanceId: z.uuid()}),
+])
+
+export type LessonCheckRequest = z.infer<typeof lessonCheckRequestSchema>
+
+const CHECK_COUNT = z.number().int().min(0).max(50)
+
+export const lessonCheckResponseSchema = z.discriminatedUnion('status', [
+  z
+    .strictObject({
+      status: z.literal('issued'),
+      kind: z.enum(LESSON_CHECK_KINDS),
+      task: issueTaskResponseSchema,
+      /** An unexpired, unanswered instance of the same item was handed back instead of a new one. */
+      resumed: z.boolean(),
+      /** `check` only: ideas in the lesson, and those not yet answered including this one. */
+      progress: z.strictObject({remaining: CHECK_COUNT.min(1), total: CHECK_COUNT.min(1)}).nullable(),
+    })
+    .refine((body) => (body.kind === 'check') === (body.progress !== null), 'Only a check question carries progress'),
+  z.strictObject({status: z.literal('none'), kind: z.enum(LESSON_CHECK_KINDS), reason: z.enum(LESSON_CHECK_NONE_REASONS)}),
+])
+
+export type LessonCheckResponse = z.infer<typeof lessonCheckResponseSchema>
+
 export const submitAttemptRequestSchema = z.strictObject({
   taskInstanceId: z.uuid(),
   optionId: z.string().min(1).max(128),

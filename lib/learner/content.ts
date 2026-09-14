@@ -11,6 +11,7 @@ import {
   CONCEPT_NODES_QUERY,
   GRADING_ASSESSMENT_QUERY,
   HINT_LADDER_QUERY,
+  LESSON_CHECK_CANDIDATES_QUERY,
   REVIEW_CANDIDATES_QUERY,
   SERVABLE_ASSESSMENT_QUERY,
 } from '@/sanity/queries/assessments'
@@ -62,6 +63,12 @@ export const sanityLearnerContent: LearnerContentSource = {
     return toConceptIndex(rows)
   },
 
+  async loadLessonCheckCandidates(lessonId) {
+    const rows = await read('Check candidates', () =>
+      sanityFetch({query: LESSON_CHECK_CANDIDATES_QUERY, params: {lessonId}, revalidate: 0}),
+    )
+    return toCheckCandidates(rows)
+  },
   async loadReviewCandidates(conceptRefs) {
     if (conceptRefs.length === 0) return []
     const rows = await read('Review candidates', () =>

@@ -19,6 +19,11 @@ export const FLAGS = {
   tutor: 'tutor',
   /** The My Learning knowledge map (`/my-learning/knowledge-map`). Requires `learner-evidence` too. */
   knowledgeMap: 'knowledge-map',
+  /**
+   * PR-7: the lesson-page tutor panel and understanding check (`/api/lesson-check`). The check
+   * requires `learner-evidence`, its hints `help-policy`, and the panel all three flags above.
+   */
+  lessonIntegration: 'lesson-integration',
   /** My Learning focused review (`/my-learning/reviews`, `/api/review-session`). Requires `learner-evidence` too. */
   review: 'review-session',
 } as const
