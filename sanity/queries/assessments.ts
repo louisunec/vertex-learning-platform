@@ -143,6 +143,7 @@ export const GRADING_ASSESSMENT_QUERY = defineQuery(/* groq */ `
     familyId,
     version,
     "lessonId": lesson._ref,
+    type,
     "optionIds": options[]._key,
     "correctOptionId": answerKey.correctOptionId,
     "primaryConceptRef": primaryConcept._ref

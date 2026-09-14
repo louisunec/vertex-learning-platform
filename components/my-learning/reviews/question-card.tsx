@@ -3,13 +3,13 @@
 import { useId, useState, type RefObject } from "react";
 import { Button, Card, Icon, ProgressBar } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { REASON_CHIPS } from "@/lib/focused-review";
+import { REASON_CHIPS, scheduleText, type ActiveReview, type AnyReviewReason } from "@/lib/focused-review";
 import { formatClock } from "@/lib/format";
 import { helpActions, type HelpActionRequest } from "@/lib/lesson/help-actions";
-import type { AttemptResult, HelpResponse, ReviewItem, ReviewReason } from "@/lib/learner/contracts";
+import type { AttemptResult, HelpResponse } from "@/lib/learner/contracts";
 
 export type Question = {
-  item: Extract<ReviewItem, { state: "open" }>;
+  item: Extract<ActiveReview["items"][number], { state: "open" }>;
   level: 0 | 1 | 2 | 3;
   hints: HelpResponse["hint"][];
   selected: string | null;
@@ -61,7 +61,7 @@ export function QuestionCard({
 }: {
   question: Question;
   total: number;
-  concept: { name: string | null; reason: ReviewReason } | null;
+  concept: { name: string | null; reason: AnyReviewReason } | null;
   hints: boolean;
   busy: boolean;
   failure: { message: string; retry: (() => void) | null } | null;
@@ -103,6 +103,14 @@ export function QuestionCard({
           </p>
         )}
       </div>
+
+      {item.repeat && (
+        <p className="mt-4 flex items-start gap-2 text-small text-neutral-500">
+          <Icon name="info" size={14} className="mt-px shrink-0" />
+          You’ve seen this question before: there’s no other reviewed question on this yet. It checks what you remember,
+          but won’t add new evidence.
+        </p>
+      )}
 
       <fieldset disabled={locked} className="mt-6 flex flex-col gap-3">
         <legend className="mb-6">
@@ -239,6 +247,7 @@ export function QuestionCard({
           <p className="text-body text-neutral-700">
             {outcome.kind === "graded" ? EVIDENCE_TEXT[outcome.result.evidence.kind] : outcome.message}
           </p>
+          {result?.schedule && <p className="text-body text-neutral-700">{scheduleText(result.schedule)}</p>}
           <div className="flex flex-wrap gap-3">
             {offered.map((action) => (
               <Button key={action.request} size="md" variant="tertiary" disabled={busy} onClick={() => onHelp(action.request)}>

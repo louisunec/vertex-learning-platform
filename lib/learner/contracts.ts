@@ -79,6 +79,18 @@ export const submitAttemptRequestSchema = z.strictObject({
 
 export type SubmitAttemptRequest = z.infer<typeof submitAttemptRequestSchema>
 
+/**
+ * What a graded answer did to the learner's scheduled review (PR-9), present
+ * only while `scheduled-review` is on and the item has an active concept. An
+ * assisted correct answer is never rated, so it is `not_scheduled`.
+ */
+export const attemptScheduleSchema = z.discriminatedUnion('status', [
+  z.strictObject({status: z.literal('scheduled'), dueAt: z.iso.datetime()}),
+  z.strictObject({status: z.literal('not_scheduled'), reason: z.literal('assisted_correct')}),
+])
+
+export type AttemptSchedule = z.infer<typeof attemptScheduleSchema>
+
 export const attemptResultSchema = z.strictObject({
   attemptId: z.uuid(),
   taskInstanceId: z.uuid(),
@@ -87,6 +99,7 @@ export const attemptResultSchema = z.strictObject({
     kind: z.enum(EVIDENCE_KINDS),
     reasonCode: z.enum(EVIDENCE_REASONS),
   }),
+  schedule: attemptScheduleSchema.optional(),
 })
 
 export type AttemptResult = z.infer<typeof attemptResultSchema>
@@ -247,8 +260,12 @@ export const REVIEW_NONE_REASONS = ['no_recent_mistakes', 'no_unseen_questions']
 export const MAX_REVIEW_CONCEPTS = 3
 export const MAX_REVIEW_ITEMS = 5
 
-/** Starting or resuming a review names nothing: the server chooses every item. */
-export const reviewSessionRequestSchema = z.strictObject({})
+/** Mistakes: focused review of recent mistakes. Scheduled: FSRS-due cards (PR-9). */
+export const REVIEW_MODES = ['mistakes', 'scheduled'] as const
+export type ReviewMode = (typeof REVIEW_MODES)[number]
+
+/** Starting or resuming a review names only its mode (default Mistakes): the server chooses every item. */
+export const reviewSessionRequestSchema = z.strictObject({mode: z.enum(REVIEW_MODES).optional()})
 
 const REVIEW_POSITION = z.number().int().min(1).max(MAX_REVIEW_ITEMS)
 const REVIEW_CONCEPT_ID = z.string().min(1).max(128)
@@ -258,26 +275,27 @@ const REVIEW_CONCEPT_ID = z.string().min(1).max(128)
  * `refresher` names the cited lesson moment, whose link is issued only by
  * `POST /api/review-session/refresher`, which records it as help.
  */
-const reviewItemSchema = z.discriminatedUnion('state', [
-  z.strictObject({
-    position: REVIEW_POSITION,
-    conceptId: REVIEW_CONCEPT_ID,
-    state: z.literal('open'),
-    task: issueTaskResponseSchema,
-    refresher: z
-      .strictObject({
-        lessonTitle: z.string().min(1).max(200),
-        startSeconds: z.number().int().min(0).max(MAX_PLAYHEAD_SECONDS),
-      })
-      .nullable(),
-  }),
-  z.strictObject({
-    position: REVIEW_POSITION,
-    conceptId: REVIEW_CONCEPT_ID,
-    /** `unavailable`: withdrawn or changed since it was issued, so it can't be answered. */
-    state: z.enum(['answered', 'unavailable']),
-  }),
-])
+const openReviewItemSchema = z.strictObject({
+  position: REVIEW_POSITION,
+  conceptId: REVIEW_CONCEPT_ID,
+  state: z.literal('open'),
+  task: issueTaskResponseSchema,
+  refresher: z
+    .strictObject({
+      lessonTitle: z.string().min(1).max(200),
+      startSeconds: z.number().int().min(0).max(MAX_PLAYHEAD_SECONDS),
+    })
+    .nullable(),
+})
+
+const closedReviewItemSchema = z.strictObject({
+  position: REVIEW_POSITION,
+  conceptId: REVIEW_CONCEPT_ID,
+  /** `unavailable`: withdrawn or changed since it was issued, so it can't be answered. */
+  state: z.enum(['answered', 'unavailable']),
+})
+
+const reviewItemSchema = z.discriminatedUnion('state', [openReviewItemSchema, closedReviewItemSchema])
 
 export type ReviewItem = z.infer<typeof reviewItemSchema>
 
@@ -312,6 +330,64 @@ export const reviewSessionResponseSchema = z.discriminatedUnion('status', [
 ])
 
 export type ReviewSessionResponse = z.infer<typeof reviewSessionResponseSchema>
+
+/* ---------- Scheduled review (prompts/pr-9-scheduled-review.md) ---------- */
+
+/** Every concept in a scheduled review is there because one of its cards is due. */
+export const SCHEDULED_DUE = 'scheduled_due'
+
+/** Why no scheduled review was started; neither is evidence about the learner. */
+export const SCHEDULED_NONE_REASONS = ['nothing_due', 'no_scheduled_questions'] as const
+
+/** Due cards without a servable question of their concept and type; left unchanged, never substituted. */
+const UNAVAILABLE_DUE = z.number().int().min(0).max(1000)
+
+/**
+ * A scheduled review: one item per due card, oldest due first. `repeat`
+ * marks a question the learner has answered before, served because the card
+ * has no unseen one; it stays a retention check, not new mastery evidence.
+ */
+export const scheduledReviewResponseSchema = z.discriminatedUnion('status', [
+  z
+    .strictObject({
+      status: z.literal('active'),
+      mode: z.literal('scheduled'),
+      sessionId: z.uuid(),
+      expiresAt: z.iso.datetime(),
+      resumed: z.boolean(),
+      concepts: z
+        .array(
+          z.strictObject({
+            conceptId: REVIEW_CONCEPT_ID,
+            name: z.string().min(1).max(200).nullable(),
+            reason: z.literal(SCHEDULED_DUE),
+          }),
+        )
+        .min(1)
+        .max(MAX_REVIEW_ITEMS),
+      items: z
+        .array(z.discriminatedUnion('state', [openReviewItemSchema.extend({repeat: z.boolean()}), closedReviewItemSchema]))
+        .min(1)
+        .max(MAX_REVIEW_ITEMS),
+      unavailableDue: UNAVAILABLE_DUE,
+    })
+    .refine(
+      (body) =>
+        body.items.every((item, i) => item.position === i + 1) &&
+        body.items.every((item) => body.concepts.some((concept) => concept.conceptId === item.conceptId)),
+      'Items are numbered from 1 and belong to a listed concept',
+    ),
+  z.strictObject({
+    status: z.literal('none'),
+    mode: z.literal('scheduled'),
+    reason: z.enum(SCHEDULED_NONE_REASONS),
+    /** When the learner's next card falls due, from stored scheduler state; null when none is scheduled. */
+    nextDueAt: z.iso.datetime().nullable(),
+    unavailableDue: UNAVAILABLE_DUE,
+  }),
+])
+
+export type ScheduledReviewResponse = z.infer<typeof scheduledReviewResponseSchema>
 
 export const reviewRefresherRequestSchema = z.strictObject({
   taskInstanceId: z.uuid(),

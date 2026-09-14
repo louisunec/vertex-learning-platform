@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { REASON_TEXT, sessionSummary, type ActiveReview, type ConceptProgress } from "@/lib/focused-review";
-import type { ReviewReason } from "@/lib/learner/contracts";
+import { REASON_TEXT, sessionSummary, type ActiveReview, type AnyReviewReason, type ConceptProgress } from "@/lib/focused-review";
 
 /**
  * The review's side column: where the learner is in the session and why
@@ -16,8 +15,10 @@ export function SessionSidebar({
 }: {
   summary: ActiveReview;
   progress: ConceptProgress[];
-  reason: ReviewReason | null;
+  reason: AnyReviewReason | null;
 }) {
+  const scheduled = summary.mode === "scheduled";
+  const unavailable = summary.unavailableDue ?? 0;
   return (
     <aside className="flex flex-col gap-6" aria-label="Review session">
       <Card className="rounded-[20px] p-6">
@@ -49,6 +50,13 @@ export function SessionSidebar({
             </li>
           ))}
         </ol>
+        {unavailable > 0 && (
+          <p className="mt-5 text-small text-neutral-500">
+            {unavailable === 1
+              ? "1 due review has no available question right now, so it isn’t in this session. Its schedule is unchanged."
+              : `${unavailable} due reviews have no available question right now, so they aren’t in this session. Their schedules are unchanged.`}
+          </p>
+        )}
       </Card>
 
       <Card className="rounded-[20px] p-6">
@@ -67,7 +75,9 @@ export function SessionSidebar({
               <Icon name="chart" size={18} />
             </span>
             <p className="text-body text-neutral-700">
-              Answering without help updates your mastery estimate; with a hint, it’s recorded as assisted practice.
+              {scheduled
+                ? "Your answer sets when this comes back: a miss brings it back sooner. A correct answer after a hint or the refresher leaves your schedule as it is."
+                : "Answering without help updates your mastery estimate; with a hint, it’s recorded as assisted practice."}
             </p>
           </li>
         </ul>

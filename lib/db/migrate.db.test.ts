@@ -18,9 +18,11 @@ const TABLES = [
   'tutor_request',
   'review_session',
   'review_session_item',
+  'review_card',
+  'review_log',
   'schema_migrations',
 ]
-const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql', '0003_review_sessions.sql']
+const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql', '0003_review_sessions.sql', '0004_review_cards.sql']
 
 describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
@@ -73,6 +75,10 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
       concept_mastery: ['select', 'insert'],
       event_outbox: ['insert'],
       tutor_request: ['select', 'insert'],
+      review_session: ['select', 'insert'],
+      review_session_item: ['select', 'insert'],
+      review_card: ['select', 'insert'],
+      review_log: ['select', 'insert'],
       explanation_log: [],
       schema_migrations: [],
     }
@@ -91,6 +97,31 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(await column('estimate'), true)
     assert.equal(await column('learner_id'), false)
     assert.equal(await column('concept_id'), false)
+  })
+
+  it('lets the app role update only a review card’s scheduler state', async () => {
+    const column = async (name: string) => {
+      const [row] = await db.sql<{ok: boolean}[]>`
+        select has_column_privilege('vertex_learner_app', 'learner.review_card', ${name}, 'update') as ok
+      `
+      return row.ok
+    }
+    for (const name of ['due', 'stability', 'difficulty', 'reps', 'lapses', 'state', 'last_review', 'updated_at']) {
+      assert.equal(await column(name), true, name)
+    }
+    for (const name of ['id', 'learner_id', 'concept_id', 'task_type', 'created_at']) assert.equal(await column(name), false, name)
+  })
+
+  it('keeps earlier review sessions in Mistakes mode and accepts only scheduled items with a card', async () => {
+    const [row] = await db.sql<{mode: string}[]>`
+      select column_default as mode from information_schema.columns
+      where table_schema = 'learner' and table_name = 'review_session' and column_name = 'mode'
+    `
+    assert.equal(row.mode, "'mistakes'::text")
+    const checks = await db.sql<{name: string}[]>`
+      select conname as name from pg_constraint where conrelid = 'learner.review_session_item'::regclass and contype = 'c'
+    `
+    assert.ok(checks.some((check) => check.name === 'review_session_item_card_check'))
   })
 
   it('refuses a migration file that changed after it was applied', async () => {

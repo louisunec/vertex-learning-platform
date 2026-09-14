@@ -80,6 +80,7 @@ export class FixtureContent implements LearnerContentSource {
       concept = 'concept-cpt-state' as string | null,
       lessonId = 'lesson-hooks',
       firstSeconds = null as number | null,
+      type = 'apply' as LearnerAssessment['type'],
     } = {},
   ) {
     const id = `assessment-${familyId}-v${version}`
@@ -96,7 +97,7 @@ export class FixtureContent implements LearnerContentSource {
       familyId,
       version,
       lessonId,
-      type: 'apply',
+      type,
       responseFormat: 'single_choice',
       question: 'Which hook keeps a value between renders?',
       options,
@@ -106,6 +107,7 @@ export class FixtureContent implements LearnerContentSource {
       familyId,
       version,
       lessonId,
+      type,
       optionIds,
       correctOptionId: 'opt-a',
       primaryConceptRef: concept,
