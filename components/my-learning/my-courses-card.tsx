@@ -19,7 +19,9 @@ export function MyCoursesCard({ state, concepts }: MyCoursesCardProps) {
       <SectionHeader id="my-courses" title="My courses" href="/courses" linkLabel="View all" />
       {state.status === "ready" ? (
         <div className="mt-6 flex flex-col gap-6 sm:flex-row">
-          <CourseCoverTile cover={state.course.coverImage} size={136} alt={state.course.title} />
+          <div className="aspect-video w-40 max-w-full shrink-0 self-start">
+            <CourseCoverTile cover={state.course.coverImage} size={160} letterbox alt={state.course.title} />
+          </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-h2 text-neutral-900">
               <Link href={`/courses/${state.course.slug}`} className="hover:text-primary-500">
