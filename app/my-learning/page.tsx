@@ -19,6 +19,7 @@ import {
   isNextActionEnabled,
   isReviewEnabled,
   isScheduledReviewEnabled,
+  nextActionCapabilities,
 } from "@/lib/flags";
 import { formatRelativeTime } from "@/lib/format";
 import { sanityLearnerContent } from "@/lib/learner/content";
@@ -96,12 +97,17 @@ async function Overview({
   knowledgeMap: boolean;
   nextAction: boolean;
 }) {
-  const [progress, evidence, due, plan, goalCourses] = await Promise.all([
+  // The plan's own flag reads (review and lesson-check capabilities), evaluated once and
+  // shared: `checks` is `lesson-integration`, which also retires "Practice" from Coming soon.
+  // With next actions off nothing here reads it, so Practice stays listed.
+  const capabilities = nextAction ? nextActionCapabilities(userId) : null;
+  const [progress, evidence, due, plan, goalCourses, lessonChecks] = await Promise.all([
     settle("progress", getProgressForUser(userId)),
     readEvidence(userId),
     scheduled ? readDueReviews(userId) : null,
-    nextAction ? loadPlan(userId) : null,
+    capabilities ? capabilities.then((granted) => loadPlan(userId, granted)) : null,
     nextAction ? loadGoalCourses() : null,
+    capabilities ? capabilities.then((granted) => granted.checks) : false,
   ]);
   const rows = progress.ok ? progress.value : [];
   const attempts = evidence.status === "ready" ? evidence.recentAttempts : [];
@@ -170,7 +176,7 @@ async function Overview({
         />
       </div>
       {due && <DueReviews state={due} />}
-      <ComingSoon reviews={reviews} nextAction={nextAction} />
+      <ComingSoon reviews={reviews} nextAction={nextAction} lessonChecks={lessonChecks} />
     </div>
   );
 }
