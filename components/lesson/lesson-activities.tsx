@@ -3,12 +3,13 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import posthog from "posthog-js";
 import { cn } from "@/lib/cn";
+import { ACTIVITY_EMPTY_TEXT, activityTabs, initialActivity, type ActivityKey } from "@/lib/lesson/activities";
 
 /**
  * The lesson's learning activities, each rendered by the PR that owns it and
  * passed in already resolved for this learner and lesson: `null` means the
  * activity isn't available here (a flag is off, or the lesson has no approved
- * task for it), and its tab doesn't render.
+ * task for it), and its tab says so instead of rendering it.
  *
  * - `quickCheck`: PR-7 `LessonCheck`, when `features.check`;
  * - `explainBack`: PR-8 `ExplainBack` (embedded), when `resolveExplainTask` returns a task;
@@ -20,19 +21,13 @@ export type LessonActivitySlots = {
   submitImplementation: ReactNode | null;
 };
 
-const ACTIVITIES = [
-  { key: "quickCheck", label: "Quick check" },
-  { key: "explainBack", label: "Explain it back" },
-  { key: "submitImplementation", label: "Submit implementation" },
-] as const;
-type ActivityKey = (typeof ACTIVITIES)[number]["key"];
-
 /**
- * Tabs over the available activities, in a fixed order, with the first one
- * selected. Every panel stays mounted (`hidden`), so an open question, a
- * draft explanation, or pasted code survives switching tabs. Each panel is a
- * size container, so an activity lays itself out by the column's width, not
- * the viewport's. Arrow keys, Home and End move between tabs.
+ * Tabs over all three activities, in a fixed order, with the first available
+ * one selected; an unavailable tab stays selectable and shows one line saying
+ * there's nothing here yet. Every panel stays mounted (`hidden`), so an open
+ * question, a draft explanation, or pasted code survives switching tabs. Each
+ * panel is a size container, so an activity lays itself out by the column's
+ * width, not the viewport's. Arrow keys, Home and End move between tabs.
  */
 export function LessonActivities({
   activities,
@@ -43,13 +38,12 @@ export function LessonActivities({
   lessonTitle: string;
   lessonSlug: string;
 }) {
-  const available = ACTIVITIES.filter((activity) => activities[activity.key] != null);
+  const all = activityTabs(activities);
   const [selected, setSelected] = useState<ActivityKey | null>(null);
   const tabs = useRef(new Map<ActivityKey, HTMLButtonElement>());
   const baseId = useId();
 
-  if (available.length === 0) return null;
-  const active = available.some((activity) => activity.key === selected) ? selected! : available[0].key;
+  const active = selected ?? initialActivity(all);
 
   function select(key: ActivityKey, label: string) {
     setSelected(key);
@@ -57,7 +51,7 @@ export function LessonActivities({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const last = available.length - 1;
+    const last = all.length - 1;
     const target =
       event.key === "ArrowRight" ? (index === last ? 0 : index + 1)
       : event.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
@@ -66,7 +60,7 @@ export function LessonActivities({
       : null;
     if (target === null) return;
     event.preventDefault();
-    const next = available[target];
+    const next = all[target];
     select(next.key, next.label);
     tabs.current.get(next.key)?.focus();
   }
@@ -78,7 +72,7 @@ export function LessonActivities({
         aria-label="Learning activities"
         className="flex gap-8 overflow-x-auto border-b border-neutral-200 px-6"
       >
-        {available.map((activity, index) => {
+        {all.map((activity, index) => {
           const isActive = activity.key === active;
           return (
             <button
@@ -109,7 +103,7 @@ export function LessonActivities({
         })}
       </div>
 
-      {available.map((activity) => (
+      {all.map((activity) => (
         <div
           key={activity.key}
           role="tabpanel"
@@ -119,7 +113,11 @@ export function LessonActivities({
           // Learner answers, explanations and code stay out of session replay, whatever the slot renders.
           className="ph-no-capture @container px-6 pt-5 pb-6"
         >
-          {activities[activity.key]}
+          {activity.available ? (
+            activities[activity.key]
+          ) : (
+            <p className="text-body text-neutral-700">{ACTIVITY_EMPTY_TEXT[activity.key]}</p>
+          )}
         </div>
       ))}
     </section>

@@ -275,11 +275,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
                 notes={lesson.notes ? <LessonNotes value={lesson.notes} /> : null}
               />
             }
-            // Each activity is resolved by the PR that owns it; null hides its tab.
+            // The activities card follows `lesson-integration` (features is null when it's off or signed out).
+            // Each activity is resolved by the PR that owns it; null shows its tab's "not yet" line.
             activities={
-              userId
+              features
                 ? {
-                    quickCheck: features?.check ? (
+                    quickCheck: features.check ? (
                       <LessonCheck
                         lessonId={lesson._id}
                         lessonSlug={slug}

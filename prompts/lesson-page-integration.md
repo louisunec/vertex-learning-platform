@@ -107,6 +107,8 @@ The PR-8 and PR-12 components, endpoints and state stay theirs. This work adds t
    ```
    - A tab renders only when its slot is non-null. With no slots there is no activities card.
    - An unavailable activity is **hidden, not shown disabled**: there's nothing to wait for on that lesson.
+   - **Superseded 2026-09-14** by `prompts/lesson-activities-always-visible.md`: all three tabs always
+     render for a learner with `lesson-integration` on, and a null slot shows a "not yet" line.
    - Tab order is fixed: Quick check, Explain it back, Submit implementation. The first available tab is
      selected.
    - Panels stay mounted (`hidden`), so an open question, a draft explanation or pasted code survives a

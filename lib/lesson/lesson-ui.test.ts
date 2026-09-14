@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {describe, it} from 'node:test'
 
 import type {ResolvedCitation} from '../ai/contracts.ts'
+import {ACTIVITY_EMPTY_TEXT, activityTabs, initialActivity} from './activities.ts'
 import {citationText, groupCitations, type SourcedCitation} from './citations.ts'
 import {decideLessonFeatures} from './features.ts'
 import {helpActions, tutorHelpActions} from './help-actions.ts'
@@ -105,6 +106,36 @@ describe('decideLessonFeatures', () => {
   it('blames the video only when every flag is on, so a flag-off learner never hears about providers', () => {
     assert.equal(decide({tutor: false}, 'vimeo').tutorUnavailable, 'rollout')
     assert.equal(decide({}, null).tutorUnavailable, 'provider')
+  })
+})
+
+describe('activityTabs', () => {
+  const slots = (quickCheck: unknown, explainBack: unknown, submitImplementation: unknown) => ({
+    quickCheck,
+    explainBack,
+    submitImplementation,
+  })
+
+  it('always lists all three tabs in the fixed order, each with its empty line', () => {
+    const tabs = activityTabs(slots(null, null, null))
+    assert.deepEqual(
+      tabs.map((tab) => `${tab.label}:${tab.available}`),
+      ['Quick check:false', 'Explain it back:false', 'Submit implementation:false'],
+    )
+    for (const tab of tabs) assert.ok(ACTIVITY_EMPTY_TEXT[tab.key].endsWith('for this lesson yet.'))
+  })
+
+  it('opens the first available tab, or Quick check when none is', () => {
+    assert.equal(initialActivity(activityTabs(slots(null, null, null))), 'quickCheck')
+    assert.equal(initialActivity(activityTabs(slots('check', 'explain', null))), 'quickCheck')
+    assert.equal(initialActivity(activityTabs(slots(null, null, 'submit'))), 'submitImplementation')
+  })
+
+  it('treats only null or undefined as unavailable', () => {
+    assert.deepEqual(
+      activityTabs(slots(0, '', undefined)).map((tab) => tab.available),
+      [true, true, false],
+    )
   })
 })
 
