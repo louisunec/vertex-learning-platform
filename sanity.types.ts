@@ -106,6 +106,54 @@ export type Module = {
   >;
 };
 
+export type ConceptReference = {
+  _ref: string;
+  _type: "reference";
+  _weak?: boolean;
+  [internalGroqTypeReferenceTo]?: "concept";
+};
+
+export type ExplanationTask = {
+  _id: string;
+  _type: "explanationTask";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  reviewStatus: "needs_review" | "approved" | "rejected" | "archived";
+  taskId: string;
+  version: number;
+  lesson: LessonReference;
+  title: string;
+  prompt: string;
+  criteria: Array<{
+    label: string;
+    point: string;
+    required: boolean;
+    concept: ConceptReference;
+    objectiveKey?: string;
+    sourceChunkIds: Array<string>;
+    _type: "explanationCriterion";
+    _key: string;
+  }>;
+  sourceChunkRefs: Array<{
+    chunkId?: string;
+    chunkRevision?: string;
+    startSeconds?: number;
+    endSeconds?: number;
+    _type: "sourceChunkRef";
+    _key: string;
+  }>;
+  review?: {
+    promptNarrow?: boolean;
+    pointsObservable?: boolean;
+    requiredMinimal?: boolean;
+    labelsHideAnswer?: boolean;
+    sourcesSupport?: boolean;
+    conceptsRelevant?: boolean;
+    note?: string;
+  };
+};
+
 export type CourseReference = {
   _ref: string;
   _type: "reference";
@@ -159,13 +207,6 @@ export type ConceptGenerationRecord = {
   model?: string;
   configVersion?: string;
   processedAt?: string;
-};
-
-export type ConceptReference = {
-  _ref: string;
-  _type: "reference";
-  _weak?: boolean;
-  [internalGroqTypeReferenceTo]?: "concept";
 };
 
 export type ConceptMergeProposal = {
@@ -678,9 +719,10 @@ export type AllSanitySchemaTypes =
   | Resource
   | LearningOutcome
   | Module
+  | ConceptReference
+  | ExplanationTask
   | CourseReference
   | ConceptGenerationRecord
-  | ConceptReference
   | ConceptMergeProposal
   | ConceptPrerequisite
   | AssessmentGenerationRecord

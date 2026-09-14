@@ -19,10 +19,22 @@ import {createTestDatabase, SKIP_WITHOUT_DATABASE, type TestDatabase} from '../d
 
 const ALICE = 'user_alice'
 const BOB = 'user_bob'
-const LEARNER_TABLES = ['task_instance', 'attempt_log', 'help_event', 'concept_mastery', 'tutor_request'] as const
+const LEARNER_TABLES = ['task_instance', 'attempt_log', 'help_event', 'concept_mastery', 'tutor_request', 'explanation_log'] as const
 
 /** Postgres `insufficient_privilege`, also raised for a row-level-security violation. */
 const denied = (error: unknown) => (error as {code?: string}).code === '42501'
+
+const HASH = 'a'.repeat(64)
+
+/** A pending explanation row that satisfies migration 0008's new-row checks. */
+const insertExplanation = (tx: postgres.Sql | postgres.TransactionSql, learnerId: string, requestKey: string) => tx`
+  insert into learner.explanation_log
+    (learner_id, task_id, task_version, lesson_id, rubric_version, response, evaluation_status, request_key, request_hash,
+     cache_key, response_hash, char_count, task_hash, source_refs, concept_ids, prompt_version, validator_version, claim_token, claimed_at)
+  values
+    (${learnerId}, 'task', '1', 'lesson-hooks', ${HASH}, 'private explanation', 'pending', ${requestKey}, ${HASH},
+     ${HASH}, ${HASH}, 19, ${HASH}, '[]'::jsonb, '{}', 'explain-v1', 'explain-gates-v1', gen_random_uuid(), now())
+`
 
 describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
@@ -61,10 +73,7 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
       values (${learnerId}, 'cpt-state', 1, 0.6667, 'independent', 'evidence-v1')
     `
     await db.sql`insert into learner.event_outbox (event_type, payload) values ('attempt_graded', ${db.sql.json({learnerId})})`
-    await db.sql`
-      insert into learner.explanation_log (learner_id, task_id, task_version, lesson_id, rubric_version, response, evaluation_status)
-      values (${learnerId}, 'task', '1', 'lesson-hooks', '1', 'private explanation', 'pending')
-    `
+    await insertExplanation(db.sql, learnerId, `explain-${learnerId}-00000`)
   }
 
   before(async () => {
@@ -136,10 +145,25 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
           insert into learner.tutor_request (learner_id, request_key, lesson_id, status, scope, evidence_count, cited_count, prompt_version)
           values (${BOB}, 'tutor-forged-000000000', 'lesson-hooks', 'insufficient_evidence', 'course', 0, 0, 'tutor-v1')
         `,
+        explanation_log: (tx) => insertExplanation(tx, BOB, 'explain-forged-000000'),
       }
       for (const [table, write] of Object.entries(attempts)) {
         await assert.rejects(asLearner(db.sql, ALICE, write), denied, table)
       }
+    })
+
+    it("cannot complete, re-point, or reassign another learner's explanation", async () => {
+      const touched = await asLearner(db.sql, ALICE, (tx) => tx`
+        update learner.explanation_log set evaluation_status = 'failed' where learner_id = ${BOB} returning 1
+      `)
+      assert.equal(touched.length, 0)
+      await assert.rejects(
+        asLearner(db.sql, ALICE, (tx) => tx`update learner.explanation_log set response = 'rewritten' where learner_id = ${ALICE}`),
+        denied,
+        'the submitted text is never updatable',
+      )
+      const [bob] = await db.sql`select evaluation_status, response from learner.explanation_log where learner_id = ${BOB}`
+      assert.deepEqual([bob.evaluation_status, bob.response], ['pending', 'private explanation'])
     })
 
     it("cannot change another learner's mastery or move a row to another learner", async () => {
@@ -156,14 +180,14 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
     })
 
     it('cannot delete anything, including its own rows', async () => {
-      for (const table of [...LEARNER_TABLES, 'event_outbox', 'explanation_log']) {
+      for (const table of [...LEARNER_TABLES, 'event_outbox']) {
         await assert.rejects(asLearner(db.sql, ALICE, (tx) => tx`delete from ${tx(`learner.${table}`)}`), denied, table)
       }
     })
 
-    it('can write its own outbox events but never read the outbox, explanations, or migrations', async () => {
+    it('can write its own outbox events but never read the outbox or migrations', async () => {
       await asLearner(db.sql, ALICE, (tx) => tx`insert into learner.event_outbox (event_type, payload) values ('x', ${tx.json({learnerId: ALICE})})`)
-      for (const table of ['event_outbox', 'explanation_log', 'schema_migrations']) {
+      for (const table of ['event_outbox', 'schema_migrations']) {
         await assert.rejects(asLearner(db.sql, ALICE, (tx) => tx`select 1 from ${tx(`learner.${table}`)}`), denied, table)
       }
     })
@@ -217,7 +241,7 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
 
     it('cannot reach the learner schema at all', async () => {
       for (const role of ['anon', 'authenticated'] as const) {
-        for (const table of [...LEARNER_TABLES, 'event_outbox', 'explanation_log']) {
+        for (const table of [...LEARNER_TABLES, 'event_outbox']) {
           await assert.rejects(asApiRole(role, (tx) => tx`select 1 from ${tx(`learner.${table}`)}`), denied, `${role} ${table}`)
         }
       }
@@ -230,7 +254,7 @@ describe('row level security', {skip: SKIP_WITHOUT_DATABASE}, () => {
       `).simple()
       try {
         for (const role of ['anon', 'authenticated'] as const) {
-          for (const table of [...LEARNER_TABLES, 'event_outbox', 'explanation_log']) {
+          for (const table of [...LEARNER_TABLES, 'event_outbox']) {
             const rows = await asApiRole(role, (tx) => tx`select 1 from ${tx(`learner.${table}`)}`)
             assert.equal((rows as unknown[]).length, 0, `${role} ${table}`)
           }

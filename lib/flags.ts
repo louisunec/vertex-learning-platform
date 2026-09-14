@@ -22,6 +22,11 @@ export const FLAGS = {
    * requires `learner-evidence`, its hints `help-policy`, and the panel all three flags above.
    */
   lessonIntegration: 'lesson-integration',
+  /**
+   * PR-8: explain-back feedback (`/api/explain` and the lesson-page step). Requires
+   * `learner-evidence` too; not `lesson-integration`, `help-policy`, `tutor`, or `submission-review`.
+   */
+  explainBack: 'explain-back',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

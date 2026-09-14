@@ -4,6 +4,7 @@ import {
   BulbOutlineIcon,
   CheckmarkCircleIcon,
   ClipboardIcon,
+  CommentIcon,
   PlayIcon,
   SearchIcon,
   TagIcon,
@@ -35,7 +36,8 @@ const assessmentList = (S: StructureBuilder, title: string, filter: string) =>
 
 /**
  * Review queues for generated concepts and prerequisite edges (development
- * plan §5 PR-3). Like assessments, neither offers "create".
+ * plan §5 PR-3), and for drafted explanation tasks (PR-8). Like assessments,
+ * none offers "create".
  */
 const reviewList = (
   S: StructureBuilder,
@@ -59,6 +61,7 @@ const reviewList = (
 
 const BY_NAME = [{field: 'name', direction: 'asc' as const}]
 const BY_GENERATED = [{field: 'generation.generatedAt', direction: 'desc' as const}]
+const BY_TITLE = [{field: 'title', direction: 'asc' as const}]
 
 export const structure: StructureResolver = (S) =>
   S.list()
@@ -123,6 +126,18 @@ export const structure: StructureResolver = (S) =>
                     .initialValueTemplates([])
                     .defaultOrdering([{field: 'processedAt', direction: 'desc'}]),
                 ),
+            ]),
+        ),
+      S.listItem()
+        .title('Explanation tasks')
+        .icon(CommentIcon)
+        .child(
+          S.list()
+            .title('Explanation tasks')
+            .items([
+              reviewList(S, 'explanationTask', 'Needs review', 'reviewStatus == "needs_review"', BY_TITLE),
+              reviewList(S, 'explanationTask', 'Approved', 'reviewStatus == "approved"', BY_TITLE),
+              reviewList(S, 'explanationTask', 'Rejected or archived', 'reviewStatus in ["rejected", "archived"]', BY_TITLE),
             ]),
         ),
       S.divider(),

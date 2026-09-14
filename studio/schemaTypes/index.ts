@@ -8,6 +8,7 @@ import {conceptGenerationRecord} from './documents/concept-generation-record'
 import {conceptMergeProposal} from './documents/concept-merge-proposal'
 import {conceptPrerequisite} from './documents/concept-prerequisite'
 import {course} from './documents/course'
+import {explanationTask} from './documents/explanation-task'
 import {instructor} from './documents/instructor'
 import {lesson} from './documents/lesson'
 import {progress} from './documents/progress'
@@ -34,6 +35,7 @@ export const schemaTypes: SchemaTypeDefinition[] = [
   conceptPrerequisite,
   conceptMergeProposal,
   conceptGenerationRecord,
+  explanationTask,
   // Objects
   module,
   learningOutcome,

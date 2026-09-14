@@ -58,3 +58,6 @@ next-env.d.ts
 
 # Local-only review copies quoting third-party transcripts in full (never commit)
 docs/evals/local/
+
+# Real explanation tasks and their eval cases: the private rubric states the answers (never commit)
+docs/explain-back/local/
