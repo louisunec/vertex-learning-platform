@@ -1414,6 +1414,81 @@ export type KNOWLEDGE_MAP_EDGES_QUERY_RESULT = Array<{
   status: "approved" | "proposed" | "rejected" | "retired";
 }>;
 
+// Source: ../sanity/queries/next-action.ts
+// Variable: GOAL_COURSES_QUERY
+// Query: *[    _type == "course" &&    defined(slug.current) &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**"))  ] | order(title asc)[0...100] {    _id,    title,    "slug": slug.current  }
+export type GOAL_COURSES_QUERY_RESULT = Array<{
+  _id: string;
+  title: string;
+  slug: string;
+}>;
+
+// Source: ../sanity/queries/next-action.ts
+// Variable: NEXT_ACTION_COURSE_QUERY
+// Query: *[    _type == "course" &&    _id == $courseId &&    defined(slug.current) &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**"))  ][0] {    _id,    title,    "slug": slug.current,    summary,    modules[] {      _key,      lessons[]->{ _id, title, "slug": slug.current, durationSeconds }    }  }
+export type NEXT_ACTION_COURSE_QUERY_RESULT = {
+  _id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  modules: Array<{
+    _key: string;
+    lessons: Array<{
+      _id: string;
+      title: string;
+      slug: string;
+      durationSeconds: number | null;
+    }> | null;
+  }> | null;
+} | null;
+
+// Source: ../sanity/queries/next-action.ts
+// Variable: NEXT_ACTION_CONCEPTS_QUERY
+// Query: *[    _type == "concept" &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    count(lessons[@._ref in $lessonIds]) > 0  ] | order(_id asc)[0...100] {    "id": _id,    conceptId,    name,    "sources": sourceRefs[lesson._ref in $lessonIds][0...40] {      chunkId,      "lessonId": lesson._ref,      startSeconds,      endSeconds    }  }
+export type NEXT_ACTION_CONCEPTS_QUERY_RESULT = Array<{
+  id: string;
+  conceptId: string;
+  name: string;
+  sources: Array<{
+    chunkId: string | null;
+    lessonId: string | null;
+    startSeconds: number | null;
+    endSeconds: number | null;
+  }>;
+}>;
+
+// Source: ../sanity/queries/next-action.ts
+// Variable: NEXT_ACTION_EDGES_QUERY
+// Query: *[    _type == "conceptPrerequisite" &&    status == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    dependent._ref in $conceptIds  ] | order(_id asc)[0...300] {    "id": _id,    "prerequisite": prerequisite._ref,    "dependent": dependent._ref,    status  }
+export type NEXT_ACTION_EDGES_QUERY_RESULT = Array<{
+  id: string;
+  prerequisite: string;
+  dependent: string;
+  status: "approved" | "proposed" | "rejected" | "retired";
+}>;
+
+// Source: ../sanity/queries/next-action.ts
+// Variable: COURSE_CHECK_CANDIDATES_QUERY
+// Query: *[    _type == "assessment" &&    lesson._ref in $lessonIds &&    reviewStatus == "approved" &&    sourceStatus == "current" &&    !(_id in path("drafts.**")) &&    !(_id in path("versions.**")) &&    lesson->_type == "lesson" &&    count(*[      _type == "assessment" &&      familyId == ^.familyId &&      version > ^.version &&      reviewStatus == "approved" &&      sourceStatus == "current" &&      !(_id in path("drafts.**")) &&      !(_id in path("versions.**"))    ]) == 0  ] | order(familyId asc, version desc)[0...300] {    "item": {      _id,      _rev,      familyId,      version,      "lessonId": lesson._ref,      type,      responseFormat,      question,      "options": options[] { "id": _key, text }    },    "primaryConceptRef": primaryConcept._ref,    "firstSeconds": math::min(sourceChunkRefs[].startSeconds)  }
+export type COURSE_CHECK_CANDIDATES_QUERY_RESULT = Array<{
+  item: {
+    _id: string;
+    _rev: string;
+    familyId: string;
+    version: number;
+    lessonId: string;
+    type: "apply" | "recall" | "transfer";
+    responseFormat: "single_choice";
+    question: string;
+    options: Array<{
+      id: string;
+      text: string;
+    }>;
+  };
+  primaryConceptRef: string | null;
+  firstSeconds: number | null;
+}>;
+
 // Source: ../sanity/queries/progress.ts
 // Variable: PROGRESS_FOR_USER_QUERY
 // Query: *[_type == "progress" && userId == $userId] | order(updatedAt desc) {    _id,    "lessonId": lesson._ref,    completed,    completedAt,    resumeSeconds,    updatedAt  }
@@ -1493,6 +1568,11 @@ declare module "@sanity/client" {
     '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...500].conceptId\n': CONCEPT_IDS_FOR_LESSONS_QUERY_RESULT;
     '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...100] {\n    "id": _id,\n    conceptId,\n    name,\n    summary,\n    "sources": sourceRefs[lesson._ref in $lessonIds][0...20] {\n      "lessonId": lesson._ref,\n      startSeconds\n    }\n  }\n': KNOWLEDGE_MAP_CONCEPTS_QUERY_RESULT;
     '\n  *[\n    _type == "conceptPrerequisite" &&\n    status == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    prerequisite._ref in $conceptIds &&\n    dependent._ref in $conceptIds\n  ] | order(_id asc)[0...300] {\n    "id": _id,\n    "prerequisite": prerequisite._ref,\n    "dependent": dependent._ref,\n    status\n  }\n': KNOWLEDGE_MAP_EDGES_QUERY_RESULT;
+    '\n  *[\n    _type == "course" &&\n    defined(slug.current) &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ] | order(title asc)[0...100] {\n    _id,\n    title,\n    "slug": slug.current\n  }\n': GOAL_COURSES_QUERY_RESULT;
+    '\n  *[\n    _type == "course" &&\n    _id == $courseId &&\n    defined(slug.current) &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**"))\n  ][0] {\n    _id,\n    title,\n    "slug": slug.current,\n    summary,\n    modules[] {\n      _key,\n      lessons[]->{ _id, title, "slug": slug.current, durationSeconds }\n    }\n  }\n': NEXT_ACTION_COURSE_QUERY_RESULT;
+    '\n  *[\n    _type == "concept" &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    count(lessons[@._ref in $lessonIds]) > 0\n  ] | order(_id asc)[0...100] {\n    "id": _id,\n    conceptId,\n    name,\n    "sources": sourceRefs[lesson._ref in $lessonIds][0...40] {\n      chunkId,\n      "lessonId": lesson._ref,\n      startSeconds,\n      endSeconds\n    }\n  }\n': NEXT_ACTION_CONCEPTS_QUERY_RESULT;
+    '\n  *[\n    _type == "conceptPrerequisite" &&\n    status == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    dependent._ref in $conceptIds\n  ] | order(_id asc)[0...300] {\n    "id": _id,\n    "prerequisite": prerequisite._ref,\n    "dependent": dependent._ref,\n    status\n  }\n': NEXT_ACTION_EDGES_QUERY_RESULT;
+    '\n  *[\n    _type == "assessment" &&\n    lesson._ref in $lessonIds &&\n    reviewStatus == "approved" &&\n    sourceStatus == "current" &&\n    !(_id in path("drafts.**")) &&\n    !(_id in path("versions.**")) &&\n    lesson->_type == "lesson" &&\n    count(*[\n      _type == "assessment" &&\n      familyId == ^.familyId &&\n      version > ^.version &&\n      reviewStatus == "approved" &&\n      sourceStatus == "current" &&\n      !(_id in path("drafts.**")) &&\n      !(_id in path("versions.**"))\n    ]) == 0\n  ] | order(familyId asc, version desc)[0...300] {\n    "item": {\n      _id,\n      _rev,\n      familyId,\n      version,\n      "lessonId": lesson._ref,\n      type,\n      responseFormat,\n      question,\n      "options": options[] { "id": _key, text }\n    },\n    "primaryConceptRef": primaryConcept._ref,\n    "firstSeconds": math::min(sourceChunkRefs[].startSeconds)\n  }\n': COURSE_CHECK_CANDIDATES_QUERY_RESULT;
     '\n  *[_type == "progress" && userId == $userId] | order(updatedAt desc) {\n    _id,\n    "lessonId": lesson._ref,\n    completed,\n    completedAt,\n    resumeSeconds,\n    updatedAt\n  }\n': PROGRESS_FOR_USER_QUERY_RESULT;
     '\n  *[_type == "lesson" && _id == $lessonId && !(_id in path("drafts.**")) && !(_id in path("versions.**"))][0] {\n    _id,\n    durationSeconds\n  }\n': PROGRESS_TARGET_LESSON_QUERY_RESULT;
     '\n  *[_type == "progress" && userId == $userId && lesson._ref == $lessonId][0] {\n    _id,\n    "lessonId": lesson._ref,\n    completed,\n    completedAt,\n    resumeSeconds,\n    updatedAt\n  }\n': PROGRESS_FOR_LESSON_QUERY_RESULT;
