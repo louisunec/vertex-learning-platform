@@ -123,7 +123,8 @@ export function LessonSidebar({
                   {i + 1}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body font-medium text-neutral-900">{mod.title}</span>
+                  {/* Full title, wrapping as needed; the row grows and the number and chevron stay centred on it. */}
+                  <span className="block text-body font-medium break-words text-neutral-900">{mod.title}</span>
                   {mod.durationSeconds != null && (
                     <span className="mt-0.5 block text-small text-neutral-500">
                       {formatDuration(mod.durationSeconds)}
@@ -143,13 +144,16 @@ export function LessonSidebar({
 
               <div id={panelId} hidden={!isOpen}>
                 {mod.lessons.length > 0 && (
-                  <ul className={cn("pb-3", isCurrent && "bg-primary-100/40")}>
-                    {mod.lessons.map((lesson) => (
+                  <ul className="pb-3">
+                    {mod.lessons.map((lesson, lessonIndex) => (
                       <li key={lesson.id}>
                         <Link
                           href={lesson.href}
                           aria-current={lesson.current ? "page" : undefined}
-                          className="group flex items-center gap-3 py-2 pr-6 pl-[52px] transition-colors hover:bg-neutral-50"
+                          className={cn(
+                            "group flex items-center gap-3 py-2.5 pr-5 pl-6 transition-colors",
+                            lesson.current ? "bg-primary-100/60" : "hover:bg-neutral-50",
+                          )}
                           onClick={() =>
                             posthog.capture("lesson_clicked", {
                               lesson_title: lesson.title,
@@ -159,20 +163,22 @@ export function LessonSidebar({
                             })
                           }
                         >
-                          {lesson.current ? (
-                            <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-primary-500" />
-                          ) : lesson.completed ? (
-                            <Icon name="check-circle" size={14} className="shrink-0 text-success" />
-                          ) : (
-                            <span
-                              aria-hidden="true"
-                              className="size-2 shrink-0 rounded-full border border-neutral-300 bg-surface"
-                            />
-                          )}
+                          {/* Lesson numbers come from the module's authored order. */}
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "flex size-8 shrink-0 items-center justify-center rounded-full text-small",
+                              lesson.current
+                                ? "bg-primary-500 font-medium text-on-primary"
+                                : "border border-neutral-300 text-neutral-700",
+                            )}
+                          >
+                            {lessonIndex + 1}
+                          </span>
                           <span className="min-w-0 flex-1">
                             <span
                               className={cn(
-                                "block truncate text-body",
+                                "line-clamp-2 block text-body",
                                 lesson.current
                                   ? "font-medium text-neutral-900"
                                   : "text-neutral-700 group-hover:text-neutral-900",
@@ -193,9 +199,14 @@ export function LessonSidebar({
                                   : null}
                             </span>
                           </span>
-                          {lesson.current && (
+                          {lesson.current ? (
                             <Icon name="play" size={26} filled className="shrink-0 text-primary-500" />
-                          )}
+                          ) : lesson.completed ? (
+                            <>
+                              <Icon name="check-circle" size={20} className="shrink-0 text-primary-500" />
+                              <span className="sr-only">Completed</span>
+                            </>
+                          ) : null}
                         </Link>
                       </li>
                     ))}

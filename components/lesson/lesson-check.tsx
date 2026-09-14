@@ -7,8 +7,7 @@ import { cn } from "@/lib/cn";
 import { newRequestKey, postLearnerJson } from "@/lib/lesson/api";
 import { helpActions, type HelpActionRequest } from "@/lib/lesson/help-actions";
 import type { AttemptResult, HelpResponse, IssueTaskResponse, LessonCheckKind, LessonCheckResponse } from "@/lib/learner/contracts";
-import { useLessonPlayer } from "./lesson-player";
-import type { ActiveTask } from "./tutor-panel";
+import { useLessonPlayer, useReportActiveTask } from "./lesson-player";
 
 /** Questions per sitting; fewer when the lesson has fewer reviewed ideas. */
 const CHECK_SIZE = 3;
@@ -91,7 +90,9 @@ function writeFlag(key: string) {
  * same idea without hints, which is what produces independent evidence; when
  * none exists the card says so rather than repeating a question. A one-time,
  * dismissible invitation appears when the video reaches its completion
- * milestone. Playback never infers mastery.
+ * milestone. Playback never infers mastery. It renders inside the lesson's
+ * "Quick check" activity tab, which is its visible heading, and reports the
+ * open question to the tutor through `LessonPlayerProvider`.
  */
 export function LessonCheck({
   lessonId,
@@ -99,16 +100,15 @@ export function LessonCheck({
   courseSlug,
   lessonRev,
   hints,
-  onActiveTaskChange,
 }: {
   lessonId: string;
   lessonSlug: string;
   courseSlug: string | null;
   lessonRev: string;
   hints: boolean;
-  onActiveTaskChange: (task: ActiveTask) => void;
 }) {
   const player = useLessonPlayer();
+  const onActiveTaskChange = useReportActiveTask();
   const [view, setView] = useState<View>({ step: "idle" });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -281,26 +281,17 @@ export function LessonCheck({
     update((question) => ({ ...question, result: result.data }));
   }
 
-  const heading = (
-    <h2 id={`${id}-title`} className="font-display text-h3 text-neutral-900">
-      Check your understanding
-    </h2>
-  );
-
   return (
-    <section
-      aria-labelledby={`${id}-title`}
-      className="ph-no-capture rounded-[20px] border border-neutral-200 bg-surface px-6 py-5"
-    >
-      <div className="flex items-center gap-3">
-        <Icon name="target" size={20} className="shrink-0 text-primary-500" />
-        {heading}
-      </div>
+    <section aria-labelledby={`${id}-title`} className="ph-no-capture">
+      {/* The "Quick check" tab is the visible heading; this names the region for screen readers. */}
+      <h2 id={`${id}-title`} className="sr-only">
+        Check your understanding
+      </h2>
 
       {invite && view.step === "idle" && (
         <div
           role="status"
-          className="mt-4 flex flex-col gap-3 rounded-md border border-primary-300 bg-primary-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-md border border-primary-300 bg-primary-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <p className="text-body text-neutral-900">Finished the video? Try a few reviewed questions on it.</p>
           <div className="flex shrink-0 gap-3">
@@ -314,7 +305,7 @@ export function LessonCheck({
         </div>
       )}
 
-      <div className="mt-4" aria-live="polite" aria-busy={view.step === "loading" || busy}>
+      <div className={cn(invite && view.step === "idle" && "mt-4")} aria-live="polite" aria-busy={view.step === "loading" || busy}>
         {view.step === "idle" && !invite && (
           <div className="flex flex-col items-start gap-3">
             <p className="text-body text-neutral-700">
@@ -428,110 +419,115 @@ function QuestionCard({
         {followUp ? "Fresh question · no hints" : question.of ? `Question ${question.number} of ${question.of}` : `Question ${question.number}`}
       </p>
 
-      <fieldset disabled={result !== null || locked} className="flex flex-col gap-3">
-        <legend className="mb-3">
-          <h3 ref={result ? undefined : focusRef} tabIndex={-1} className="text-body-lg font-medium text-neutral-900 focus:outline-none">
-            {task.item.question}
-          </h3>
-        </legend>
-        {task.item.options.map((option) => {
-          const chosen = question.selected === option.id;
-          const isCorrect = correctOptionId === option.id;
-          return (
-            <label
-              key={option.id}
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-body-lg text-neutral-900 transition-colors",
-                chosen ? "border-primary-400 bg-primary-100" : "border-neutral-200 hover:border-neutral-300",
-                result !== null && "cursor-default",
-              )}
-            >
-              <input
-                type="radio"
-                name={`${id}-${task.taskInstanceId}`}
-                value={option.id}
-                checked={chosen}
-                onChange={() => onSelect(option.id)}
-                className="accent-primary-500"
-              />
-              <span className="flex-1">{option.text}</span>
-              {isCorrect && (
-                <span className="inline-flex items-center gap-1 text-small text-success">
-                  <Icon name="check" size={14} /> Correct answer
-                </span>
-              )}
-            </label>
-          );
-        })}
-      </fieldset>
-
-      {question.hints.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {question.hints.map((hint) => (
-            <div key={hint.level} className="rounded-md border border-neutral-200 px-4 py-3">
-              <p className="text-small tracking-wider text-neutral-500 uppercase">{hint.level === 3 ? "Explanation" : `Hint ${hint.level}`}</p>
-              <p className="mt-1 text-body-lg text-neutral-900">{hint.text}</p>
-            </div>
-          ))}
-          {!result && solution && (
-            <p className="text-small text-neutral-500">
-              You&apos;ve seen the answer, so this question will count as practice with help.
-            </p>
-          )}
-        </div>
-      )}
-
-      {!result && (
-        <>
-          <fieldset disabled={locked} className="flex flex-col gap-2">
-            <legend className="text-body text-neutral-700">How sure are you? (optional)</legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {CONFIDENCE.map(([value, label]) => (
+      {/* Wide enough (a container query on the activity panel): the answer on the left, confidence and actions in a rail. */}
+      <div className={cn("flex flex-col gap-5", !result && "@xl:grid @xl:grid-cols-[minmax(0,1fr)_minmax(0,15rem)] @xl:gap-0")}>
+        <div className={cn("flex min-w-0 flex-col gap-5", !result && "@xl:pr-6")}>
+          <fieldset disabled={result !== null || locked} className="flex flex-col gap-3">
+            <legend className="mb-3">
+              <h3 ref={result ? undefined : focusRef} tabIndex={-1} className="text-body-lg font-medium text-neutral-900 focus:outline-none">
+                {task.item.question}
+              </h3>
+            </legend>
+            {task.item.options.map((option) => {
+              const chosen = question.selected === option.id;
+              const isCorrect = correctOptionId === option.id;
+              return (
                 <label
-                  key={value}
+                  key={option.id}
                   className={cn(
-                    "cursor-pointer rounded-full border px-3 py-1 text-small transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400",
-                    question.confidence === value
-                      ? "border-primary-400 bg-primary-100 text-neutral-900"
-                      : "border-neutral-200 text-neutral-700 hover:border-neutral-300",
+                    "flex cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-body-lg text-neutral-900 transition-colors",
+                    chosen ? "border-primary-400 bg-primary-100" : "border-neutral-200 hover:border-neutral-300",
+                    result !== null && "cursor-default",
                   )}
                 >
                   <input
                     type="radio"
-                    name={`${id}-${task.taskInstanceId}-confidence`}
-                    value={value}
-                    checked={question.confidence === value}
-                    onChange={() => onConfidence(value)}
-                    className="sr-only"
+                    name={`${id}-${task.taskInstanceId}`}
+                    value={option.id}
+                    checked={chosen}
+                    onChange={() => onSelect(option.id)}
+                    className="accent-primary-500"
                   />
-                  {label}
+                  <span className="flex-1">{option.text}</span>
+                  {isCorrect && (
+                    <span className="inline-flex items-center gap-1 text-small text-success">
+                      <Icon name="check" size={14} /> Correct answer
+                    </span>
+                  )}
                 </label>
-              ))}
-              {question.confidence !== null && (
-                <button type="button" onClick={() => onConfidence(null)} className="px-2 text-small text-neutral-500 hover:text-neutral-900">
-                  Clear
-                </button>
-              )}
-            </div>
+              );
+            })}
           </fieldset>
 
-          <div className="flex flex-wrap gap-3">
-            <Button size="md" onClick={onSubmit} disabled={!question.selected || locked}>
-              Check answer
-            </Button>
-            {offered.map((action) => (
-              <Button key={action.request} size="md" variant="tertiary" disabled={busy} onClick={() => onHelp(action.request)}>
-                {action.label}
-              </Button>
-            ))}
-          </div>
-          {followUp && (
-            <p className="text-small text-neutral-500">
-              No hints on this one: it checks what you can do on your own. Asking the tutor now would count as help.
-            </p>
+          {question.hints.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {question.hints.map((hint) => (
+                <div key={hint.level} className="rounded-md border border-neutral-200 px-4 py-3">
+                  <p className="text-small tracking-wider text-neutral-500 uppercase">{hint.level === 3 ? "Explanation" : `Hint ${hint.level}`}</p>
+                  <p className="mt-1 text-body-lg text-neutral-900">{hint.text}</p>
+                </div>
+              ))}
+              {!result && solution && (
+                <p className="text-small text-neutral-500">
+                  You&apos;ve seen the answer, so this question will count as practice with help.
+                </p>
+              )}
+            </div>
           )}
-        </>
-      )}
+        </div>
+
+        {!result && (
+          <div className="flex min-w-0 flex-col gap-5 @xl:border-l @xl:border-neutral-200 @xl:pl-6">
+            <fieldset disabled={locked} className="flex flex-col gap-2">
+              <legend className="text-body text-neutral-700">How sure are you? (optional)</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {CONFIDENCE.map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={cn(
+                      "cursor-pointer rounded-full border px-3 py-1 text-small transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400",
+                      question.confidence === value
+                        ? "border-primary-400 bg-primary-100 text-neutral-900"
+                        : "border-neutral-200 text-neutral-700 hover:border-neutral-300",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={`${id}-${task.taskInstanceId}-confidence`}
+                      value={value}
+                      checked={question.confidence === value}
+                      onChange={() => onConfidence(value)}
+                      className="sr-only"
+                    />
+                    {label}
+                  </label>
+                ))}
+                {question.confidence !== null && (
+                  <button type="button" onClick={() => onConfidence(null)} className="px-2 text-small text-neutral-500 hover:text-neutral-900">
+                    Clear
+                  </button>
+                )}
+              </div>
+            </fieldset>
+
+            <div className="flex flex-wrap gap-3 @xl:flex-col @xl:items-start">
+              <Button size="md" onClick={onSubmit} disabled={!question.selected || locked} iconRight={<Icon name="arrow-right" size={16} />}>
+                Check answer
+              </Button>
+              {offered.map((action) => (
+                <Button key={action.request} size="md" variant="tertiary" disabled={busy} onClick={() => onHelp(action.request)}>
+                  {action.label}
+                </Button>
+              ))}
+            </div>
+            {followUp && (
+              <p className="text-small text-neutral-500">
+                No hints on this one: it checks what you can do on your own. Asking the tutor now would count as help.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {result && (
         <div className="flex flex-col items-start gap-3">
