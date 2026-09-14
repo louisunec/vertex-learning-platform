@@ -388,7 +388,7 @@ Implemented on 2026-09-14 in `../vertex-pr-10` on `feat/pr-10-editorial-signals`
   - `package.json` scripts;
   - `.env.example`;
   - `studio/sanity.config.ts`, `studio/structure.ts`, `studio/schemaTypes/index.ts`;
-  - `sanity.types.ts` (rerun `npm run typegen`);
+  - `sanity.types.ts`: add the PR-10 delta by hand (the `AssessmentReference` and `ContentSignal` types plus their two `AllSanitySchemaTypes` entries, from `git diff 3de183e a4c989d -- sanity.types.ts`); do not regenerate on the preview, whose file carries hand-merged PR-2 and PR-11 types;
   - `components/lesson/video-embed.tsx` (#14 `ca953e3` rewrote its save logic);
   - `components/search/search-results.tsx`;
   - `lib/tutor/service.ts` (the insert column list).
