@@ -20,7 +20,7 @@ export function Card({ className, children, ...props }: HTMLAttributes<HTMLDivEl
 export interface CourseCardProps {
   title: string;
   description: string;
-  /** Logo / icon tile — rendered at 40×40 in `row` layout, 72×72 in `stacked`. */
+  /** Logo / icon tile — rendered at 40×40 in `row` layout, in a 192×108 (16:9) frame in `stacked`. */
   icon: ReactNode;
   level: string;
   /** Omitted when the stored value is missing — never render a placeholder. */
@@ -65,7 +65,7 @@ export function CourseCard({
   if (layout === "stacked") {
     return (
       <Card className={cn("relative flex flex-col p-6", href && "transition-colors hover:border-neutral-300", className)}>
-        <div className="flex size-[72px] shrink-0 items-center justify-center overflow-hidden rounded-lg">{icon}</div>
+        <div className="flex aspect-video w-48 max-w-full shrink-0 items-center justify-center overflow-hidden rounded-lg">{icon}</div>
         <h3 className="mt-9 font-display text-[22px] leading-7 font-normal text-neutral-900">{heading}</h3>
         <p className="mt-4 text-body leading-6 text-neutral-500">{description}</p>
         <div aria-hidden="true" className="min-h-12 flex-1" />
