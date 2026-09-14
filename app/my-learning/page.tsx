@@ -87,6 +87,7 @@ async function Overview({ userId }: { userId: string }) {
           kind: item.kind,
           label: item.label,
           lessonTitle: item.lesson.title,
+          href: `/lessons/${item.lesson.slug}`,
           at: item.at,
           when: formatRelativeTime(item.at, now),
         }))
