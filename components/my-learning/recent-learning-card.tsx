@@ -17,11 +17,7 @@ export interface RecentLearningEntry {
 }
 
 const tiles: Record<RecentLearningKind, ReactNode> = {
-  independent_practice: (
-    <IconTile tone="neutral" size="sm">
-      IP
-    </IconTile>
-  ),
+  independent_practice: <IconTile icon="check" tone="primary" size="sm" />,
   hinted_practice: <IconTile icon="check" tone="primary" size="sm" />,
   solution_practice: <IconTile icon="check" tone="primary" size="sm" />,
   repeat_practice: <IconTile icon="refresh" tone="neutral" size="sm" />,
