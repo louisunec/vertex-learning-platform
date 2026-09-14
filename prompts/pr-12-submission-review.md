@@ -192,7 +192,7 @@ AGENTS.md; `docs/Vertex_AI_Native_Development_Plan.md` (§3, §5 PR-4/5/6/7/12, 
   - it resisted the comment injection;
   - it found the `undefined` vs `null` mismatch without a course citation;
   - it returned "cannot judge" for Python.
-- Problems found in the feedback text: none makes a structural check fail; see the audit in `docs/evals/pr-12-review-packet.md`.
+- Problems found in the run-2 feedback text (addressed in follow-up 1, below): none makes a structural check fail.
   - **Level-3 corrections can switch away from the learner's driver** (run 2: `manual-escaping` and `fixed-after-feedback` step 1). For example, a node-postgres submission got a mysql2 `db.execute` correction, which would break if applied as written. In `helper-not-shown` the corrections mix three drivers.
   - The check over-flags leading questions as giving the fix away (run 1: 4, run 2: 1). The server's generic fallback, which quotes the whole criterion, is less useful than the question it replaces.
   - One alternative note says the lesson shows specific drivers. It shows none, only a generic `?` placeholder.
@@ -216,3 +216,143 @@ Trial merges in a throwaway detached worktree:
 - **`feat/pr-2-visual-index`**: `.env.example`, `lib/flags.ts`, `package.json`, and the two studio files, all additive.
 - The PR-12 DB tests truncate only tables that nothing in 0003–0005 references, so they need no edits after the merge.
 - Migration order: 0006 applies after whatever of 0003–0005 exists.
+
+## Follow-up 1: feedback defects (implemented 2026-09-14)
+
+Requested 2026-09-14 after the first audit. The user approved this plan with limits, quoted: "Keep driver validation limited to the affected evaluation fixtures, and reuse existing dependencies where possible. Do not build a general-purpose code execution system. Run correction fixtures only in an isolated test environment. Treat the new server check as a guard, not proof of correctness. Concept calls are dry-run preparation only; no automatic approval or publishing." PR #17 stays a draft, and `submission-review` stays off. The plan below is as approved; the results and deviations follow it.
+
+### Defects to fix (observed in run 2)
+1. **Incompatible driver corrections: functional errors.**
+   - `manual-escaping`: node-postgres code (`db.query`, `result.rows`) got a mysql2 `db.execute` / `[rows]` correction.
+   - `fixed-after-feedback` step 1: mysql2-shaped code (`[rows] = await db.query`) got a node-postgres `$1` / `res.rows` correction.
+   - `helper-not-shown`: no driver is visible, yet the corrections invented code for three different drivers.
+2. **An unsupported course claim.** The `postgres-js-tagged-template` note says "the drivers shown in the lesson passages". The lesson shows no driver.
+3. **The check over-flags leading questions** (5 across both runs), so the server's generic fallback replaces useful hints.
+4. **An inconsistent uncertain note** about the `[rows]` result shape (`fixed-after-feedback` step 1). The same shape passed in step 2 and in run 1.
+- Not in scope: the double card for one problem failing C1 and C2 is a rubric question, left to the task review (merge C1 and C2, or keep both).
+
+### Changes
+- **Review prompt `review-v3`** (`lib/ai/review.ts`):
+  - A correction must keep the submission's own driver conventions: the same client, methods, result shape, and placeholder style its code already uses. It must never switch driver or library.
+  - If the submission shows no driver-specific call (for example, the query runs in a helper that isn't shown), the correction is prose only. It says what must change and asks for the missing code or the driver name. No snippet.
+  - Never say what the lesson, course, or passages show beyond what a cited passage states.
+  - Don't raise uncertainty about which driver is used when the code's calls and result handling are consistent with each other.
+- **Deterministic gate 4, correction conventions** (`lib/ai/review.ts`; new `DropReason 'incompatible_correction'`):
+  - It reads the submission's conventions from its code: methods called on the client (`query`, `execute`, `prepare`/`get`/`all`/`run`, a tagged template, a builder call), the result access (`.rows`, or array destructuring of an awaited call), and the placeholder style when the submission has placeholders.
+  - It replaces a correction when that correction:
+    - calls a client method the submission doesn't use;
+    - reads the result the other way (`.rows` against `[rows]`);
+    - uses a different placeholder style from the submission's own;
+    - or contains executable client calls when the submission establishes no driver.
+  - The replacement is qualified guidance written by the server, never code. For example: "Keep the `db.query` call and the result handling you already use; change line N so it meets “…”". When no driver is visible, the guidance asks for the query code or the driver name.
+  - It is conservative: a valid same-driver switch, such as mysql2 `query` → `execute`, is also replaced by guidance. That errs toward no code, never toward broken code.
+- **Check prompt `review-check-v2`** (`lib/ai/review-check.ts`):
+  - A new `correctionCompatible` field per finding: true when the correction has no code, or its code uses the submission's own driver, API and result shape. When it is false, the server replaces the correction the same way.
+  - `questionRevealsFix` is narrowed: true only when the question names the fix, such as the placeholder, bound values, or a specific API or code change. Asking what a value evaluates to is not revealing.
+  - `sourcesSupport` becomes false when the explanation claims the course or passages show something they don't.
+- **Alternative notes:** an `alternative_valid` explanation that refers to the lesson, course, passages or video is replaced by the server's neutral text ("A different library or syntax that still meets the criterion"), so no course claim reaches the learner.
+- **Help and assistance records:** unchanged. Level 3 still shows the (possibly server-replaced) correction, and `solution` is still recorded as answer exposure. That is conservative: it may overstate assistance, never understate it. "Show corrections" stays offered.
+- **Cache:** the prompt and check versions are already in the cache key, so every stored review from `review-v2`/`review-check-v1` is re-reviewed on the next submission.
+
+### Regression cases
+- Deterministic unit tests (`lib/ai/review.test.ts`):
+  - replay the two observed incompatible corrections through gate 4 and assert they are replaced, while the compatible C1 corrections in the same reviews are kept;
+  - replay `helper-not-shown` and assert prose guidance only;
+  - replay the postgres.js note and assert the neutral text;
+  - test convention extraction for node-postgres, mysql2, better-sqlite3, postgres.js and Knex;
+  - test `correctionCompatible: false` handling.
+- Eval expectation `correction: {forbid[], require[]}` (`lib/submissions/eval-check.ts`). It checks each delivered correction as text, independently of gate 4:
+  - `manual-escaping` forbids `execute(`, `[rows]`, `.get(`, and requires `.query(`;
+  - `fixed-after-feedback` step 1 forbids `.rows` and `$1`;
+  - `helper-not-shown` forbids any `db.<method>(` call.
+- Two new focused eval cases:
+  - `pg-template-literal`: a node-postgres `client.query` template string with `res.rows`;
+  - `mysql2-execute-concatenation`: mysql2 `[rows] = await db.execute("…" + username …)`.
+  Both carry forbid/require expectations.
+- The eval report also counts gate-4 and check replacements per step, so it shows how often the model itself still gets this wrong.
+
+### Driver verification in an isolated fixture (no learner code in the app; as planned, see the deviations)
+- The devDependencies `pg`, `@types/pg`, `mysql2` (ships its types) and `@types/better-sqlite3` are added (`package-lock.json` changes).
+- A typed fixture (`lib/submissions/driver-fixtures.ts`) holds a reference fix per driver, plus the rerun's delivered corrections copied in as static code after I read them. Each is typed against the real client types, and `npm run typecheck` rejects, for example, `execute` on a `pg` client.
+- A DB test runs the node-postgres reference fix and each delivered node-postgres correction for real, with `pg`, against the embedded test Postgres. An injection payload must return `null` and a real username its row.
+- mysql2 and better-sqlite3 are checked by types only: there is no MySQL server here (Docker is broken), and better-sqlite3 is a native addon. The fixture never evaluates text dynamically.
+
+### Reruns (live model calls: 18)
+- `npm run eval:review -- --case` gains comma-separated ids.
+- Rerun 9 steps × 2 calls = 18 calls:
+  - the affected cases: `manual-escaping`, `fixed-after-feedback` (2 steps), `helper-not-shown`, `postgres-js-tagged-template`, `returns-undefined`;
+  - `injection-in-comment`, as a regression for the prompt change;
+  - the 2 new cases.
+- The other 5 steps are left as stored `review-v2` results, labelled as such (not representative of `review-v3`). Rerunning them would cost 10 more calls, only on request.
+
+### Option B concepts (live model calls: about 2)
+- The lesson evidence supports both concepts: SQL injection at 1:04–1:40 (`tc-64-3`, `tc-82-4`), and parameterized queries at 0:27 and 1:40–2:35 (`tc-27-1`, `tc-100-5` … `tc-155-8`). No approved concept fits: least privilege is the lesson's third key point, not what the task checks. No concept generation record exists for this lesson.
+- Run `npm run generate:concepts -- extract --lesson practical-web-security-sql-injection --dry-run --out docs/evals/local/…`. That is the PR-3 pipeline, including its reuse and dedupe against existing concepts. It is a dry run and writes nothing to Sanity. The output holds source excerpts, so it stays gitignored.
+- The packet presents each candidate, paraphrased without quoting the transcript. For each one it gives reuse or add, and a criterion → concept mapping: C1 → SQL injection and parameterized queries; C2 → parameterized queries; C3 → none. The task stores concepts at the task level.
+- Nothing is created, imported, approved or published. Concepts must be approved before task v1 can reference them.
+
+### Review packet
+Rebuilt with per-step provenance: fresh run 3 or stored run 2. Three separate sections:
+- **automated verification**: structural, correction forbid/require, gate counts, and the driver fixture;
+- **AI assessment**: Claude's reading;
+- **pending human review**: the unticked boxes.
+
+The old sentence "the only correctness problems are in text" is removed: the driver switches were functional errors.
+
+### Generated types: technical debt
+- The preview's `sanity.types.ts` is hand-carried: PR-2 and PR-11 types are not reproducible by a full `npm run typegen` there, and that has not been verified. PR-12's hand-added delta is a stopgap, not the fix.
+- This is recorded under "Technical debt" here and in the PR #17 body.
+- Proposed to vertex-ff (the integration session): on the preview, register every merged schema type in `studio/schemaTypes/index.ts`, run the full typegen once, diff it against the hand-carried file, and commit when they match.
+
+### Checks
+Typecheck, lint, unit and DB tests, and build. The reruns above. No change to localhost:3000, the preview, flags or Sanity content.
+
+### Follow-up 1 results
+
+**Deviations from the plan above:**
+- **Dependencies:** only `pg` and `@types/pg` were added, as devDependencies, following the user's instruction to reuse existing dependencies where possible.
+  - mysql2 is type-checked in a throwaway scratch environment outside the repo (mysql2 3.24.4, strict `tsc`), not as a repo dependency.
+  - better-sqlite3 is not checked: no affected case uses it.
+- **Fixture:** it is one DB test, `lib/submissions/driver-fixtures.db.test.ts`, holding static copies of the affected node-postgres corrections. There is no typed `driver-fixtures.ts` module.
+- **The server check** lives in `lib/ai/review-conventions.ts`, as gate 4. It is a lexical guard over the pilot drivers' methods (`query`, `execute`, `prepare`, `get`, `raw`, `unsafe`, `first`, `where`, `select`), result access and placeholder family. It is not proof that a correction works.
+- **Incompatible corrections are replaced, not dropped:** the server writes guidance in words, so level 3 still shows something. When the submission shows no driver, the guidance asks for the query code or the driver name.
+
+**Automated checks:**
+- 652/652 tests pass (DB tests on an embedded test Postgres). Typecheck and lint are clean.
+- New tests:
+  - `review-conventions.test.ts`: the conventions of the five drivers, and the two observed run-2 incompatible corrections replayed verbatim;
+  - gate-4 and check-field cases in `review.test.ts`;
+  - the correction forbid/require expectation in `submissions.test.ts`;
+  - the node-postgres driver fixture (3 tests).
+
+**Live run 3** (`review-v3` / `review-check-v2`; `docs/evals/pr-12-review-eval-run-3.md`): 8 cases, 9 steps, 18 calls.
+- 9/9 structural checks pass, and the 5 driver-regression steps pass their correction text checks.
+- The server check replaced nothing: every correction the model delivered kept the learner's driver.
+- Replayed offline, gate 4 would have replaced the run-2 functional errors (`manual-escaping`, `fixed-after-feedback`), the run-2 mixed-driver correction (`injection-in-comment`), the invented code in `helper-not-shown` (runs 1 and 2), and run 1's `fixed-after-feedback` correction, which my first audit had missed.
+
+**Driver fixtures:**
+- The run-3 node-postgres corrections, with the real `pg` driver against a disposable database, find the row, and return null for no match and for injection payloads.
+- The run-2 mysql2 correction on a `pg` client throws `TypeError`.
+- mysql2 types: the run-3 corrections compile; the run-2 `res.rows` correction does not.
+
+**Concept dry run** (2 calls, nothing written; checked afterwards: 16 generation records, no concept document):
+- The PR-3 pipeline proposed one new concept, `cpt-parameterized-queries`, and no separate SQL injection concept, although the lesson defines SQL injection at 0:47.
+- No existing concept is reused.
+- The proposal and mapping (C1 and C2 → `cpt-parameterized-queries`, C3 → none) are in the packet, pending the user. Nothing is imported, approved or published.
+
+**Observations for the human review** (AI assessment, in `docs/evals/pr-12-review-packet.md`):
+- The narrowed `questionRevealsFix` rule let one C1 question through that names the fix ("…or use a placeholder/bound value?"). The placeholder is in C2's visible text.
+- mysql2 `query()` with `?` is escaping done by the driver, not a server-side bound parameter (confirmed in the mysql2 source). The review and the corrections accept it; the rubric decision is the user's.
+- The `helper-not-shown` guidance is code-free but clumsy.
+- The C1 and C2 cards still repeat the same fix.
+- 5 steps are stored `review-v2` results, not re-run.
+
+### Technical debt: generated Sanity types
+- **Problem:** `sanity.types.ts` on the integrated preview (`preview/my-learning`) is maintained by hand. It carries PR-2 and PR-11 types that a full `npm run typegen` there is not known to reproduce; that is unverified. PR-12's delta (the `SubmissionTask` type, one `ConceptReference`, and the union entry) is added by hand as a stopgap. That is not the permanent solution.
+- **Durable fix,** proposed to the integration session (vertex-ff), 2026-09-14:
+  1. register every merged schema type in `studio/schemaTypes/index.ts` on the preview;
+  2. run the full `npm run typegen` (schema extract, then generate);
+  3. diff the result against the hand-carried file, and commit it if they match;
+  4. otherwise, fix at its source any type that has no schema or query behind it.
+- **Owner:** the integration session and its user. PR-12's code imports none of these generated types, so nothing depends on it.
+

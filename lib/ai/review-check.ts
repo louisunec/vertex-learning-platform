@@ -14,16 +14,17 @@ import {generateBoundedObject, type AiCallDiagnostics} from './gateway.ts'
  * that a finding is well-formed, not that it is right. A second bounded call
  * judges every criterion itself and confirms or rejects each finding, above
  * all a "defect" that is really a valid alternative. It also says whether the
- * cited passages support each finding and whether a guiding question gives
- * the fix away.
+ * cited passages support each finding, whether a guiding question gives
+ * the fix away, and whether a correction keeps the submission's own driver.
  *
  * Model-assisted, not proof: `lib/ai/review.ts` drops what is rejected,
- * downgrades what is unsure, and the result stays labelled provisional.
+ * downgrades what is unsure, replaces an incompatible correction with its own
+ * guidance, and the result stays labelled provisional.
  */
 
 export const REVIEW_CHECK_TASK = 'submission-review-check'
 /** Bump whenever the prompt or schema changes. */
-export const REVIEW_CHECK_PROMPT_VERSION = 'review-check-v1'
+export const REVIEW_CHECK_PROMPT_VERSION = 'review-check-v2'
 const PROVIDER_OPTIONS = {
   openai: {reasoningEffort: 'low', reasoningSummary: null} satisfies OpenAILanguageModelResponsesOptions,
 }
@@ -41,6 +42,7 @@ export const checkOutputSchema = z.object({
         verdict: z.enum(FINDING_VERDICTS),
         sourcesSupport: z.boolean(),
         questionRevealsFix: z.boolean(),
+        correctionCompatible: z.boolean(),
       }),
     )
     .max(MAX_FINDINGS + 2),
@@ -59,7 +61,7 @@ export type CheckItem = {
   sources: string[]
 }
 
-export type FindingCheck = {verdict: FindingVerdict; sourcesSupport: boolean; questionRevealsFix: boolean}
+export type FindingCheck = {verdict: FindingVerdict; sourcesSupport: boolean; questionRevealsFix: boolean; correctionCompatible: boolean}
 
 export type CheckResult = {
   /** The checker's own status per criterion id; a missing one reads as unclear. */
@@ -77,8 +79,9 @@ const SYSTEM_PROMPT = [
   '  - "defect" or "requirement_mismatch": "confirmed" only if the cited lines really have that problem for this task. "not_confirmed" if the code is actually fine there, including when it is a valid alternative way to meet the task. "uncertain" if you cannot tell, for example an unfamiliar library or code that is not shown.',
   '  - "alternative_valid": "confirmed" if the code really is a valid way to meet the task; otherwise "not_confirmed" or "uncertain".',
   '  - "uncertain": answer "uncertain".',
-  '  - sourcesSupport: true if every cited passage states the rule the finding relies on, or it cites none; false otherwise.',
-  '  - questionRevealsFix: true if the question states or gives away the fix; false otherwise, and false when there is no question.',
+  '  - sourcesSupport: true if every cited passage states the rule the finding relies on, or it cites none; false otherwise. Also false when the explanation says the course, the lesson, or the passages show or use something the cited passages do not say.',
+  '  - questionRevealsFix: true only if the question names the fix itself: the change to make, the API, method, or placeholder to use, or corrected code. A question that points at the lines, or asks what the code does or what a value is, does not reveal the fix. False when there is no question.',
+  '  - correctionCompatible: false if the code in the correction would not work with the driver and API the submission itself uses: another client method, library, or driver, another way of reading the result (for example result.rows against const [rows] = await ...), a placeholder style that driver does not accept, or code for a driver the submission does not show. True when the correction keeps the driver of the submission, or contains no code.',
   '- When unsure, answer "uncertain" or "unclear", never "confirmed" or "met".',
 ].join('\n')
 

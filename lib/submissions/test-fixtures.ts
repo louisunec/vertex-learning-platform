@@ -149,7 +149,7 @@ export function defaultCheck(input: CheckInput) {
   const concatenates = input.submission.lines.some((entry) => entry.text.includes('" + '))
   return {
     criteria: input.task.criteria.map(({criterionId}) => ({criterionId, verdict: concatenates && criterionId !== 'returns-row-or-null' ? 'not_met' : 'met'})),
-    findings: input.findings.map((finding) => ({id: finding.id, verdict: 'confirmed', sourcesSupport: true, questionRevealsFix: false})),
+    findings: input.findings.map((finding) => ({id: finding.id, verdict: 'confirmed', sourcesSupport: true, questionRevealsFix: false, correctionCompatible: true})),
   }
 }
 

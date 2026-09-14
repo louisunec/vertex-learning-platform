@@ -28,6 +28,7 @@ import type {ResolvedCitation} from './contracts.ts'
 import {generateBoundedObject, type AiCallDiagnostics} from './gateway.ts'
 import type {HelpLevel} from './help-policy.ts'
 import {checkReview, type CheckItem, type CheckResult} from './review-check.ts'
+import {correctionConflict, establishesDriver, readConventions, type DriverConventions} from './review-conventions.ts'
 import {assemblePassages, contentTerms, passageText, resolveCitation, type EvidencePassage} from './tutor.ts'
 
 /**
@@ -45,13 +46,17 @@ import {assemblePassages, contentTerms, passageText, resolveCitation, type Evide
  * 2. criterion and concept ids belong to this task; a requirement mismatch
  *    names its criterion;
  * 3. a citation names a passage of this task that shares a content term with
- *    the finding; citations are rebuilt from stored chunks.
+ *    the finding; citations are rebuilt from stored chunks;
+ * 4. a correction keeps the driver conventions the submission's own code
+ *    establishes (`review-conventions.ts`), and an alternative note makes no
+ *    claim about the course. Otherwise the server's own text replaces it.
  *
  * A second call (`review-check.ts`) judges the criteria itself and confirms
  * or rejects each finding. A rejected defect is dropped (an alternative that
  * works is not a defect), an unsure one becomes `uncertain`, an unconfirmed
  * "met" becomes `unclear`, unsupported citations are removed, and a question
- * that gives the fix away is replaced by the server's own. The outcome is
+ * that gives the fix away is replaced by the server's own, and so is a correction it
+ * finds incompatible with the submission. The outcome is
  * derived here, never taken from the model, and stays provisional.
  *
  * Framework-free (the model is injected) so `node --test` can load it.
@@ -59,7 +64,7 @@ import {assemblePassages, contentTerms, passageText, resolveCitation, type Evide
 
 export const REVIEW_TASK = 'submission-review'
 /** Bump whenever the system prompt, input shape, or output schema changes. */
-export const REVIEW_PROMPT_VERSION = 'review-v2'
+export const REVIEW_PROMPT_VERSION = 'review-v3'
 export const REVIEW_MODEL_ID = 'gpt-5-mini'
 export const REVIEW_PROVIDER_OPTIONS = {
   openai: {reasoningEffort: 'low', reasoningSummary: null} satisfies OpenAILanguageModelResponsesOptions,
@@ -132,6 +137,8 @@ export type DropReason =
   | 'unsupported_citation'
   | 'unknown_concept'
   | 'question_reveals_fix'
+  | 'incompatible_correction'
+  | 'course_claim'
 
 /** Removed model output with its text, for the offline evaluation only; never stored or returned. */
 export type DroppedOutput = {reason: DropReason; category: FindingCategory | null; text: string}
@@ -158,6 +165,10 @@ const SYSTEM_PROMPT = [
   '  - question: one short question that helps the learner find the problem themselves. It must not state or hint at the fix. null for "alternative_valid".',
   '  - explanation: what is wrong (or uncertain, or why the alternative is valid) and why, in at most three sentences. No corrected code.',
   '  - correction: how to fix it, with a short corrected snippet if useful (at most 8 lines). null for "alternative_valid".',
+  '- A correction must keep the driver and API the submission already uses: the same client object and methods, the same way of reading the result (for example result.rows, or const [rows] = await ...), and a placeholder style that driver accepts. Never switch to another driver, library, or method, and never show examples for several drivers.',
+  '- If the submission does not show which driver or API it uses (for example, the query runs in a helper that is not shown), the correction contains no code: say in words what must change, and ask for the missing code or the name of the driver.',
+  '- Do not add an "uncertain" finding about which driver the code uses when its calls and its result handling are consistent with each other.',
+  '- Never say what the lesson, the course, or the passages show, use, or recommend beyond what a passage you cite says. An "alternative_valid" explanation says only why the code meets the criterion.',
   '- If the submission is empty, unrelated to the task, written in a different language than the task asks for, or too incomplete to judge any criterion, return status "cannot_judge" with a cannotJudgeReason and no criteria or findings.',
   '- Otherwise return status "reviewed", cannotJudgeReason null, and a status for every criterion. No findings is fine when every criterion is met.',
 ].join('\n')
@@ -195,9 +206,24 @@ type DraftFinding = Omit<StoredFinding, 'id'> & {sources: string[]}
 
 type Draft =
   | {kind: 'cannot_judge'; reason: CannotJudgeReason}
-  | {kind: 'reviewed'; criteria: Map<string, CriterionStatus>; findings: DraftFinding[]; dropped: DroppedOutput[]}
+  | {
+      kind: 'reviewed'
+      criteria: Map<string, CriterionStatus>
+      findings: DraftFinding[]
+      dropped: DroppedOutput[]
+      /** What the submission's own code establishes about its driver (gate 4). */
+      conventions: DriverConventions
+    }
 
-/** Gates 1–3 over the model output. Invalid findings are dropped, never repaired. */
+/** Words that make an alternative note a claim about the course, which the note never needs. */
+const COURSE_CLAIM = /\b(lesson|course|passage|video|instructor)s?\b/i
+export const ALTERNATIVE_NOTE = 'A different library, API, or syntax that still meets this criterion.'
+
+/**
+ * Gates 1–4 over the model output. Invalid findings are dropped, never
+ * repaired; gate 4 replaces a correction or an alternative note with the
+ * server's own text instead, because the finding itself still stands.
+ */
 export function prevalidateReview(output: ReviewOutput, task: SubmissionTask, submission: NormalizedSubmission): Draft {
   if (output.status === 'cannot_judge') return {kind: 'cannot_judge', reason: output.cannotJudgeReason ?? 'insufficient_context'}
 
@@ -215,6 +241,7 @@ export function prevalidateReview(output: ReviewOutput, task: SubmissionTask, su
   const findings: DraftFinding[] = []
   const dropped: DroppedOutput[] = []
   const drop = (reason: DropReason, category: FindingCategory | null, text: string) => dropped.push({reason, category, text})
+  const conventions = readConventions(submission.content)
 
   for (const finding of output.findings) {
     const {category, startLine, endLine} = finding
@@ -273,6 +300,17 @@ export function prevalidateReview(output: ReviewOutput, task: SubmissionTask, su
     }
 
     const aside = category === 'alternative_valid'
+    // Gate 4: no claim about the course in a note, and no correction that switches driver.
+    let explanation = finding.explanation.trim()
+    if (aside && COURSE_CLAIM.test(explanation)) {
+      drop('course_claim', category, explanation)
+      explanation = ALTERNATIVE_NOTE
+    }
+    let correction = aside ? null : finding.correction?.trim() || null
+    if (correction && correctionConflict(conventions, correction)) {
+      drop('incompatible_correction', category, correction)
+      correction = guidanceCorrection({startLine, endLine, criterionId}, conventions, task)
+    }
     findings.push({
       category,
       criterionId,
@@ -282,11 +320,31 @@ export function prevalidateReview(output: ReviewOutput, task: SubmissionTask, su
       citations,
       sources,
       question: aside ? null : finding.question?.trim() || null,
-      explanation: finding.explanation.trim(),
-      correction: aside ? null : finding.correction?.trim() || null,
+      explanation,
+      correction,
     })
   }
-  return {kind: 'reviewed', criteria, findings, dropped}
+  return {kind: 'reviewed', criteria, findings, dropped, conventions}
+}
+
+/**
+ * The server's own correction, used when the model's would change the
+ * learner's driver: qualified guidance in words, never code. When the
+ * submission does not show its driver, it asks for the missing code.
+ */
+export function guidanceCorrection(
+  finding: Pick<StoredFinding, 'startLine' | 'endLine' | 'criterionId'>,
+  conventions: DriverConventions,
+  task: SubmissionTask,
+): string {
+  if (!establishesDriver(conventions)) {
+    return "This review can't see the code that runs the query or which database driver you use, so it won't guess replacement code. Add that code, or name your driver, and review again."
+  }
+  const where = lineRangeText(finding.startLine, finding.endLine)
+  const call = conventions.firstCall ? `your ${conventions.firstCall} call` : 'your existing database call'
+  const criterion = task.criteria.find((candidate) => candidate.id === finding.criterionId)?.text
+  const goal = criterion ? `so that it meets “${criterion.length > 200 ? `${criterion.slice(0, 199)}…` : criterion}”` : 'to fix the problem described above'
+  return `Keep ${call} and the way your code already reads its result. Change ${where} ${goal}.`
 }
 
 /** The server's own guiding question, used when the model's is missing or gives the fix away. */
@@ -322,6 +380,12 @@ export function finalizeReview(draft: Extract<Draft, {kind: 'reviewed'}>, check:
       citations = []
     }
 
+    let correction = finding.correction
+    if (correction && verdict?.correctionCompatible === false) {
+      droppedOutput.push({reason: 'incompatible_correction', category, text: correction})
+      correction = guidanceCorrection(finding, draft.conventions, task)
+    }
+
     let question = finding.question
     if (category === 'alternative_valid') question = null
     else if (question && verdict?.questionRevealsFix) {
@@ -337,7 +401,7 @@ export function finalizeReview(draft: Extract<Draft, {kind: 'reviewed'}>, check:
       citations,
       question: category === 'alternative_valid' ? null : (question ?? fallbackQuestion(finding, task)),
       explanation: finding.explanation,
-      correction: category === 'alternative_valid' ? null : finding.correction,
+      correction: category === 'alternative_valid' ? null : correction,
     })
   })
 

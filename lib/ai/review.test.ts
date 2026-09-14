@@ -6,6 +6,7 @@ import {CONCATENATED, makeTask, PARAMETERIZED, reviewModel, SQL_EVIDENCE, type R
 import {normalizeSubmission, type NormalizedSubmission} from '../submissions/text.ts'
 import {AiCallError} from './gateway.ts'
 import {
+  ALTERNATIVE_NOTE,
   buildReviewPrompt,
   buildReviewSystemPrompt,
   deriveOutcome,
@@ -57,7 +58,7 @@ function reviewed(draft: ReturnType<typeof prevalidateReview>) {
 function check(findings: Array<[number, Partial<FindingCheck>]>, criteria: Array<[string, 'met' | 'not_met' | 'unclear']> = []): CheckResult {
   return {
     criteria: new Map(criteria),
-    findings: new Map(findings.map(([id, verdict]) => [id, {verdict: 'confirmed', sourcesSupport: true, questionRevealsFix: false, ...verdict}])),
+    findings: new Map(findings.map(([id, verdict]) => [id, {verdict: 'confirmed', sourcesSupport: true, questionRevealsFix: false, correctionCompatible: true, ...verdict}])),
   }
 }
 
@@ -338,5 +339,63 @@ describe('runSubmissionReview', () => {
     await runSubmissionReview({model: reviewModel(), task, submission: concatenated, log: (entry) => lines.push(JSON.stringify(entry))})
     assert.equal(lines.length, 2)
     for (const line of lines) assert.ok(!line.includes('SELECT') && !line.includes('username'), line)
+  })
+})
+
+describe('gate 4: corrections keep the submission driver, notes make no course claim', () => {
+  const allMet: ReviewOutput['criteria'] = task.criteria.map(({id}) => ({criterionId: id, status: 'met'}))
+  const mysql2 = submissionOf(
+    ['async function findUserByUsername(db, username) {', "  const [rows] = await db.query(`SELECT * FROM users WHERE username = '${username}'`)", '  return rows[0] ?? null', '}'].join('\n'),
+  )
+  const helper = submissionOf(["import { runUserQuery } from './queries.js'", '', 'async function findUserByUsername(db, username) {', '  return runUserQuery(db, username)', '}'].join('\n'))
+  const hasNoQueryCode = (text: string) => !/\.(query|execute|prepare|get)\s*\(|\$\d|\[rows\]|\.rows\b/.test(text)
+
+  it('replaces the mysql2 correction given to node-postgres code with guidance in words (manual-escaping, run 2)', () => {
+    const correction = "Pass the username as a bound parameter to the query API. Example (mysql2 style using ? placeholder):\n\nconst [rows] = await db.execute('SELECT * FROM users WHERE username = ?', [username])\nreturn rows[0] ?? null"
+    const draft = reviewed(prevalidateReview(output([finding({criterionId: 'bound-parameter', correction})]), task, concatenated))
+    const [kept] = draft.findings
+    assert.ok(kept.correction && hasNoQueryCode(kept.correction), kept.correction ?? '')
+    assert.match(kept.correction, /Keep your db\.query call/)
+    assert.deepEqual(draft.dropped.map((entry) => [entry.reason, entry.text]), [['incompatible_correction', correction]])
+  })
+
+  it('replaces the node-postgres correction given to mysql2 code, and keeps a same-driver one (fixed-after-feedback, run 2)', () => {
+    const quote = '  const [rows] = await db.query('
+    const incompatible = "Call the query with a parameter placeholder and a separate values array. Example (pg-style $1):\nconst res = await db.query('SELECT * FROM users WHERE username = $1', [username])\nreturn res.rows[0] ?? null"
+    const compatible = "Use a parameter placeholder rather than interpolating the value. Example (using ? placeholders):\nconst [rows] = await db.query('SELECT * FROM users WHERE username = ?', [username])"
+    const draft = reviewed(
+      prevalidateReview(
+        output([finding({quote, criterionId: 'no-query-building', correction: compatible}), finding({quote, criterionId: 'bound-parameter', correction: incompatible})]),
+        task,
+        mysql2,
+      ),
+    )
+    assert.equal(draft.findings[0].correction, compatible)
+    assert.ok(hasNoQueryCode(draft.findings[1].correction ?? ''))
+    assert.deepEqual(draft.dropped.map((entry) => entry.reason), ['incompatible_correction'])
+  })
+
+  it('asks for the missing code instead of inventing a driver when the query is in a helper not shown', () => {
+    const quote = '  return runUserQuery(db, username)'
+    const invented = "Example (node-postgres):\n\nasync function findUserByUsername(db, username) {\n  const res = await db.query('SELECT * FROM users WHERE username = $1', [username]);\n  return res.rows[0] || null;\n}"
+    const draft = reviewed(prevalidateReview(output([finding({category: 'uncertain', startLine: 4, endLine: 4, quote, correction: invented})]), task, helper))
+    assert.match(draft.findings[0].correction ?? '', /can't see the code that runs the query/)
+    assert.ok(hasNoQueryCode(draft.findings[0].correction ?? ''))
+  })
+
+  it("replaces an alternative note that claims what the lesson shows (postgres-js-tagged-template, run 2)", () => {
+    const explanation = 'The submission uses the postgres.js tagged-template query form rather than the drivers shown in the lesson passages. This is a valid alternative.'
+    const draft = reviewed(prevalidateReview(output([finding({category: 'alternative_valid', criterionId: null, explanation, question: null, correction: null})]), task, concatenated))
+    assert.equal(draft.findings[0].explanation, ALTERNATIVE_NOTE)
+    assert.deepEqual(draft.dropped.map((entry) => entry.reason), ['course_claim'])
+  })
+
+  it("replaces a correction the check finds incompatible, and level 3 still shows the server's guidance", () => {
+    const draft = reviewed(prevalidateReview(output([finding({correction: 'Swap to a different client library and call its lookup helper.'})], allMet), task, concatenated))
+    const run = finalizeReview(draft, check([[0, {correctionCompatible: false}]]), task)
+    const [stored] = run.analysis.findings
+    assert.match(stored.correction ?? '', /Keep your db\.query call/)
+    assert.deepEqual(run.analysis.dropped, ['incompatible_correction'])
+    assert.equal(presentFindings(run.analysis.findings, 3)[0].correction, stored.correction)
   })
 })

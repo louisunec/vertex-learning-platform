@@ -22,6 +22,13 @@ const expectationSchema = z.strictObject({
   noProblems: z.boolean().optional(),
   /** Allowed statuses per criterion; `missing` when the review has none (cannot judge). */
   criteria: z.record(z.string(), z.array(z.enum([...CRITERION_STATUSES, 'missing'])).min(1)).optional(),
+  /**
+   * Driver regressions, checked as plain text on the delivered corrections,
+   * independently of the server's own gate: no correction may contain a
+   * `forbid` string, and at least one must contain each `require` string, so
+   * the step still offers a same-driver fix.
+   */
+  correction: z.strictObject({forbid: z.array(z.string().min(1)).default([]), require: z.array(z.string().min(1)).default([])}).optional(),
 })
 
 const stepSchema = z.strictObject({code: z.string().min(1), expect: expectationSchema})
@@ -57,6 +64,15 @@ export function checkReviewStep(analysis: ReviewAnalysis, expect: ReviewExpectat
   for (const [criterionId, allowed] of Object.entries(expect.criteria ?? {})) {
     const status = analysis.criteria.find((criterion) => criterion.criterionId === criterionId)?.status ?? 'missing'
     if (!(allowed as string[]).includes(status)) failures.push(`criterion ${criterionId} is ${status}, expected [${allowed.join(', ')}]`)
+  }
+  if (expect.correction) {
+    const corrections = analysis.findings.flatMap((finding) => (finding.correction ? [finding.correction] : []))
+    for (const text of expect.correction.forbid) {
+      if (corrections.some((correction) => correction.includes(text))) failures.push(`a correction contains ${JSON.stringify(text)}`)
+    }
+    for (const text of expect.correction.require) {
+      if (!corrections.some((correction) => correction.includes(text))) failures.push(`no correction contains ${JSON.stringify(text)}`)
+    }
   }
   return failures
 }

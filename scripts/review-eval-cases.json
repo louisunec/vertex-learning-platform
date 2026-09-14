@@ -74,7 +74,11 @@
     "steps": [
       {
         "code": "import { runUserQuery } from './queries.js'\n\nasync function findUserByUsername(db, username) {\n  return runUserQuery(db, username)\n}",
-        "expect": {"outcomeIn": ["cannot_judge", "partly_judged"], "criteria": {"no-query-building": ["unclear", "missing"], "bound-parameter": ["unclear", "missing"]}}
+        "expect": {
+          "outcomeIn": ["cannot_judge", "partly_judged"],
+          "criteria": {"no-query-building": ["unclear", "missing"], "bound-parameter": ["unclear", "missing"]},
+          "correction": {"forbid": ["db.query(", "db.execute(", "db.get(", "db.prepare(", ".rows"]}
+        }
       }
     ],
     "reviewed": false
@@ -86,7 +90,12 @@
     "steps": [
       {
         "code": "async function findUserByUsername(db, username) {\n  const [rows] = await db.query(`SELECT * FROM users WHERE username = '${username}'`)\n  return rows[0] ?? null\n}",
-        "expect": {"outcomeIn": ["changes_suggested"], "problemOnLines": [2], "criteria": {"no-query-building": ["not_met"]}}
+        "expect": {
+          "outcomeIn": ["changes_suggested"],
+          "problemOnLines": [2],
+          "criteria": {"no-query-building": ["not_met"]},
+          "correction": {"forbid": [".rows", "$1", ".get(", ".prepare("], "require": ["[rows]"]}
+        }
       },
       {
         "code": "async function findUserByUsername(db, username) {\n  const [rows] = await db.execute('SELECT * FROM users WHERE username = ?', [username])\n  return rows[0] ?? null\n}",
@@ -114,7 +123,12 @@
     "steps": [
       {
         "code": "async function findUserByUsername(db, username) {\n  const safe = username.replace(/'/g, \"''\")\n  const result = await db.query(\"SELECT * FROM users WHERE username = '\" + safe + \"'\")\n  return result.rows[0] ?? null\n}",
-        "expect": {"outcomeIn": ["changes_suggested"], "problemOnLines": [3], "criteria": {"no-query-building": ["not_met"]}}
+        "expect": {
+          "outcomeIn": ["changes_suggested"],
+          "problemOnLines": [3],
+          "criteria": {"no-query-building": ["not_met"]},
+          "correction": {"forbid": ["execute(", "[rows]", ".get(", ".prepare(", "= ?"], "require": [".rows", "$1"]}
+        }
       }
     ],
     "reviewed": false
@@ -139,6 +153,40 @@
       {
         "code": "def find_user_by_username(conn, username):\n    with conn.cursor() as cur:\n        cur.execute('SELECT * FROM users WHERE username = %s', (username,))\n        return cur.fetchone()",
         "expect": {"outcomeIn": ["cannot_judge", "changes_suggested"]}
+      }
+    ],
+    "reviewed": false
+  },
+  {
+    "id": "pg-template-literal",
+    "kind": "known_defect",
+    "description": "Regression for incompatible corrections: node-postgres with a client named client, an ordinary template string, and res.rows. Corrections must keep client.query, $1 and .rows.",
+    "steps": [
+      {
+        "code": "async function findUserByUsername(client, username) {\n  const res = await client.query(`SELECT * FROM users WHERE username = '${username}'`)\n  return res.rows[0] ?? null\n}",
+        "expect": {
+          "outcomeIn": ["changes_suggested"],
+          "problemOnLines": [2],
+          "criteria": {"no-query-building": ["not_met"]},
+          "correction": {"forbid": ["execute(", "[rows]", "= ?", ".get(", ".prepare("], "require": ["client.query(", "$1"]}
+        }
+      }
+    ],
+    "reviewed": false
+  },
+  {
+    "id": "mysql2-execute-concatenation",
+    "kind": "known_defect",
+    "description": "Regression for incompatible corrections: mysql2 execute with the username concatenated in, and [rows] destructuring. Corrections must keep db.execute, ? and [rows].",
+    "steps": [
+      {
+        "code": "async function findUserByUsername(db, username) {\n  const [rows] = await db.execute(\"SELECT * FROM users WHERE username = '\" + username + \"'\")\n  return rows[0] ?? null\n}",
+        "expect": {
+          "outcomeIn": ["changes_suggested"],
+          "problemOnLines": [2],
+          "criteria": {"no-query-building": ["not_met"]},
+          "correction": {"forbid": [".rows", "$1", ".get(", ".prepare("], "require": ["db.execute(", "[rows]"]}
+        }
       }
     ],
     "reviewed": false

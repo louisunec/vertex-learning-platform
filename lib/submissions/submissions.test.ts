@@ -196,4 +196,22 @@ describe('review evaluation cases', () => {
       'criterion b is missing, expected [met]',
     ])
   })
+
+  it('checks delivered corrections for forbidden and required driver text', () => {
+    const withCorrection = (correction: string | null) => ({
+      outcome: 'changes_suggested' as const,
+      cannotJudgeReason: null,
+      criteria: [],
+      findings: [{id: 'f1', category: 'requirement_mismatch' as const, criterionId: 'a', startLine: 2, endLine: 2, concepts: [], citations: [], question: 'q', explanation: 'e', correction}],
+      dropped: [],
+    })
+    const expect = {correction: {forbid: ['execute(', '[rows]'], require: ['$1']}}
+    assert.deepEqual(checkReviewStep(withCorrection("const result = await db.query('... $1', [username])"), expect), [])
+    assert.deepEqual(checkReviewStep(withCorrection("const [rows] = await db.execute('... ?', [username])"), expect), [
+      'a correction contains "execute("',
+      'a correction contains "[rows]"',
+      'no correction contains "$1"',
+    ])
+    assert.deepEqual(checkReviewStep(withCorrection(null), {correction: {forbid: ['execute('], require: []}}), [])
+  })
 })

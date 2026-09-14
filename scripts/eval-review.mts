@@ -17,7 +17,7 @@ import {createSanityHttp, requireEnv} from './sanity-http.mts'
 /**
  * Live evaluation of submission review (development plan §5 PR-12):
  *
- *   npm run eval:review [-- --case <id>] [--report <file.md>]
+ *   npm run eval:review [-- --case <id>[,<id>…]] [--report <file.md>]
  *
  * Builds the pilot task from the editor draft
  * (`docs/submission-review/*.draft.ndjson`), as if it were published. Its
@@ -35,7 +35,7 @@ import {createSanityHttp, requireEnv} from './sanity-http.mts'
  */
 
 const arg = (name: string) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null)
-const onlyCase = arg('--case')
+const onlyCases = arg('--case')?.split(',').filter(Boolean) ?? null
 const reportFile = arg('--report')
 const DRAFT = 'docs/submission-review/sql-injection-user-lookup.draft.ndjson'
 
@@ -76,7 +76,8 @@ const task: SubmissionTask = loaded.task
 const cases = z
   .array(reviewEvalCaseSchema)
   .parse(JSON.parse(await readFile('scripts/review-eval-cases.json', 'utf8')))
-  .filter((entry) => !onlyCase || entry.id === onlyCase)
+  .filter((entry) => !onlyCases || onlyCases.includes(entry.id))
+if (onlyCases && cases.length !== onlyCases.length) throw new Error(`Unknown case in --case: ${onlyCases.join(', ')}`)
 const model = openai(REVIEW_MODEL_ID)
 
 const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim()
@@ -121,7 +122,7 @@ function renderReport(): string {
     '',
     `- Code: \`${commit}\`${dirty ? ' plus uncommitted changes' : ''}; prompts \`${REVIEW_PROMPT_VERSION}\` / \`${REVIEW_CHECK_PROMPT_VERSION}\`; model \`${REVIEW_MODEL_ID}\` (low reasoning effort).`,
     `- Task: the unpublished editor draft \`${task.taskId}\` v${task.version} on the published lesson "${task.lesson.title}" (${task.evidence.length} transcript chunks resolved live, revisions matched). The submissions are synthetic.`,
-    `- **Structural checks: ${passed}/${stepsRun.length} steps pass.** These check shape: outcome, where problems are, and what is not flagged. They say nothing about whether the wording is right.`,
+    `- **Structural checks: ${passed}/${stepsRun.length} steps pass.** These check shape (outcome, where problems are, what is not flagged) and, for the driver regressions, text the corrections must or must not contain. They say nothing about whether the wording is right.`,
     `- **Semantic review: ${results.filter((result) => result.reviewed).length}/${results.length} cases read by a person.** Until then, no case is a pilot gate.`,
     '- No transcript text appears here. Citations show the lesson time and chunk id only.',
     '',
@@ -155,7 +156,7 @@ function renderReport(): string {
         )
       }
       if (analysis.findings.length === 0) lines.push('- No findings.')
-      if (step.run.droppedOutput.length > 0) lines.push('', `Removed by the server: ${step.run.droppedOutput.map((entry) => `${entry.reason}${entry.category ? ` (${entry.category})` : ''}`).join(', ')}`)
+      if (step.run.droppedOutput.length > 0) lines.push('', `Removed or replaced by the server: ${step.run.droppedOutput.map((entry) => `${entry.reason}${entry.category ? ` (${entry.category})` : ''}`).join(', ')}`)
       lines.push('')
     })
   }
