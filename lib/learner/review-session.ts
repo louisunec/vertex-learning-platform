@@ -14,10 +14,12 @@ import {
   type IssueTaskResponse,
   type REVIEW_NONE_REASONS,
   type ReviewItem,
+  type ReviewMode,
   type ReviewReason,
   type ReviewRefresherRequest,
   type ReviewRefresherResponse,
   type ReviewSessionResponse,
+  type SCHEDULED_DUE,
 } from './contracts.ts'
 import type {LearnerContentSource} from './content-source.ts'
 import {findHelpEventByKey, insertHelpEvent, lockLearnerFamily, SOURCE_REFRESHER_REASON} from './help-events.ts'
@@ -166,19 +168,21 @@ export function planSession(
 
 /* ---------- Learner rows ---------- */
 
-type StoredItem = {
+export type StoredItem = {
   position: number
   conceptId: string
-  reason: ReviewReason
+  reason: ReviewReason | typeof SCHEDULED_DUE
   sourceSeconds: number | null
+  /** A scheduled item the learner had answered before it was issued (always false in Mistakes mode). */
+  repeat: boolean
   answered: boolean
   instance: TaskInstanceRow
 }
 
-type StoredSession = {id: string; expiresAt: Date; items: StoredItem[]}
+export type StoredSession = {id: string; expiresAt: Date; items: StoredItem[]}
 
-/** Serializes starting a review for one learner, so two tabs can't create two sessions. */
-async function lockLearnerReviews(tx: LearnerTx, learnerId: string): Promise<void> {
+/** Serializes starting a review (either mode) for one learner, so two tabs can't create two sessions. */
+export async function lockLearnerReviews(tx: LearnerTx, learnerId: string): Promise<void> {
   await tx`select pg_advisory_xact_lock(hashtextextended(${`review:${learnerId}`}, 0))`
 }
 
@@ -204,12 +208,21 @@ async function readAnsweredFamilies(tx: LearnerTx, learnerId: string, familyIds:
   return new Set(rows.map((row) => row.familyId))
 }
 
-/** The learner's newest unexpired session that still has an unanswered item, with its items in order. */
-async function findActiveSession(tx: LearnerTx, learnerId: string, now: Date): Promise<StoredSession | null> {
+/**
+ * The learner's newest unexpired session of `mode` that still has an
+ * unanswered item, with its items in order. The two modes resume
+ * independently.
+ */
+export async function findActiveSession(
+  tx: LearnerTx,
+  learnerId: string,
+  now: Date,
+  mode: ReviewMode = 'mistakes',
+): Promise<StoredSession | null> {
   const [session] = await tx<{id: string; expiresAt: Date}[]>`
     select s.id, s.expires_at as "expiresAt"
     from learner.review_session s
-    where s.learner_id = ${learnerId} and s.expires_at > ${now}
+    where s.learner_id = ${learnerId} and s.mode = ${mode} and s.expires_at > ${now}
       and exists (
         select 1 from learner.review_session_item i
         where i.session_id = s.id
@@ -221,7 +234,7 @@ async function findActiveSession(tx: LearnerTx, learnerId: string, now: Date): P
   if (!session) return null
   const rows = await tx<(Omit<StoredItem, 'instance'> & TaskInstanceRow)[]>`
     select
-      i.position, i.concept_id as "conceptId", i.reason, i.source_seconds as "sourceSeconds",
+      i.position, i.concept_id as "conceptId", i.reason, i.source_seconds as "sourceSeconds", i.repeat,
       exists (select 1 from learner.attempt_log a where a.task_instance_id = i.task_instance_id) as answered,
       t.id, t.learner_id as "learnerId", t.assessment_id as "assessmentId", t.family_id as "familyId",
       t.assessment_version as "assessmentVersion", t.lesson_id as "lessonId",
@@ -233,11 +246,12 @@ async function findActiveSession(tx: LearnerTx, learnerId: string, now: Date): P
   `
   return {
     ...session,
-    items: rows.map(({position, conceptId, reason, sourceSeconds, answered, ...instance}) => ({
+    items: rows.map(({position, conceptId, reason, sourceSeconds, repeat, answered, ...instance}) => ({
       position,
       conceptId,
       reason,
       sourceSeconds,
+      repeat,
       answered,
       instance,
     })),
@@ -309,6 +323,7 @@ export async function startReviewSession({
         conceptId: mistake.conceptId,
         reason: mistake.reason,
         sourceSeconds,
+        repeat: false,
         answered: false,
         instance: {
           id: task.taskInstanceId,
@@ -328,17 +343,38 @@ export async function startReviewSession({
   return presentSession(content, created.session, created.resumed, created.issued)
 }
 
-/**
- * The response for a stored session. An open item's task is the one just
- * issued, or on resume the published item re-read and checked against what
- * the instance delivered; a withdrawn or changed item is `unavailable`.
- */
+/** A focused review response for a stored Mistakes session. */
 async function presentSession(
   content: LearnerContentSource,
   session: StoredSession,
   resumed: boolean,
   issued: ReadonlyMap<string, IssueTaskResponse>,
 ): Promise<ReviewSessionResponse> {
+  const {items, concepts} = await presentItems(content, session, issued)
+  return reviewSessionResponseSchema.parse({
+    status: 'active',
+    sessionId: session.id,
+    expiresAt: session.expiresAt.toISOString(),
+    resumed,
+    concepts: concepts.map((concept) => ({
+      ...concept,
+      reason: session.items.find((item) => item.conceptId === concept.conceptId)!.reason,
+    })),
+    items,
+  })
+}
+
+/**
+ * A stored session's items and concept names, for either mode. An open
+ * item's task is the one just issued, or on resume the published item
+ * re-read and checked against what the instance delivered; a withdrawn or
+ * changed item is `unavailable`.
+ */
+export async function presentItems(
+  content: LearnerContentSource,
+  session: StoredSession,
+  issued: ReadonlyMap<string, IssueTaskResponse>,
+): Promise<{items: ReviewItem[]; concepts: Array<{conceptId: string; name: string | null}>}> {
   const open = session.items.filter((item) => !item.answered)
   const tasks = new Map(
     await Promise.all(
@@ -378,21 +414,9 @@ async function presentSession(
   })
   const concepts = conceptIds.map((conceptId) => {
     const docId = docIds.get(conceptId)
-    return {
-      conceptId,
-      name: (docId && names.get(docId)) || null,
-      reason: session.items.find((item) => item.conceptId === conceptId)!.reason,
-    }
+    return {conceptId, name: (docId && names.get(docId)) || null}
   })
-
-  return reviewSessionResponseSchema.parse({
-    status: 'active',
-    sessionId: session.id,
-    expiresAt: session.expiresAt.toISOString(),
-    resumed,
-    concepts,
-    items,
-  })
+  return {items, concepts}
 }
 
 /* ---------- Refresher ---------- */

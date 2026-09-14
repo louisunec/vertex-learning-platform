@@ -7,7 +7,8 @@ import type postgres from 'postgres'
 
 import {createTestDatabase, SKIP_WITHOUT_DATABASE, type TestDatabase} from '../db/test-db.ts'
 import type {LearnerContentSource} from './content-source.ts'
-import {reviewRefresherResponseSchema, reviewSessionResponseSchema} from './contracts.ts'
+import {attemptResultSchema, reviewRefresherResponseSchema, reviewSessionResponseSchema} from './contracts.ts'
+import {issueTask} from './task-instances.ts'
 import {FixtureContent} from './test-content.ts'
 
 /**
@@ -87,6 +88,7 @@ describe('POST /api/review-session and /refresher gating', {skip: SKIP_WITHOUT_D
   let db: TestDatabase
   let startRoute: (request: Request) => Promise<Response>
   let refresherRoute: (request: Request) => Promise<Response>
+  let attemptsRoute: (request: Request) => Promise<Response>
 
   before(async () => {
     process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = 'phc_test_only'
@@ -95,12 +97,13 @@ describe('POST /api/review-session and /refresher gating', {skip: SKIP_WITHOUT_D
     state.db = db.sql
     ;({POST: startRoute} = await import('../../app/api/review-session/route.ts'))
     ;({POST: refresherRoute} = await import('../../app/api/review-session/refresher/route.ts'))
+    ;({POST: attemptsRoute} = await import('../../app/api/attempts/route.ts'))
   })
   after(() => db?.drop())
 
   beforeEach(async () => {
     await db.sql`
-      truncate learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox,
+      truncate learner.review_log, learner.review_card, learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox,
                learner.help_event, learner.concept_mastery, learner.attempt_log, learner.task_instance
     `
     const content = new FixtureContent()
@@ -193,5 +196,39 @@ describe('POST /api/review-session and /refresher gating', {skip: SKIP_WITHOUT_D
     assert.equal(replay.status, 200)
     assert.equal(replay.headers.get('idempotent-replayed'), 'true')
     assert.ok(state.dbCalls > 0 && state.contentCalls > 0)
+  })
+
+  it('serves the scheduled mode only with scheduled-review on as well, and keeps Mistakes the default', async () => {
+    state.flagsOn = new Set(BOTH)
+    const off = await start({mode: 'scheduled'})
+    assert.equal(off.status, 404)
+    assert.deepEqual([state.dbCalls, state.contentCalls], [0, 0])
+    assert.equal((await start({mode: 'spaced'})).status, 400)
+
+    state.flagsOn = new Set([...BOTH, 'scheduled-review'])
+    const on = await start({mode: 'scheduled'})
+    assert.equal(on.status, 200)
+    assert.deepEqual(await on.json(), {status: 'none', mode: 'scheduled', reason: 'nothing_due', nextDueAt: null, unavailableDue: 0})
+    assert.deepEqual(await (await start()).json(), {status: 'none', reason: 'no_recent_mistakes'})
+    assert.deepEqual(await (await start({mode: 'mistakes'})).json(), {status: 'none', reason: 'no_recent_mistakes'})
+  })
+
+  it('updates a review card from /api/attempts only while scheduled-review is on', async () => {
+    const cards = async () => (await db.sql<{n: number}[]>`select count(*)::int as n from learner.review_card`)[0].n
+    const grade = async (familyId: string) => {
+      const issued = await issueTask({db: db.sql, content: state.content!, learnerId: ALICE, assessmentId: `assessment-${familyId}-v1`, now: new Date()})
+      const taskInstanceId = issued.status === 'issued' ? issued.body.taskInstanceId : assert.fail()
+      const response = await post(attemptsRoute, '/api/attempts', {taskInstanceId, optionId: 'opt-a', idempotencyKey: randomUUID()})
+      assert.equal(response.status, 201)
+      return attemptResultSchema.parse(await response.json())
+    }
+
+    state.flagsOn = new Set(BOTH)
+    assert.equal('schedule' in (await grade('fam1')), false)
+    assert.equal(await cards(), 0)
+
+    state.flagsOn = new Set([...BOTH, 'scheduled-review'])
+    assert.equal((await grade('fam2')).schedule?.status, 'scheduled')
+    assert.equal(await cards(), 1)
   })
 })

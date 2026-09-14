@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import {describe, it} from 'node:test'
 
-import {closedOnLoad, conceptProgress, nextOpenPosition, sessionSummary, type ActiveReview} from './focused-review.ts'
+import {
+  closedOnLoad,
+  conceptProgress,
+  formatDueDate,
+  nextOpenPosition,
+  scheduleText,
+  sessionSummary,
+  type ActiveReview,
+} from './focused-review.ts'
 
 const item = {
   _id: 'assessment-a-v1',
@@ -73,5 +81,17 @@ describe('focused review view model', () => {
       conceptProgress(SESSION, new Set([1, 2, 3, 4, 5]), null).map((c) => c.status),
       ['done', 'done', 'done'],
     )
+  })
+})
+
+describe('scheduled review copy', () => {
+  it('formats a stored due date in the viewer’s time zone', () => {
+    assert.equal(formatDueDate('2026-09-15T23:30:00.000Z', 'en-GB', 'UTC'), '15 Sept 2026, 23:30')
+    assert.equal(formatDueDate('2026-09-15T23:30:00.000Z', 'en-GB', 'Asia/Tokyo'), '16 Sept 2026, 08:30')
+  })
+
+  it('describes what an answer did to the schedule, and never schedules help', () => {
+    assert.equal(scheduleText({status: 'scheduled', dueAt: '2026-09-17T09:10:00.000Z'}, 'en-GB', 'UTC'), 'Next review: 17 Sept 2026, 09:10.')
+    assert.match(scheduleText({status: 'not_scheduled', reason: 'assisted_correct'}), /doesn’t change your review schedule/)
   })
 })

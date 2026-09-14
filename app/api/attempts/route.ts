@@ -1,7 +1,7 @@
 import {auth} from '@clerk/nextjs/server'
 
 import {getDb} from '@/lib/db/client'
-import {FLAGS, isFlagEnabled} from '@/lib/flags'
+import {FLAGS, isFlagEnabled, isScheduledReviewEnabled} from '@/lib/flags'
 import {submitAttempt} from '@/lib/learner/attempts'
 import {sanityLearnerContent} from '@/lib/learner/content'
 import {submitAttemptRequestSchema} from '@/lib/learner/contracts'
@@ -13,7 +13,8 @@ import {failureResponse, learnerError, learnerJson, readBoundedJson} from '@/lib
  * server-derived, and the strict body schema rejects any client claim to
  * them. Idempotent: replaying a key with the same body returns the stored
  * result (`Idempotent-Replayed: true`) without adding evidence. Behind the
- * `learner-evidence` flag.
+ * `learner-evidence` flag. With `scheduled-review` on as well, the answer
+ * also updates the learner's review card in the same transaction (PR-9).
  */
 export async function POST(request: Request) {
   const {userId} = await auth()
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       learnerId: userId,
       request: parsed.data,
       now: new Date(),
+      scheduling: await isScheduledReviewEnabled(userId),
     })
     if (outcome.status === 'rejected') return learnerError(outcome.code)
     return outcome.replayed

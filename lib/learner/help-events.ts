@@ -148,3 +148,19 @@ export async function getFamilyHelpState(tx: LearnerTx, learnerId: string, famil
   const maxLevel = row?.maxLevel ?? 0
   return {maxLevel, answerExposed: maxLevel >= SOLUTION_HELP_LEVEL}
 }
+
+/**
+ * All help `learnerId` received on one task instance, the refresher included
+ * (0 when none). Scheduled review rates a repeated question by this, not by
+ * the family's lifetime help, so feedback seen after an earlier answer does
+ * not block every later retention check (prompts/pr-9-scheduled-review.md).
+ */
+export async function getTaskHelpState(tx: LearnerTx, learnerId: string, taskInstanceId: string): Promise<HelpState> {
+  const [row] = await tx<{maxLevel: number}[]>`
+    select coalesce(max(level), 0)::int as "maxLevel"
+    from learner.help_event
+    where learner_id = ${learnerId} and task_instance_id = ${taskInstanceId}
+  `
+  const maxLevel = row?.maxLevel ?? 0
+  return {maxLevel, answerExposed: maxLevel >= SOLUTION_HELP_LEVEL}
+}

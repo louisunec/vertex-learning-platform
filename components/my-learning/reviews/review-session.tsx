@@ -3,30 +3,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import posthog from "posthog-js";
 import { Button, Card, Status } from "@/components/ui";
-import { closedOnLoad, conceptProgress, nextOpenPosition, type ActiveReview } from "@/lib/focused-review";
+import { closedOnLoad, conceptProgress, formatDueDate, nextOpenPosition, type ActiveReview } from "@/lib/focused-review";
 import { newRequestKey, postLearnerJson, type ApiResult } from "@/lib/lesson/api";
 import type { HelpActionRequest } from "@/lib/lesson/help-actions";
 import type {
   AttemptResult,
   HelpResponse,
-  ReviewItem,
+  ReviewMode,
   ReviewRefresherResponse,
   ReviewSessionResponse,
+  ScheduledReviewResponse,
 } from "@/lib/learner/contracts";
 import { QuestionCard, type Question } from "./question-card";
 import { SessionSidebar } from "./session-sidebar";
 
-type OpenItem = Extract<ReviewItem, { state: "open" }>;
+type OpenItem = Extract<ActiveReview["items"][number], { state: "open" }>;
+
+type StartResponse = ReviewSessionResponse | ScheduledReviewResponse;
+
+type NoneText = { title: string; body: string };
 
 type View =
   | { step: "loading" }
   | { step: "failed"; retryable: boolean }
-  | { step: "none"; reason: Extract<ReviewSessionResponse, { status: "none" }>["reason"] }
+  | { step: "none"; text: NoneText }
   | { step: "active"; session: ActiveReview; closed: ReadonlySet<number>; question: Question | null };
 
 type Failure = { message: string; retry: (() => void) | null };
 
-const NONE_TEXT: Record<Extract<View, { step: "none" }>["reason"], { title: string; body: string }> = {
+const NONE_TEXT: Record<Extract<ReviewSessionResponse, { status: "none" }>["reason"], NoneText> = {
   no_recent_mistakes: {
     title: "Nothing to review right now.",
     body: "Reviews come from questions you missed or answered with help in the last 30 days.",
@@ -36,6 +41,23 @@ const NONE_TEXT: Record<Extract<View, { step: "none" }>["reason"], { title: stri
     body: "You've already answered every reviewed question on them, so a review wouldn't be a fresh, independent attempt. More appear as the course team reviews them.",
   },
 };
+
+/** Scheduled mode's empty states, with the next due date from the learner's stored schedule. */
+function scheduledNoneText(body: Extract<ScheduledReviewResponse, { status: "none" }>): NoneText {
+  const next = body.nextDueAt ? ` Your next review is due ${formatDueDate(body.nextDueAt)}.` : "";
+  if (body.reason === "no_scheduled_questions") {
+    return {
+      title: "Reviews are due, but none has a question available right now.",
+      body: `The reviewed questions for them were withdrawn or changed, so they stay due until one is available.${next}`,
+    };
+  }
+  return {
+    title: "No reviews due right now.",
+    body: next
+      ? next.trim()
+      : "Reviews are scheduled as you answer reviewed questions in lessons and reviews. Nothing is scheduled yet.",
+  };
+}
 
 function makeQuestion(item: OpenItem): Question {
   return {
@@ -57,49 +79,51 @@ function makeQuestion(item: OpenItem): Question {
  * refresher before handing out its lesson link. This component only renders
  * them and remembers where the learner is; a reload resumes from the server.
  */
-export function ReviewSession({ hints }: { hints: boolean }) {
+export function ReviewSession({ hints, mode = "mistakes" }: { hints: boolean; mode?: ReviewMode }) {
   const [view, setView] = useState<View>({ step: "loading" });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   /** Shows a start-or-resume response; the view is "loading" until then (initially, or via `reload`). */
-  const apply = useCallback((result: ApiResult<ReviewSessionResponse>) => {
+  const apply = useCallback((result: ApiResult<StartResponse>) => {
     if (!result.ok) {
       setView({ step: "failed", retryable: result.retryable });
       return;
     }
     const body = result.data;
     if (body.status === "none") {
-      setView({ step: "none", reason: body.reason });
+      setView({ step: "none", text: "mode" in body ? scheduledNoneText(body) : NONE_TEXT[body.reason] });
       return;
     }
-    const closed = closedOnLoad(body);
-    const first = nextOpenPosition(body, closed);
+    const session: ActiveReview = body;
+    const closed = closedOnLoad(session);
+    const first = nextOpenPosition(session, closed);
     posthog.capture("review_session_started", {
-      resumed: body.resumed,
-      questions: body.items.length,
-      concepts: body.concepts.length,
+      mode: session.mode ?? "mistakes",
+      resumed: session.resumed,
+      questions: session.items.length,
+      concepts: session.concepts.length,
       answered: closed.size,
     });
-    setView({ step: "active", session: body, closed, question: first === null ? null : makeQuestion(openItem(body, first)) });
+    setView({ step: "active", session, closed, question: first === null ? null : makeQuestion(openItem(session, first)) });
   }, []);
 
   useEffect(() => {
     // A repeated start (Strict Mode, a second tab) resumes the same session on the server.
     let cancelled = false;
-    void startOrResume().then((result) => {
+    void startOrResume(mode).then((result) => {
       if (!cancelled) apply(result);
     });
     return () => {
       cancelled = true;
     };
-  }, [apply]);
+  }, [apply, mode]);
 
   function reload() {
     setFailure(null);
     setView({ step: "loading" });
-    void startOrResume().then(apply);
+    void startOrResume(mode).then(apply);
   }
 
   const questionKey = view.step === "active" ? `${view.question?.item.position ?? "done"}:${view.question?.outcome ? "result" : "ask"}` : view.step;
@@ -199,9 +223,11 @@ export function ReviewSession({ hints }: { hints: boolean }) {
       return;
     }
     posthog.capture("review_answered", {
+      mode,
       question_number: position,
       confidence_given: current.confidence !== null,
       evidence_kind: result.data.evidence.kind,
+      ...(result.data.schedule ? { schedule_status: result.data.schedule.status } : {}),
     });
     close(position, { kind: "graded", result: result.data });
   }
@@ -250,7 +276,7 @@ export function ReviewSession({ hints }: { hints: boolean }) {
   }
 
   if (view.step === "none") {
-    const text = NONE_TEXT[view.reason];
+    const { text } = view;
     return (
       <Card className="mt-10 flex flex-col items-start gap-3 p-6">
         <h2 className="text-body-lg font-medium text-neutral-900">{text.title}</h2>
@@ -293,7 +319,9 @@ export function ReviewSession({ hints }: { hints: boolean }) {
               Review complete.
             </h2>
             <p className="text-body text-neutral-500">
-              Your answers are saved to your learning evidence. Concepts you still miss can come back in a later review.
+              {session.mode === "scheduled"
+                ? "Your answers are saved, and each one set when that concept comes back. Answers given with help leave the schedule as it was."
+                : "Your answers are saved to your learning evidence. Concepts you still miss can come back in a later review."}
             </p>
             <div className="mt-2 flex flex-wrap gap-3">
               <Button href="/my-learning" size="md" variant="tertiary">
@@ -315,8 +343,9 @@ export function ReviewSession({ hints }: { hints: boolean }) {
   );
 }
 
-function startOrResume() {
-  return postLearnerJson<ReviewSessionResponse>("/api/review-session", {});
+/** Mistakes sends the same empty body as before PR-9; only the scheduled mode names itself. */
+function startOrResume(mode: ReviewMode) {
+  return postLearnerJson<StartResponse>("/api/review-session", mode === "scheduled" ? { mode } : {});
 }
 
 function openItem(session: ActiveReview, position: number): OpenItem {

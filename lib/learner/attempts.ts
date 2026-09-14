@@ -4,6 +4,7 @@ import type postgres from 'postgres'
 
 import {resolveConcept, type ConceptResolution} from '../concepts/resolve.ts'
 import {asLearner, type LearnerTx} from '../db/learner-scope.ts'
+import {readScheduleForAttempt, recordReviewObservation, type ScheduleOutcome} from '../review/cards.ts'
 import {attemptResultSchema, type AttemptResult, type SubmitAttemptRequest} from './contracts.ts'
 import type {LearnerContentSource} from './content-source.ts'
 import {
@@ -16,7 +17,7 @@ import {
   type EvidenceReason,
   type MasteryCounts,
 } from './evidence.ts'
-import {getFamilyHelpState, lockLearnerFamily} from './help-events.ts'
+import {getFamilyHelpState, getTaskHelpState, lockLearnerFamily} from './help-events.ts'
 import {findOwnedTaskInstance, matchesDelivery, type TaskInstanceRow} from './task-instances.ts'
 
 /**
@@ -62,16 +63,23 @@ type StoredAttempt = {
   requestHash: string
 }
 
-function toResult(row: StoredAttempt): AttemptResult {
+function toResult(row: StoredAttempt, schedule: ScheduleOutcome | null = null): AttemptResult {
   return attemptResultSchema.parse({
     attemptId: row.id,
     taskInstanceId: row.taskInstanceId,
     correct: row.correct,
     evidence: {kind: row.evidenceKind, reasonCode: row.evidenceReason},
+    ...(schedule
+      ? {schedule: schedule.status === 'scheduled' ? {status: 'scheduled', dueAt: schedule.dueAt.toISOString()} : schedule}
+      : {}),
   })
 }
 
-/** The stored result for a reused key, a key-reuse rejection, or null when the key is new. */
+/**
+ * The stored result for a reused key, a key-reuse rejection, or null when the
+ * key is new. A replay returns the schedule the first request recorded, if
+ * any, and records nothing more.
+ */
 async function replayByKey(tx: LearnerTx, learnerId: string, key: string, requestHash: string): Promise<SubmitAttemptOutcome | null> {
   const [row] = await tx<StoredAttempt[]>`
     select
@@ -85,7 +93,8 @@ async function replayByKey(tx: LearnerTx, learnerId: string, key: string, reques
     where learner_id = ${learnerId} and idempotency_key = ${key}
   `
   if (!row) return null
-  return row.requestHash === requestHash ? {status: 'graded', body: toResult(row), replayed: true} : rejected('idempotency_key_reused')
+  if (row.requestHash !== requestHash) return rejected('idempotency_key_reused')
+  return {status: 'graded', body: toResult(row, await readScheduleForAttempt(tx, row.id)), replayed: true}
 }
 
 type MasteryRow = MasteryCounts
@@ -128,12 +137,15 @@ export async function submitAttempt({
   learnerId,
   request,
   now,
+  scheduling = false,
 }: {
   db: postgres.Sql
   content: LearnerContentSource
   learnerId: string
   request: SubmitAttemptRequest
   now: Date
+  /** `scheduled-review` is on: the answer also updates the learner's review card, in the same transaction (PR-9). */
+  scheduling?: boolean
 }): Promise<SubmitAttemptOutcome> {
   const requestHash = hashAttemptRequest(request)
   const checked = await asLearner(db, learnerId, async (tx): Promise<SubmitAttemptOutcome | TaskInstanceRow> => {
@@ -202,6 +214,23 @@ export async function submitAttempt({
     if (conceptId && evidence.kind !== 'not_counted') {
       await updateMastery(tx, learnerId, conceptId, evidence.kind, correct)
     }
+    // A repeat adds no mastery evidence but is still a retention observation, so every graded
+    // answer with an active concept reaches the card, rated from help facts only. A first answer
+    // uses the family's help, as its evidence does; a repeat only the help on this task, since
+    // feedback after the earlier answer would otherwise leave the question unratable for good.
+    let schedule: ScheduleOutcome | null = null
+    if (scheduling && conceptId) {
+      const ratingHelp = prior.count > 0 ? await getTaskHelpState(tx, learnerId, instance.id) : help
+      schedule = await recordReviewObservation(tx, learnerId, {
+        attemptId: attempt.id,
+        conceptId,
+        taskType: item.type,
+        correct,
+        hintLevelUsed: ratingHelp.maxLevel,
+        answerExposed: ratingHelp.answerExposed,
+        now,
+      })
+    }
     await tx`
       insert into learner.event_outbox (event_type, payload)
       values ('attempt_graded', ${tx.json({
@@ -217,7 +246,7 @@ export async function submitAttempt({
         policyVersion: EVIDENCE_POLICY_VERSION,
       })})
     `
-    return toResult(attempt)
+    return toResult(attempt, schedule)
   })
 
   if (body) return {status: 'graded', body, replayed: false}

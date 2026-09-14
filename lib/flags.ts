@@ -21,6 +21,11 @@ export const FLAGS = {
   knowledgeMap: 'knowledge-map',
   /** My Learning focused review (`/my-learning/reviews`, `/api/review-session`). Requires `learner-evidence` too. */
   review: 'review-session',
+  /**
+   * PR-9: scheduled review (FSRS cards updated by every graded answer, and the Scheduled mode of
+   * `/my-learning/reviews`). Requires `review-session` and `learner-evidence` too.
+   */
+  scheduledReview: 'scheduled-review',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]
@@ -53,4 +58,10 @@ export async function isReviewEnabled(distinctId: string): Promise<boolean> {
     isFlagEnabled(FLAGS.learnerEvidence, distinctId),
   ])
   return review && evidence
+}
+
+/** Scheduled review lives inside the reviews and writes beside learner evidence, so it needs both of their flags. */
+export async function isScheduledReviewEnabled(distinctId: string): Promise<boolean> {
+  const [scheduled, review] = await Promise.all([isFlagEnabled(FLAGS.scheduledReview, distinctId), isReviewEnabled(distinctId)])
+  return scheduled && review
 }

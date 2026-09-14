@@ -62,7 +62,10 @@ export class FixtureContent implements LearnerContentSource {
   }
 
   /** Adds an approved, current item; `opt-a` is correct. */
-  addItem(familyId: string, {version = 1, concept = 'concept-cpt-state' as string | null} = {}) {
+  addItem(
+    familyId: string,
+    {version = 1, concept = 'concept-cpt-state' as string | null, type = 'apply' as LearnerAssessment['type']} = {},
+  ) {
     const id = `assessment-${familyId}-v${version}`
     const options = [
       {id: 'opt-a', text: 'useState'},
@@ -76,7 +79,7 @@ export class FixtureContent implements LearnerContentSource {
       familyId,
       version,
       lessonId: 'lesson-hooks',
-      type: 'apply',
+      type,
       responseFormat: 'single_choice',
       question: 'Which hook keeps a value between renders?',
       options,
@@ -86,6 +89,7 @@ export class FixtureContent implements LearnerContentSource {
       familyId,
       version,
       lessonId: 'lesson-hooks',
+      type,
       optionIds,
       correctOptionId: 'opt-a',
       primaryConceptRef: concept,

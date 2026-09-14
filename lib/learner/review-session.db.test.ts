@@ -37,7 +37,7 @@ describe('focused review sessions', {skip: SKIP_WITHOUT_DATABASE}, () => {
 
   beforeEach(async () => {
     await db.sql`
-      truncate learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox,
+      truncate learner.review_log, learner.review_card, learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox,
                learner.help_event, learner.concept_mastery, learner.attempt_log, learner.task_instance
     `
     content = new FixtureContent()

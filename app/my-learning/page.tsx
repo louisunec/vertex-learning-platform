@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { SiteHeader } from "@/components/home/site-header";
 import { ComingSoon } from "@/components/my-learning/coming-soon";
+import { DueReviews, type DueReviewsState } from "@/components/my-learning/due-reviews";
 import { LearningTabs } from "@/components/my-learning/learning-tabs";
 import { MyCoursesCard } from "@/components/my-learning/my-courses-card";
 import { NextStepCard } from "@/components/my-learning/next-step-card";
 import { RecentLearningCard } from "@/components/my-learning/recent-learning-card";
 import { SignedOut } from "@/components/my-learning/signed-out";
 import { getDb } from "@/lib/db/client";
-import { FLAGS, isFlagEnabled, isKnowledgeMapEnabled, isReviewEnabled } from "@/lib/flags";
+import { asLearner } from "@/lib/db/learner-scope";
+import { FLAGS, isFlagEnabled, isKnowledgeMapEnabled, isReviewEnabled, isScheduledReviewEnabled } from "@/lib/flags";
 import { formatRelativeTime } from "@/lib/format";
 import { sanityLearnerContent } from "@/lib/learner/content";
 import { readLearnerOverview } from "@/lib/learner/overview";
+import { readDueSummary } from "@/lib/review/cards";
 import {
   buildOverviewState,
   conceptStatState,
@@ -35,9 +38,9 @@ export const metadata: Metadata = {
 
 export default async function MyLearningPage() {
   const { userId } = await auth();
-  const [knowledgeMap, reviews] = userId
-    ? await Promise.all([isKnowledgeMapEnabled(userId), isReviewEnabled(userId)])
-    : [false, false];
+  const [knowledgeMap, reviews, scheduled] = userId
+    ? await Promise.all([isKnowledgeMapEnabled(userId), isReviewEnabled(userId), isScheduledReviewEnabled(userId)])
+    : [false, false, false];
 
   return (
     <div className="bg-hatch flex flex-1 flex-col">
@@ -51,7 +54,7 @@ export default async function MyLearningPage() {
           </h1>
           <p className="mt-3 text-[20px] leading-7 text-neutral-500">A clear next step, every time.</p>
           {userId ? (
-            <Overview userId={userId} reviews={reviews} />
+            <Overview userId={userId} reviews={reviews} scheduled={scheduled} />
           ) : (
             <SignedOut
               message="Sign in to see your courses, progress, and recent learning."
@@ -65,10 +68,11 @@ export default async function MyLearningPage() {
 }
 
 /** Everything below is keyed by the server-resolved Clerk user id. */
-async function Overview({ userId, reviews }: { userId: string; reviews: boolean }) {
-  const [progress, evidence] = await Promise.all([
+async function Overview({ userId, reviews, scheduled }: { userId: string; reviews: boolean; scheduled: boolean }) {
+  const [progress, evidence, due] = await Promise.all([
     settle("progress", getProgressForUser(userId)),
     readEvidence(userId),
+    scheduled ? readDueReviews(userId) : null,
   ]);
   const rows = progress.ok ? progress.value : [];
   const attempts = evidence.status === "ready" ? evidence.recentAttempts : [];
@@ -112,9 +116,22 @@ async function Overview({ userId, reviews }: { userId: string; reviews: boolean 
           partial={state.recent.status === "ready" && state.recent.partial}
         />
       </div>
+      {due && <DueReviews state={due} />}
       <ComingSoon reviews={reviews} />
     </div>
   );
+}
+
+/** How many of the learner's review cards are due now (PR-9); a failure is reported, never read as zero. */
+async function readDueReviews(userId: string): Promise<DueReviewsState> {
+  if (!process.env.DATABASE_URL?.trim()) return { status: "error" };
+  try {
+    const summary = await asLearner(getDb(), userId, (tx) => readDueSummary(tx, userId, new Date()));
+    return { status: "ready", due: summary.due };
+  } catch (error) {
+    console.error("[my-learning] due reviews read failed:", error instanceof Error ? error.message : error);
+    return { status: "error" };
+  }
 }
 
 function loaded<T>(value: T): Loaded<T> {

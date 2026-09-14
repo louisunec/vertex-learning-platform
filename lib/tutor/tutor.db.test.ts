@@ -53,7 +53,7 @@ describe('tutor service', {skip: SKIP_WITHOUT_DATABASE}, () => {
   after(() => db?.drop())
 
   beforeEach(async () => {
-    await db.sql`truncate learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox, learner.concept_mastery, learner.help_event, learner.attempt_log, learner.task_instance`
+    await db.sql`truncate learner.review_log, learner.review_card, learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox, learner.concept_mastery, learner.help_event, learner.attempt_log, learner.task_instance`
     content = new FixtureContent()
     content.concepts.set('concept-cpt-state', {id: 'concept-cpt-state', conceptId: 'cpt-state', reviewStatus: 'approved'})
     source = new FixtureTutorSource()

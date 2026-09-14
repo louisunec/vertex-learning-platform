@@ -99,7 +99,7 @@ describe('POST /api/tutor gating', {skip: SKIP_WITHOUT_DATABASE}, () => {
   after(() => db?.drop())
 
   beforeEach(async () => {
-    await db.sql`truncate learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox, learner.help_event, learner.attempt_log, learner.task_instance`
+    await db.sql`truncate learner.review_log, learner.review_card, learner.review_session_item, learner.review_session, learner.tutor_request, learner.event_outbox, learner.help_event, learner.attempt_log, learner.task_instance`
     Object.assign(state, {
       userId: ALICE,
       flagsOn: new Set(),

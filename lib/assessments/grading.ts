@@ -16,6 +16,8 @@ export const gradingItemSchema = z
     familyId: z.string().min(1),
     version: z.number().int().min(1),
     lessonId: z.string().min(1),
+    /** The reviewed item type; keys the learner's scheduled-review card (PR-9). */
+    type: z.enum(['recall', 'apply', 'transfer']),
     optionIds: z.array(z.string().min(1)).min(3).max(4),
     correctOptionId: z.string().min(1),
     primaryConceptRef: z.string().min(1).nullable(),
