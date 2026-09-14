@@ -1,7 +1,10 @@
 "use client";
 
-import { createContext, useContext, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import type { YouTubePlayer } from "@/lib/video/youtube-iframe-api";
+
+/** The check question the learner is on, if any: tutor help on it counts as help on that task. */
+export type ActiveTask = { taskInstanceId: string; label: string } | null;
 
 /**
  * Shares the lesson's provider player with the tutor panel and the check
@@ -23,10 +26,19 @@ export type LessonPlayer = {
 };
 
 const LessonPlayerContext = createContext<LessonPlayer | null>(null);
+/**
+ * The open check question, shared between the check (in the activity tabs)
+ * and the tutor (in its own column or drawer) so tutor help is recorded
+ * against that task, as the help policy requires. The setter has its own,
+ * stable context so reporting never re-renders the reporter.
+ */
+const ActiveTaskContext = createContext<ActiveTask>(null);
+const ReportActiveTaskContext = createContext<(task: ActiveTask) => void>(() => {});
 
 export function LessonPlayerProvider({ children }: { children: ReactNode }) {
   const player = useRef<{ player: YouTubePlayer; element: HTMLElement } | null>(null);
   const listeners = useRef(new Set<() => void>());
+  const [activeTask, setActiveTask] = useState<ActiveTask>(null);
 
   const value = useMemo<LessonPlayer>(
     () => ({
@@ -69,10 +81,26 @@ export function LessonPlayerProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  return <LessonPlayerContext.Provider value={value}>{children}</LessonPlayerContext.Provider>;
+  return (
+    <LessonPlayerContext.Provider value={value}>
+      <ReportActiveTaskContext.Provider value={setActiveTask}>
+        <ActiveTaskContext.Provider value={activeTask}>{children}</ActiveTaskContext.Provider>
+      </ReportActiveTaskContext.Provider>
+    </LessonPlayerContext.Provider>
+  );
 }
 
-/** The lesson's player bridge, or null outside `LessonPlayerProvider` (learning features off). */
+/** The lesson's player bridge, or null outside `LessonPlayerProvider`. */
 export function useLessonPlayer(): LessonPlayer | null {
   return useContext(LessonPlayerContext);
+}
+
+/** The check question the learner has open, for the tutor. */
+export function useActiveTask(): ActiveTask {
+  return useContext(ActiveTaskContext);
+}
+
+/** Reports the open check question (or null once it is graded or closed). */
+export function useReportActiveTask(): (task: ActiveTask) => void {
+  return useContext(ReportActiveTaskContext);
 }

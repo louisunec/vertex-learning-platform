@@ -5,14 +5,14 @@ import { after } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Badge, Breadcrumbs, Icon, type IconName } from "@/components/ui";
 import { SiteHeader } from "@/components/home/site-header";
-import { LessonAssist } from "@/components/lesson/lesson-assist";
+import { LessonCheck } from "@/components/lesson/lesson-check";
 import { LessonContent } from "@/components/lesson/lesson-content";
 import { LessonFooterNav, type FooterLesson } from "@/components/lesson/lesson-footer-nav";
 import { LessonNotes } from "@/components/lesson/lesson-notes";
-import { LessonPlayerProvider } from "@/components/lesson/lesson-player";
 import { LessonSidebar, type SidebarModule } from "@/components/lesson/lesson-sidebar";
 import { LessonTabs } from "@/components/lesson/lesson-tabs";
 import { VideoEmbed, type StartSource } from "@/components/lesson/video-embed";
+import { LessonWorkspace, type LessonTutorSlot } from "@/components/lesson/lesson-workspace";
 import { summarizeCourseProgress } from "@/lib/course-progress";
 import { formatDuration, formatLevel } from "@/lib/format";
 import { resolveLessonFeatures } from "@/lib/lesson/resolve-features";
@@ -51,6 +51,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
 
   // Learner state is read per request, keyed by the server-resolved Clerk user id.
   // Learning features (PR-7) are flag-gated per learner and never read the database here.
+  // Other activities (PR-8, PR-12) add their own resolver here and fill their slot below.
   const [progressRows, features] = userId
     ? await Promise.all([
         getProgressForUser(userId),
@@ -137,36 +138,33 @@ export default async function LessonPage({ params, searchParams }: Props) {
   if (course?.level) meta.push({ icon: "chart", label: formatLevel(course.level) });
   if (lesson.studentCountDisplay) meta.push({ icon: "users", label: lesson.studentCountDisplay });
 
-  const video = (
-    <div className="mt-8">
-      {parsed && embedSrc ? (
-        <VideoEmbed
-          key={embedSrc}
-          src={embedSrc}
-          title={lesson.title}
-          tracking={{
-            provider: parsed.provider,
-            lessonId: lesson._id,
-            lessonSlug: slug,
-            courseSlug: course?.slug ?? null,
-            startSeconds,
-            startSource,
-            saveProgress: Boolean(userId),
-          }}
+  const video =
+    parsed && embedSrc ? (
+      <VideoEmbed
+        key={embedSrc}
+        src={embedSrc}
+        title={lesson.title}
+        tracking={{
+          provider: parsed.provider,
+          lessonId: lesson._id,
+          lessonSlug: slug,
+          courseSlug: course?.slug ?? null,
+          startSeconds,
+          startSource,
+          saveProgress: Boolean(userId),
+        }}
+      />
+    ) : poster ? (
+      <div className="relative aspect-video overflow-hidden rounded-[20px] bg-black shadow-sm">
+        <Image
+          src={urlFor(poster).width(1280).fit("max").auto("format").url()}
+          alt={poster.alt ?? ""}
+          fill
+          sizes="(min-width: 1024px) 860px, 100vw"
+          className="object-cover"
         />
-      ) : poster ? (
-        <div className="relative aspect-video overflow-hidden rounded-[20px] bg-black shadow-sm">
-          <Image
-            src={urlFor(poster).width(1280).fit("max").auto("format").url()}
-            alt={poster.alt ?? ""}
-            fill
-            sizes="(min-width: 1024px) 860px, 100vw"
-            className="object-cover"
-          />
-        </div>
-      ) : null}
-    </div>
-  );
+      </div>
+    ) : null;
 
   const crumbs = [
     { label: "All Courses", href: "/courses" },
@@ -175,78 +173,88 @@ export default async function LessonPage({ params, searchParams }: Props) {
     { label: lesson.title },
   ];
 
+  const percent = userId && progress ? progress.percent : null;
+
+  // The tutor column exists for a signed-in learner with `lesson-integration` on;
+  // while its own gate is unmet it says why instead of offering a chat.
+  const tutor: LessonTutorSlot | null = !features
+    ? null
+    : features.tutor
+      ? {
+          kind: "available",
+          lessonId: lesson._id,
+          lessonSlug: slug,
+          courseSlug: course?.slug ?? null,
+          startSeconds,
+          durationSeconds: lesson.durationSeconds ?? null,
+        }
+      : { kind: "unavailable", reason: features.tutorUnavailable ?? "rollout" };
+
   return (
     <div className="bg-hatch flex flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col border-x border-neutral-200 bg-canvas">
+      <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col border-x border-neutral-200 bg-canvas xl:max-w-[1440px]">
         <SiteHeader />
 
-        <div className="flex flex-1 flex-col lg:flex-row">
-          {course && (
-            <aside className="order-2 shrink-0 border-t border-neutral-200 bg-surface lg:order-1 lg:w-[280px] lg:border-t-0 lg:border-r">
-              <LessonSidebar
-                courseTitle={course.title}
-                courseHref={`/courses/${course.slug}`}
-                coverImageUrl={
-                  course.coverImage?.asset
-                    ? urlFor(course.coverImage).width(96).height(96).fit("crop").auto("format").url()
-                    : null
-                }
-                percent={userId && progress ? progress.percent : null}
-                modules={sidebarModules}
-                currentModuleNumber={context?.moduleNumber ?? null}
-                currentModuleKey={context?.module._key ?? null}
-              />
-            </aside>
-          )}
-
-          <main className="order-1 min-w-0 flex-1 px-6 pt-9 pb-16 md:px-10 lg:order-2">
-            <Breadcrumbs items={crumbs} />
-
-            <div className="mt-8 flex items-start justify-between gap-6">
-              <div>
-                {context && <Badge variant="video">Lesson {context.position}</Badge>}
-                <h1 className="mt-4 font-display text-[36px] leading-[1.2] font-normal tracking-[-0.01em] text-balance text-neutral-900 md:text-[44px]">
+        <main className="flex flex-1 flex-col">
+          <LessonWorkspace
+            lessonTitle={lesson.title}
+            lessonSlug={slug}
+            outline={
+              course ? (
+                <LessonSidebar
+                  courseTitle={course.title}
+                  courseHref={`/courses/${course.slug}`}
+                  coverImageUrl={
+                    course.coverImage?.asset
+                      ? urlFor(course.coverImage).width(96).height(96).fit("crop").auto("format").url()
+                      : null
+                  }
+                  percent={percent}
+                  modules={sidebarModules}
+                  currentModuleNumber={context?.moduleNumber ?? null}
+                  currentModuleKey={context?.module._key ?? null}
+                />
+              ) : null
+            }
+            outlineSummary={
+              course
+                ? {
+                    courseTitle: course.title,
+                    percent,
+                    moduleLabel:
+                      context?.moduleNumber != null && sidebarModules.length > 0
+                        ? `Module ${context.moduleNumber} of ${sidebarModules.length}`
+                        : null,
+                  }
+                : null
+            }
+            header={
+              <>
+                <Breadcrumbs items={crumbs} />
+                {context && (
+                  <Badge variant="video" className="mt-8">
+                    Lesson {context.position}
+                  </Badge>
+                )}
+                <h1
+                  className={`${context ? "mt-4" : "mt-8"} font-display text-[36px] leading-[1.2] font-normal tracking-[-0.01em] text-balance text-neutral-900 md:text-[44px]`}
+                >
                   {lesson.title}
                 </h1>
-              </div>
-              <button
-                type="button"
-                aria-label="Bookmark lesson"
-                className="mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-surface text-neutral-500 shadow-sm transition-colors hover:border-neutral-300 hover:text-primary-500 focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:outline-none"
-              >
-                <Icon name="bookmark" size={20} />
-              </button>
-            </div>
-
-            {meta.length > 0 && (
-              <ul className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3 text-body text-neutral-700">
-                {meta.map((m) => (
-                  <li key={m.icon} className="inline-flex items-center gap-2">
-                    <Icon name={m.icon} size={17} className="text-neutral-500" />
-                    {m.label}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {features ? (
-              <LessonPlayerProvider>
-                {video}
-                <LessonAssist
-                  lessonId={lesson._id}
-                  lessonSlug={slug}
-                  courseSlug={course?.slug ?? null}
-                  lessonRev={lesson._rev}
-                  startSeconds={startSeconds}
-                  durationSeconds={lesson.durationSeconds ?? null}
-                  features={features}
-                />
-              </LessonPlayerProvider>
-            ) : (
-              video
-            )}
-
-            <div className="mt-10">
+                {meta.length > 0 && (
+                  <ul className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3 text-body text-neutral-700">
+                    {meta.map((m) => (
+                      <li key={m.icon} className="inline-flex items-center gap-2">
+                        <Icon name={m.icon} size={17} className="text-neutral-500" />
+                        {m.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            }
+            video={video}
+            content={
               <LessonTabs
                 lessonTitle={lesson.title}
                 lessonSlug={slug}
@@ -266,11 +274,29 @@ export default async function LessonPage({ params, searchParams }: Props) {
                 }
                 notes={lesson.notes ? <LessonNotes value={lesson.notes} /> : null}
               />
-            </div>
-          </main>
-        </div>
-
-        <LessonFooterNav prev={prev} next={next} />
+            }
+            // Each activity is resolved by the PR that owns it; null hides its tab.
+            activities={
+              userId
+                ? {
+                    quickCheck: features?.check ? (
+                      <LessonCheck
+                        lessonId={lesson._id}
+                        lessonSlug={slug}
+                        courseSlug={course?.slug ?? null}
+                        lessonRev={lesson._rev}
+                        hints={features.hints}
+                      />
+                    ) : null,
+                    explainBack: null,
+                    submitImplementation: null,
+                  }
+                : null
+            }
+            footer={<LessonFooterNav prev={prev} next={next} />}
+            tutor={tutor}
+          />
+        </main>
       </div>
     </div>
   );
