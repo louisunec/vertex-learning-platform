@@ -5,6 +5,7 @@ import {structureTool} from 'sanity/structure'
 
 import {gatePublish, publishBlockReason, type PublishBlockReason} from './actions/assessment-publish'
 import {conceptPublishBlockReason, keepUnpublishedDrafts, prerequisitePublishBlockReason} from './actions/concept-publish'
+import {submissionTaskPublishBlockReason} from './actions/submission-task-publish'
 import {schemaTypes} from './schemaTypes'
 import {structure} from './structure'
 
@@ -15,6 +16,7 @@ const GENERATOR_ONLY_TYPES = new Set([
   'conceptPrerequisite',
   'conceptMergeProposal',
   'conceptGenerationRecord',
+  'submissionTask',
 ])
 
 /** Types whose publish is gated on editorial review. */
@@ -22,14 +24,16 @@ const PUBLISH_GATES: Record<string, PublishBlockReason> = {
   assessment: publishBlockReason,
   concept: conceptPublishBlockReason,
   conceptPrerequisite: prerequisitePublishBlockReason,
+  submissionTask: submissionTaskPublishBlockReason,
 }
 
 /**
  * Never deleted or unpublished in the Studio: concept ids are stable and
  * retired concepts stay as tombstones; an edge is retired, not removed, and
- * rejected ones are kept for audit.
+ * rejected ones are kept for audit. A submission task is archived, not
+ * removed, because learner reviews refer to its id and version.
  */
-const PERMANENT_TYPES = new Set(['concept', 'conceptPrerequisite'])
+const PERMANENT_TYPES = new Set(['concept', 'conceptPrerequisite', 'submissionTask'])
 
 /** Generated drafts that are kept for audit even when rejected: discarding a never-published one is disabled. */
 const AUDITED_DRAFT_TYPES = new Set(['concept', 'conceptPrerequisite'])

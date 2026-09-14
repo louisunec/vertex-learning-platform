@@ -16,9 +16,11 @@ const TABLES = [
   'explanation_log',
   'event_outbox',
   'tutor_request',
+  'submission_review',
+  'submission_log',
   'schema_migrations',
 ]
-const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql']
+const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql', '0006_submission_reviews.sql']
 
 describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
@@ -71,6 +73,9 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
       concept_mastery: ['select', 'insert'],
       event_outbox: ['insert'],
       tutor_request: ['select', 'insert'],
+      // Updates to a review are column-limited (checked below), so no table-wide update.
+      submission_review: ['select', 'insert'],
+      submission_log: ['select', 'insert'],
       explanation_log: [],
       schema_migrations: [],
     }
@@ -89,6 +94,19 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(await column('estimate'), true)
     assert.equal(await column('learner_id'), false)
     assert.equal(await column('concept_id'), false)
+
+    const reviewColumn = async (name: string) => {
+      const [row] = await db.sql<{ok: boolean}[]>`
+        select has_column_privilege('vertex_learner_app', 'learner.submission_review', ${name}, 'update') as ok
+      `
+      return row.ok
+    }
+    for (const name of ['status', 'outcome', 'analysis', 'claim_token', 'claimed_at', 'evaluations', 'completed_at']) {
+      assert.equal(await reviewColumn(name), true, name)
+    }
+    for (const name of ['learner_id', 'cache_key', 'task_id', 'task_version', 'task_hash', 'content_hash', 'model_id']) {
+      assert.equal(await reviewColumn(name), false, name)
+    }
   })
 
   it('refuses a migration file that changed after it was applied', async () => {

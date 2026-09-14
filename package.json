@@ -15,6 +15,8 @@
     "validate:concepts": "node --env-file-if-exists=.env.local scripts/validate-concepts.mts",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mts",
     "eval:tutor": "node --env-file-if-exists=.env.local scripts/eval-tutor.mts",
+    "draft:submission-task": "node --env-file-if-exists=.env.local scripts/draft-submission-task.mts",
+    "eval:review": "node --env-file-if-exists=.env.local scripts/eval-review.mts",
     "studio": "npm --prefix studio run dev",
     "typegen": "npm --prefix studio run typegen"
   },
@@ -37,11 +39,13 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "groq-js": "1.30.3",
+    "pg": "^8.23.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

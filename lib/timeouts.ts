@@ -28,5 +28,8 @@ export const AI_GATEWAY_TIMEOUT_MS = readTimeoutMs('AI_GATEWAY_TIMEOUT_MS', 10_0
 /** The tutor's explanation call (`lib/ai/tutor.ts`), which needs longer than keyword extraction. */
 export const TUTOR_TIMEOUT_MS = readTimeoutMs('TUTOR_TIMEOUT_MS', 20_000)
 
+/** Each of the submission review's two model calls (`lib/ai/review.ts`, `review-check.ts`). */
+export const REVIEW_TIMEOUT_MS = readTimeoutMs('REVIEW_TIMEOUT_MS', 30_000)
+
 /** Sanity Context MCP connection and each `groq_query` call. */
 export const MCP_TIMEOUT_MS = readTimeoutMs('MCP_TIMEOUT_MS', 8_000)
