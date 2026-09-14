@@ -1,5 +1,6 @@
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Button, Icon, Navbar, type NavItem } from "@/components/ui";
+import { UserMenu } from "./user-menu";
 
 const items: NavItem[] = [
   { label: "Courses", href: "/courses" },
@@ -21,7 +22,7 @@ export function SiteHeader() {
             >
               <Icon name="bell" size={24} />
             </button>
-            <UserButton appearance={{ elements: { avatarBox: "size-12" } }} />
+            <UserMenu />
           </Show>
           <Show when="signed-out">
             <SignInButton mode="modal">
