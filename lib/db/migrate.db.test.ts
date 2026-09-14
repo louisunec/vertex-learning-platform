@@ -18,7 +18,7 @@ const TABLES = [
   'tutor_request',
   'schema_migrations',
 ]
-const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql']
+const MIGRATIONS = ['0001_learner_evidence.sql', '0002_tutor_requests.sql', '0008_explanation_feedback.sql']
 
 describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
   let db: TestDatabase
@@ -71,7 +71,7 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
       concept_mastery: ['select', 'insert'],
       event_outbox: ['insert'],
       tutor_request: ['select', 'insert'],
-      explanation_log: [],
+      explanation_log: ['select', 'insert'],
       schema_migrations: [],
     }
     for (const [name, allowed] of Object.entries(granted)) {
@@ -79,9 +79,9 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
         assert.equal(await table(name, privilege), allowed.includes(privilege), `${name} ${privilege}`)
       }
     }
-    const column = async (name: string) => {
+    const column = async (name: string, relation = 'learner.concept_mastery') => {
       const [row] = await db.sql<{ok: boolean}[]>`
-        select has_column_privilege('vertex_learner_app', 'learner.concept_mastery', ${name}, 'update') as ok
+        select has_column_privilege('vertex_learner_app', ${relation}, ${name}, 'update') as ok
       `
       return row.ok
     }
@@ -89,6 +89,44 @@ describe('learner database migrations', {skip: SKIP_WITHOUT_DATABASE}, () => {
     assert.equal(await column('estimate'), true)
     assert.equal(await column('learner_id'), false)
     assert.equal(await column('concept_id'), false)
+    // An explanation's claim and completion columns change; what was submitted and judged against never does.
+    for (const name of ['evaluation_status', 'criterion_findings', 'claim_token', 'completed_at', 'evidence_kind', 'revision_of']) {
+      assert.equal(await column(name, 'learner.explanation_log'), true, name)
+    }
+    for (const name of ['learner_id', 'response', 'task_id', 'task_version', 'rubric_version', 'task_hash', 'request_key', 'request_hash', 'source_refs']) {
+      assert.equal(await column(name, 'learner.explanation_log'), false, name)
+    }
+  })
+
+  it('checks every new explanation row, without re-checking rows written before 0008', async () => {
+    const fresh = await createTestDatabase({migrate: false})
+    try {
+      const dir = await mkdtemp(join(tmpdir(), 'vertex-migrations-'))
+      try {
+        await cp(MIGRATIONS_DIR, dir, {recursive: true})
+        await rm(join(dir, '0008_explanation_feedback.sql'))
+        await applyMigrations(fresh.sql, pathToFileURL(`${dir}/`))
+      } finally {
+        await rm(dir, {recursive: true, force: true})
+      }
+      // A row in 0001's shape, as a shared database could hold before this migration.
+      await fresh.sql`
+        insert into learner.explanation_log (learner_id, task_id, task_version, lesson_id, rubric_version, response, evaluation_status)
+        values ('user_legacy', 'task', '1', 'lesson', '1', 'legacy text', 'pending')
+      `
+      assert.deepEqual(await applyMigrations(fresh.sql, MIGRATIONS_DIR), ['0008_explanation_feedback.sql'])
+      await assert.rejects(
+        fresh.sql`
+          insert into learner.explanation_log (learner_id, task_id, task_version, lesson_id, rubric_version, response, evaluation_status)
+          values ('user_new', 'task', '1', 'lesson', '1', 'new text in the old shape', 'pending')
+        `,
+        (error: {code?: string}) => error.code === '23514',
+      )
+      const [legacy] = await fresh.sql`select count(*)::int as n from learner.explanation_log`
+      assert.equal(legacy.n, 1)
+    } finally {
+      await fresh.drop()
+    }
   })
 
   it('refuses a migration file that changed after it was applied', async () => {

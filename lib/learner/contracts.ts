@@ -226,6 +226,7 @@ export const LEARNER_ERROR_CODES = [
   'hint_unavailable',
   'already_answered',
   'rate_limited',
+  'explanation_in_progress',
   'unavailable',
   'internal_error',
 ] as const

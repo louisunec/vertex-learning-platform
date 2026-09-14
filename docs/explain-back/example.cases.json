@@ -1,0 +1,86 @@
+[
+  {
+    "id": "accurate",
+    "description": "Both required points in ordinary words; the optional point left out.",
+    "steps": [
+      {
+        "text": "The yeast eats sugar and makes gas, which the gluten holds, so the dough puffs up while it proofs. In the oven the heat sets the crumb, so once baked it cannot rise any more.",
+        "expect": {
+          "criteria": {
+            "c-rise": [
+              "demonstrated"
+            ],
+            "c-set": [
+              "demonstrated"
+            ]
+          },
+          "forbidStatuses": [
+            "contradicted"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "missing-required",
+    "description": "Only the first required point; the second is missing, not contradicted.",
+    "steps": [
+      {
+        "text": "The yeast eats sugar and makes gas, which the gluten holds, so the dough puffs up while it proofs.",
+        "expect": {
+          "criteria": {
+            "c-rise": [
+              "demonstrated"
+            ],
+            "c-set": [
+              "missing"
+            ]
+          },
+          "forbidStatuses": [
+            "contradicted"
+          ],
+          "followUp": "required"
+        }
+      }
+    ]
+  },
+  {
+    "id": "revision-after-feedback",
+    "description": "Step 1 covers one point; step 2 is the learner's revision after reading the feedback. Two steps, so two checks for one case.",
+    "steps": [
+      {
+        "text": "The yeast eats sugar and makes gas, which the gluten holds, so the dough puffs up while it proofs.",
+        "expect": {
+          "criteria": {
+            "c-rise": [
+              "demonstrated"
+            ],
+            "c-set": [
+              "missing"
+            ]
+          },
+          "forbidStatuses": [
+            "contradicted"
+          ],
+          "followUp": "required"
+        }
+      },
+      {
+        "text": "The yeast eats sugar and makes gas, which the gluten holds, so the dough puffs up while it proofs. Baking heat then sets the crumb, so the finished loaf stays the size it is.",
+        "expect": {
+          "criteria": {
+            "c-rise": [
+              "demonstrated"
+            ],
+            "c-set": [
+              "demonstrated"
+            ]
+          },
+          "forbidStatuses": [
+            "contradicted"
+          ]
+        }
+      }
+    ]
+  }
+]
