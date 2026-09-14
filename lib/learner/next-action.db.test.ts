@@ -114,7 +114,8 @@ describe('next actions and learning goals', {skip: SKIP_WITHOUT_DATABASE}, () =>
   after(() => db?.drop())
 
   beforeEach(async () => {
-    // Cascade also empties tables later migrations add that reference these (e.g. review cards and logs).
+    // Cascade also empties later tables that reference these (PR-9's review_log). A table they don't
+    // reference, such as PR-9's review_card, must be listed wherever it exists.
     await db.sql`
       truncate learner.learning_goal, learner.review_session_item, learner.review_session, learner.tutor_request,
                learner.event_outbox, learner.concept_mastery, learner.help_event, learner.attempt_log, learner.task_instance

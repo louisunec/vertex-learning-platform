@@ -248,7 +248,7 @@ Only the integration session changes the preview checkout or restarts `:3000`.
 
 - **The two PR-9 adjustments are now resolved on this branch,** so they need no hand edits after a merge:
   - `readActiveReview` reads focused review's own `findActiveSession`. With PR-9 present, that function defaults to `mode = 'mistakes'`, so a Scheduled session is never presented as practice.
-  - The next-action database test truncates with `cascade`, which also empties PR-9's `review_card` and `review_log`.
+  - The next-action database test truncates with `cascade`. That empties PR-9's `review_log` (it references `attempt_log`) but not `review_card` (it references none of them), so the integration branch lists `learner.review_card` explicitly.
 - **Prepared merge (local branch `integration/pr-11-preview`).** A merge of this branch into preview `b2c409c`, with the textual conflicts resolved:
   - `lib/flags.ts`: keep PR-2's and PR-9's flags, plus PR-11's `nextAction`, `isNextActionEnabled`, and `nextActionCapabilities`.
   - `app/my-learning/page.tsx`: keep both.
@@ -260,6 +260,7 @@ Only the integration session changes the preview checkout or restarts `:3000`.
   - `lib/learner/lesson-check{,-route}.db.test.ts`: the preview's side (the conflict comes only from this branch's pre-PR-9 base merge).
   - `lib/learner/review-session.ts`: PR-9's `findActiveSession` (with `mode`), keeping PR-11's `export` of `readLatestCounted` and `readAnsweredFamilies`.
   - `sanity.types.ts`: git's merge, which carries both PR-2's and PR-11's types. Don't regenerate it from `studio/schema.json`, which lacks PR-2's `videoVisualIndex`.
+  - A follow-up commit on the integration branch adds `learner.review_card` to the next-action test's `truncate`.
 - **Steps for the integration session:**
   1. In `../vertex-my-learning`, run `git merge --ff-only integration/pr-11-preview`. If the preview has moved past `b2c409c`, run `git merge integration/pr-11-preview` instead; the conflicts are already resolved inside it.
   2. Migration `0005_learning_goal.sql` was already applied to `vertex_local` by the PR-11 session, after a schema check and a backup. `npm run db:migrate` should report "Up to date."
