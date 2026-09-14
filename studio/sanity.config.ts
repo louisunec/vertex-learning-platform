@@ -5,6 +5,7 @@ import {structureTool} from 'sanity/structure'
 
 import {gatePublish, publishBlockReason, type PublishBlockReason} from './actions/assessment-publish'
 import {conceptPublishBlockReason, keepUnpublishedDrafts, prerequisitePublishBlockReason} from './actions/concept-publish'
+import {SIGNAL_REVIEW_ACTIONS} from './actions/content-signal-review'
 import {schemaTypes} from './schemaTypes'
 import {structure} from './structure'
 
@@ -15,6 +16,7 @@ const GENERATOR_ONLY_TYPES = new Set([
   'conceptPrerequisite',
   'conceptMergeProposal',
   'conceptGenerationRecord',
+  'contentSignal',
 ])
 
 /** Types whose publish is gated on editorial review. */
@@ -58,12 +60,17 @@ export default defineConfig({
     // Assessments, concepts, prerequisite edges, and their generation records
     // are created only by the generators (`npm run generate:assessments`,
     // `npm run generate:concepts`): each needs server-resolved source chunks,
-    // so a hand-made one could never be published.
+    // so a hand-made one could never be published. Content signals come only
+    // from `npm run signals` (PR-10).
     newDocumentOptions: (prev) => prev.filter((item) => !GENERATOR_ONLY_TYPES.has(item.templateId)),
     // Gated types publish only after review; approved content stays immutable.
     // Scheduling would publish later without the gate. Duplicating would copy
     // source refs and stable ids into an off-scheme document.
     actions: (prev, context) => {
+      // Signals are computed records: reviewed through their own actions, never duplicated or deleted.
+      if (context.schemaType === 'contentSignal') {
+        return [...SIGNAL_REVIEW_ACTIONS, ...prev.filter((action) => !['duplicate', 'delete'].includes(action.action ?? ''))]
+      }
       if (context.schemaType === 'conceptMergeProposal') {
         return prev.filter((action) => !PROPOSAL_REMOVED_ACTIONS.has(action.action ?? ''))
       }

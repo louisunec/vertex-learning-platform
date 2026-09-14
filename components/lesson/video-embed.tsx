@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import posthog from "posthog-js";
 import type { VideoProvider } from "@/lib/video/provider";
+import { SEEK_TRACKING_FLAG, SeekTracker, type Seek } from "@/lib/video/seek";
 import { COMPLETION_MILESTONE, reachedMilestones, type WatchDepthMilestone } from "@/lib/video/watch-depth";
 import { loadYouTubeIframeApi, type YouTubePlayer } from "@/lib/video/youtube-iframe-api";
 import { useLessonPlayer } from "./lesson-player";
@@ -19,6 +20,21 @@ export interface VideoTracking {
   startSource: StartSource;
   /** Signed-in learners only: save the resume position and completion through `/api/progress`. */
   saveProgress: boolean;
+  /** Stable video id (`parseVideoUrl`), so editorial signals key replays by the exact video (PR-10). */
+  videoId: string | null;
+}
+
+/**
+ * Whether this page view reports `video_seeked` (editorial replay signals,
+ * PR-10): the `editorial-signals` flag as posthog-js already loaded it in the
+ * browser. Fails closed when flags have not loaded or PostHog is blocked.
+ */
+function seekTrackingEnabled(): boolean {
+  try {
+    return posthog.isFeatureEnabled(SEEK_TRACKING_FLAG, { send_event: false }) === true;
+  } catch {
+    return false;
+  }
 }
 
 /** Seconds of continuous playback between resume-position saves. */
@@ -49,9 +65,11 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // Refs survive Strict Mode's double effect, keeping each event once per mount.
   const played = useRef(false);
+  // Decided once per view at the first play, and reported on `video_played`, so replay shares use a matching denominator.
+  const seekTracking = useRef<boolean | null>(null);
   const reported = useRef(new Set<WatchDepthMilestone>());
   const bridge = useLessonPlayer();
-  const { provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress } = tracking;
+  const { provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress, videoId } = tracking;
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -66,9 +84,36 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
     const base = {
       lesson_slug: lessonSlug,
       course_slug: courseSlug,
+      lesson_id: lessonId,
+      video_id: videoId,
       provider,
       start_seconds: startSeconds,
       start_source: startSource,
+    };
+    // Seeks versus normal playback and replays (lib/video/seek.ts); citation jumps are labelled, not counted.
+    let seeks: SeekTracker | null = null;
+    const startSeekTracking = () => {
+      seekTracking.current ??= seekTrackingEnabled();
+      if (seekTracking.current) seeks ??= new SeekTracker(() => bridge?.lastPageSeek() ?? null);
+    };
+    const reportSeek = (seek: Seek | null, player: YouTubePlayer) => {
+      if (!seek) return;
+      posthog.capture("video_seeked", {
+        ...base,
+        from_seconds: seek.fromSeconds,
+        to_seconds: seek.toSeconds,
+        seek_kind: seek.kind,
+        seek_origin: seek.origin,
+        duration_seconds: Math.round(player.getDuration()),
+      });
+    };
+    const observeSeek = (player: YouTubePlayer, playing: boolean) => {
+      if (!seeks) return;
+      try {
+        reportSeek(seeks.sample(player.getCurrentTime(), Date.now(), { playing, rate: player.getPlaybackRate() }), player);
+      } catch {
+        // Analytics only; playback is unaffected.
+      }
     };
 
     const stopPolling = () => {
@@ -109,6 +154,7 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
     };
 
     const tick = (player: YouTubePlayer) => {
+      observeSeek(player, true);
       checkDepth(player, false);
       secondsSinceSave += 1;
       if (secondsSinceSave >= PROGRESS_SAVE_INTERVAL_SECONDS) save(player.getCurrentTime());
@@ -130,15 +176,25 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
             onStateChange: ({ target: player, data }) => {
               if (cancelled) return;
               activePlayer = player;
+              // Before the first play the embed reports 0, not the `?t=` or resume start: no baseline yet.
+              if (played.current || data === YT.PlayerState.PLAYING) {
+                startSeekTracking();
+                observeSeek(player, data === YT.PlayerState.PLAYING);
+              }
               if (data === YT.PlayerState.PLAYING) {
                 if (!played.current) {
                   played.current = true;
-                  posthog.capture("video_played", { ...base, duration_seconds: Math.round(player.getDuration()) });
+                  posthog.capture("video_played", {
+                    ...base,
+                    duration_seconds: Math.round(player.getDuration()),
+                    seek_tracking: seekTracking.current === true,
+                  });
                 }
                 timer ??= setInterval(() => tick(player), 1000);
               } else {
                 stopPolling();
                 if (data === YT.PlayerState.ENDED) {
+                  if (seeks) reportSeek(seeks.flush(), player);
                   checkDepth(player, true);
                   save(player.getDuration());
                 } else if (data === YT.PlayerState.PAUSED) {
@@ -160,7 +216,7 @@ export function VideoEmbed({ src, title, tracking }: { src: string; title: strin
       unregister?.();
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress, bridge]);
+  }, [provider, lessonId, lessonSlug, courseSlug, startSeconds, startSource, saveProgress, videoId, bridge]);
 
   return (
     <div className="overflow-hidden rounded-[20px] bg-black shadow-sm">

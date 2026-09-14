@@ -1,0 +1,600 @@
+{
+ "description": "FIXTURE: synthetic PostHog events for PR-10 tests and demonstrations (window 2026-09-07 to 2026-09-14 UTC). Three plays have seek tracking off and stay out of the replay denominator. Not real learner activity; never send these to PostHog or write their signals to production.",
+ "events": [
+  {
+   "uuid": "00000000-0000-4000-8000-000000000001",
+   "event": "video_played",
+   "distinct_id": "fixture-person-01",
+   "timestamp": "2026-09-08T10:01:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000002",
+   "event": "video_played",
+   "distinct_id": "fixture-person-02",
+   "timestamp": "2026-09-08T10:02:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000003",
+   "event": "video_played",
+   "distinct_id": "fixture-person-03",
+   "timestamp": "2026-09-08T10:03:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000004",
+   "event": "video_played",
+   "distinct_id": "fixture-person-04",
+   "timestamp": "2026-09-08T10:04:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000005",
+   "event": "video_played",
+   "distinct_id": "fixture-person-05",
+   "timestamp": "2026-09-08T10:05:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000006",
+   "event": "video_played",
+   "distinct_id": "fixture-person-06",
+   "timestamp": "2026-09-08T10:06:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000007",
+   "event": "video_played",
+   "distinct_id": "fixture-person-07",
+   "timestamp": "2026-09-08T10:07:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000008",
+   "event": "video_played",
+   "distinct_id": "fixture-person-08",
+   "timestamp": "2026-09-08T10:08:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000009",
+   "event": "video_played",
+   "distinct_id": "fixture-person-09",
+   "timestamp": "2026-09-08T10:09:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000010",
+   "event": "video_played",
+   "distinct_id": "fixture-person-10",
+   "timestamp": "2026-09-08T10:10:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": true
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000040",
+   "event": "video_played",
+   "distinct_id": "fixture-person-11",
+   "timestamp": "2026-09-08T11:00:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": false
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000041",
+   "event": "video_played",
+   "distinct_id": "fixture-person-12",
+   "timestamp": "2026-09-08T11:01:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": false
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000042",
+   "event": "video_played",
+   "distinct_id": "fixture-person-13",
+   "timestamp": "2026-09-08T11:02:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "seek_tracking": false
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000011",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-01",
+   "timestamp": "2026-09-08T10:21:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 130,
+    "to_seconds": 96,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000012",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-01",
+   "timestamp": "2026-09-08T10:22:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 131,
+    "to_seconds": 96,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000013",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-01",
+   "timestamp": "2026-09-08T10:23:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 132,
+    "to_seconds": 96,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000014",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-02",
+   "timestamp": "2026-09-08T10:22:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 130,
+    "to_seconds": 97,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000015",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-03",
+   "timestamp": "2026-09-08T10:23:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 130,
+    "to_seconds": 98,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000016",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-04",
+   "timestamp": "2026-09-08T10:24:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 130,
+    "to_seconds": 99,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000017",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-05",
+   "timestamp": "2026-09-08T10:25:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 130,
+    "to_seconds": 100,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000018",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-06",
+   "timestamp": "2026-09-08T10:26:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 130,
+    "to_seconds": 101,
+    "seek_kind": "replay",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000019",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-07",
+   "timestamp": "2026-09-09T10:07:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 300,
+    "to_seconds": 100,
+    "seek_kind": "replay",
+    "seek_origin": "citation"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000020",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-08",
+   "timestamp": "2026-09-09T10:08:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 300,
+    "to_seconds": 100,
+    "seek_kind": "replay",
+    "seek_origin": "citation"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000021",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-09",
+   "timestamp": "2026-09-09T10:09:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 300,
+    "to_seconds": 100,
+    "seek_kind": "replay",
+    "seek_origin": "citation"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000022",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-10",
+   "timestamp": "2026-09-09T10:10:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 300,
+    "to_seconds": 100,
+    "seek_kind": "replay",
+    "seek_origin": "citation"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000023",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-08",
+   "timestamp": "2026-09-09T10:30:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 20,
+    "to_seconds": 200,
+    "seek_kind": "skip",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000024",
+   "event": "video_seeked",
+   "distinct_id": "fixture-person-09",
+   "timestamp": "2026-09-09T10:31:00.000Z",
+   "properties": {
+    "lesson_id": "lesson-hooks",
+    "video_id": "youtube-hooksvideo1",
+    "from_seconds": 500,
+    "to_seconds": 0,
+    "seek_kind": "rewind_far",
+    "seek_origin": "learner"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000025",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-11",
+   "timestamp": "2026-09-10T10:11:00.000Z",
+   "properties": {
+    "outcome": "no_results",
+    "interpretation": "model",
+    "result_count": 0,
+    "terms": [
+     "oauth",
+     "refresh",
+     "rotate",
+     "token"
+    ],
+    "terms_fingerprint": "6f393cd505589a36"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000026",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-12",
+   "timestamp": "2026-09-10T10:12:00.000Z",
+   "properties": {
+    "outcome": "no_results",
+    "interpretation": "model",
+    "result_count": 0,
+    "terms": [
+     "oauth",
+     "refresh",
+     "rotate",
+     "token"
+    ],
+    "terms_fingerprint": "6f393cd505589a36"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000027",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-13",
+   "timestamp": "2026-09-10T10:13:00.000Z",
+   "properties": {
+    "outcome": "no_results",
+    "interpretation": "model",
+    "result_count": 0,
+    "terms": [
+     "oauth",
+     "refresh",
+     "rotate",
+     "token"
+    ],
+    "terms_fingerprint": "6f393cd505589a36"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000028",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-14",
+   "timestamp": "2026-09-10T10:14:00.000Z",
+   "properties": {
+    "outcome": "no_results",
+    "interpretation": "model",
+    "result_count": 0,
+    "terms": [
+     "oauth",
+     "refresh",
+     "rotate",
+     "token"
+    ],
+    "terms_fingerprint": "6f393cd505589a36"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000029",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-15",
+   "timestamp": "2026-09-11T10:15:00.000Z",
+   "properties": {
+    "outcome": "no_results_degraded",
+    "interpretation": "fallback_after_error",
+    "result_count": 0,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000030",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-16",
+   "timestamp": "2026-09-11T10:16:00.000Z",
+   "properties": {
+    "outcome": "no_results_degraded",
+    "interpretation": "fallback_after_error",
+    "result_count": 0,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000031",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-17",
+   "timestamp": "2026-09-11T10:17:00.000Z",
+   "properties": {
+    "outcome": "no_results_degraded",
+    "interpretation": "fallback_after_error",
+    "result_count": 0,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000032",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-18",
+   "timestamp": "2026-09-11T10:18:00.000Z",
+   "properties": {
+    "outcome": "no_results_degraded",
+    "interpretation": "fallback_after_error",
+    "result_count": 0,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000033",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-19",
+   "timestamp": "2026-09-11T10:19:00.000Z",
+   "properties": {
+    "outcome": "no_results_degraded",
+    "interpretation": "fallback_after_error",
+    "result_count": 0,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000034",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-20",
+   "timestamp": "2026-09-11T10:20:00.000Z",
+   "properties": {
+    "outcome": "unavailable",
+    "interpretation": "model",
+    "result_count": null,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000035",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-21",
+   "timestamp": "2026-09-11T10:21:00.000Z",
+   "properties": {
+    "outcome": "unavailable",
+    "interpretation": "model",
+    "result_count": null,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000036",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-22",
+   "timestamp": "2026-09-11T10:22:00.000Z",
+   "properties": {
+    "outcome": "unavailable",
+    "interpretation": "model",
+    "result_count": null,
+    "terms": [
+     "controller",
+     "ingress",
+     "kubernetes"
+    ],
+    "terms_fingerprint": "5595af263efbe285"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000037",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-23",
+   "timestamp": "2026-09-12T10:23:00.000Z",
+   "properties": {
+    "outcome": "results",
+    "interpretation": "model",
+    "result_count": 6,
+    "terms": [
+     "hook",
+     "usestate"
+    ],
+    "terms_fingerprint": "bbb05aeef8361f55"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000038",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-24",
+   "timestamp": "2026-09-12T10:24:00.000Z",
+   "properties": {
+    "outcome": "results",
+    "interpretation": "model",
+    "result_count": 6,
+    "terms": [
+     "hook",
+     "usestate"
+    ],
+    "terms_fingerprint": "bbb05aeef8361f55"
+   }
+  },
+  {
+   "uuid": "00000000-0000-4000-8000-000000000039",
+   "event": "search_outcome",
+   "distinct_id": "fixture-person-25",
+   "timestamp": "2026-09-12T10:25:00.000Z",
+   "properties": {
+    "outcome": "results",
+    "interpretation": "model",
+    "result_count": 6,
+    "terms": [
+     "hook",
+     "usestate"
+    ],
+    "terms_fingerprint": "bbb05aeef8361f55"
+   }
+  }
+ ]
+}

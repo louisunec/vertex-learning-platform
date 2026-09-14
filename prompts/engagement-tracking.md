@@ -1,5 +1,9 @@
 # Engagement tracking: search, playback, resume, completion
 
+> **Amended 2026-09-14 (PR-10, user decision):** `search_performed` and `search_result_clicked` no longer carry `query`. `search_performed` keeps `query_length`, `status`, `result_count`, and `course_count`. `search_result_clicked` keeps `result_type`, `lesson_slug`, `course_slug`, `start_seconds`, and `position`, and gains `query_length`. No code in the repository read `query`. PostHog insights built on it were not checkable without a personal API key. The rest of this record describes the original design.
+>
+> PR-10 also adds `lesson_id` and `video_id` to the player events, and `seek_tracking` to `video_played`.
+
 ## Goal
 
 Add PostHog tracking for the learner features built after the initial analytics setup (`e5f255d`): search performed with a query, search result opened with its result type, video played, watch depth, resume used, and lessons completed. Reuse the existing PostHog setup (client `posthog-js` via `instrumentation-client.ts`, server `getPostHogClient()` inside `after()`) and existing snake_case event conventions. No new analytics model, no new dependencies.

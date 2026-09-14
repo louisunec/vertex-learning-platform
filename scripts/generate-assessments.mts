@@ -15,6 +15,7 @@ import {
   type SectionOutcome,
 } from '../lib/assessments/pipeline.ts'
 import {summarizeCandidates} from '../lib/assessments/quality.ts'
+import {GENERATION_EXISTING_VERSIONS_QUERY, GENERATION_RECORDED_KEYS_QUERY, GENERATION_VIDEO_QUERY} from '../lib/assessments/sources.ts'
 import {parseVideoUrl} from '../lib/video/provider.ts'
 
 /**
@@ -129,21 +130,9 @@ async function generateForLesson(lesson: Lesson): Promise<void> {
     return
   }
   const [video, existing, recordedKeys] = await Promise.all([
-    groq<LessonVideo | null>(
-      '*[_id == $id][0]{_id, durationSeconds, chapters[]{startSeconds, label}, transcriptChunks[]{_key, startSeconds, text}}',
-      {id: parsed.documentId},
-      'published',
-    ),
-    groq<ExistingVersion[] | null>(
-      '*[_type == "assessment" && lesson._ref == $lessonId]{_id, familyId, version, sourceStatus, "spanKey": generation.spanKey, sourceChunkRefs[]{chunkId, chunkRevision}}',
-      {lessonId: lesson._id},
-      'raw',
-    ),
-    groq<string[] | null>(
-      '*[_type == "assessmentGenerationRecord" && lesson._ref == $lessonId].spanKey',
-      {lessonId: lesson._id},
-      'raw',
-    ),
+    groq<LessonVideo | null>(GENERATION_VIDEO_QUERY, {id: parsed.documentId}, 'published'),
+    groq<ExistingVersion[] | null>(GENERATION_EXISTING_VERSIONS_QUERY, {lessonId: lesson._id}, 'raw'),
+    groq<string[] | null>(GENERATION_RECORDED_KEYS_QUERY, {lessonId: lesson._id}, 'raw'),
   ])
 
   const result = await processLesson({

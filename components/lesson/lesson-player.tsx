@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useRef, type ReactNode } from "react";
+import type { ProgrammaticSeek } from "@/lib/video/seek";
 import type { YouTubePlayer } from "@/lib/video/youtube-iframe-api";
 
 /**
@@ -20,6 +21,8 @@ export type LessonPlayer = {
   seekTo(seconds: number): boolean;
   /** Called once playback first reaches the completion milestone (90% or the end). */
   onCompleted(listener: () => void): () => void;
+  /** The last seek this page made (citations), so seek analytics never count it as the learner's (PR-10). */
+  lastPageSeek(): ProgrammaticSeek | null;
 };
 
 const LessonPlayerContext = createContext<LessonPlayer | null>(null);
@@ -27,6 +30,7 @@ const LessonPlayerContext = createContext<LessonPlayer | null>(null);
 export function LessonPlayerProvider({ children }: { children: ReactNode }) {
   const player = useRef<{ player: YouTubePlayer; element: HTMLElement } | null>(null);
   const listeners = useRef(new Set<() => void>());
+  const pageSeek = useRef<ProgrammaticSeek | null>(null);
 
   const value = useMemo<LessonPlayer>(
     () => ({
@@ -52,6 +56,7 @@ export function LessonPlayerProvider({ children }: { children: ReactNode }) {
         const current = player.current;
         if (!current) return false;
         try {
+          pageSeek.current = { seconds, at: Date.now() };
           current.player.seekTo(seconds, true);
           current.player.playVideo();
         } catch {
@@ -64,6 +69,9 @@ export function LessonPlayerProvider({ children }: { children: ReactNode }) {
       onCompleted(listener) {
         listeners.current.add(listener);
         return () => listeners.current.delete(listener);
+      },
+      lastPageSeek() {
+        return pageSeek.current;
       },
     }),
     [],

@@ -23,7 +23,8 @@ export type TestDatabase = {sql: postgres.Sql; url: string; drop(): Promise<void
  * Roles are cluster-wide, and test files migrate their databases in
  * parallel. Creating the app role (and Supabase's Data API roles, so the
  * migration's revoke path runs) up front, with retries, keeps concurrent
- * migrations from racing on role creation and membership.
+ * migrations from racing on role creation and membership (the learner app
+ * role from 0001, the worker role from 0007).
  */
 async function ensureClusterRoles(admin: postgres.Sql): Promise<void> {
   for (let attempt = 1; ; attempt++) {
@@ -33,7 +34,7 @@ async function ensureClusterRoles(admin: postgres.Sql): Promise<void> {
         declare
           name text;
         begin
-          foreach name in array array['vertex_learner_app', 'anon', 'authenticated'] loop
+          foreach name in array array['vertex_learner_app', 'vertex_signals_worker', 'anon', 'authenticated'] loop
             begin
               execute format('create role %I nologin', name);
             exception when duplicate_object or unique_violation then null;
@@ -41,8 +42,10 @@ async function ensureClusterRoles(admin: postgres.Sql): Promise<void> {
           end loop;
           if current_setting('server_version_num')::int >= 160000 then
             execute format('grant vertex_learner_app to %I with set true, inherit false', current_user);
+            execute format('grant vertex_signals_worker to %I with set true, inherit false', current_user);
           else
             execute format('grant vertex_learner_app to %I', current_user);
+            execute format('grant vertex_signals_worker to %I', current_user);
           end if;
         end
         $$;

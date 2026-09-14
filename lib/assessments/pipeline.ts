@@ -148,8 +148,13 @@ export async function processLesson(input: {
   /** Shared across lessons in one run; decremented per model call. */
   budget: {remaining: number}
   now?: () => Date
+  /** Only units it accepts are processed (signal-driven regeneration, PR-10); default all. */
+  unitFilter?: (unit: {kind: GenerationKind; spanIndex: number}) => boolean
+  /** Mark versions whose sources changed as stale (default). Regeneration leaves that to full generator runs. */
+  markStale?: boolean
 }): Promise<LessonResult> {
   const {lesson, video, existing, processedSpanKeys, force, model, generate, budget, now = () => new Date()} = input
+  const {unitFilter = () => true, markStale = true} = input
   const result: LessonResult = {
     transactions: [],
     sections: [],
@@ -163,7 +168,7 @@ export async function processLesson(input: {
   }
 
   const chunks = video ? toSourceChunks(video) : []
-  result.staleIds = findNewlyStale(existing, chunks)
+  result.staleIds = markStale ? findNewlyStale(existing, chunks) : []
   if (result.staleIds.length > 0) {
     result.transactions.push(result.staleIds.map((id) => ({patch: {id, set: {sourceStatus: 'stale' as const}}})))
   }
@@ -194,7 +199,7 @@ export async function processLesson(input: {
     })
   }
 
-  for (const unit of units) {
+  for (const unit of units.filter((entry) => unitFilter({kind: entry.kind, spanIndex: entry.span.index}))) {
     const {kind, span} = unit
     const plan = planGeneration({key: unit.key, familyIds: unit.familyIds, existing, processedKeys: processedSpanKeys, force})
     if (plan.action === 'skip') {
